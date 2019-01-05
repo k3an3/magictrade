@@ -29,3 +29,7 @@ class Position:
 
     def sell(self, quantity):
         self._transact(quantity, 'sell')
+
+    @property
+    def get_value(self) -> float:
+        return self.quantity * self.backend.get_quote(self.symbol)

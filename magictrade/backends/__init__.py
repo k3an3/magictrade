@@ -1,12 +1,18 @@
 from abc import ABC, abstractmethod
-from typing import Tuple
+from typing import Tuple, Any
 
-from magictrade import Position
+
+class InsufficientFundsError(Exception):
+    pass
+
+
+class NonexistentAssetError(Exception):
+    pass
 
 
 class Backend(ABC):
     @abstractmethod
-    def get_quote(self, symbol) -> float:
+    def get_quote(self, symbol: str, date: str) -> float:
         pass
 
     @property
@@ -15,13 +21,14 @@ class Backend(ABC):
         pass
 
     @abstractmethod
-    def options_transact(self, symbol: str, expiration: str, strike: float, quantity: int, mode: str, direction: str) -> Tuple[str, Position]:
+    def options_transact(self, symbol: str, expiration: str, strike: float, quantity: int,
+                         mode: str, direction: str) -> Tuple[str, Any]:
         pass
 
     @abstractmethod
-    def buy(self, symbol: str, quantity: int) -> Tuple[str, Position]:
+    def buy(self, symbol: str, quantity: int) -> Tuple[str, Any]:
         pass
 
     @abstractmethod
-    def sell(self, symbol: str, quantity: int) -> Tuple[str, Position]:
+    def sell(self, symbol: str, quantity: int) -> Tuple[str, Any]:
         pass
