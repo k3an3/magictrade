@@ -10,6 +10,10 @@ class NonexistentAssetError(Exception):
     pass
 
 
+class InvalidOptionError(Exception):
+    pass
+
+
 class Backend(ABC):
     @abstractmethod
     def get_quote(self, symbol: str, date: str) -> float:
@@ -22,7 +26,7 @@ class Backend(ABC):
 
     @abstractmethod
     def options_transact(self, symbol: str, expiration: str, strike: float, quantity: int,
-                         mode: str, direction: str) -> Tuple[str, Any]:
+                         option_type: str, direction: str) -> Tuple[Any, Any]:
         pass
 
     @abstractmethod

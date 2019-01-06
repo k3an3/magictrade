@@ -86,4 +86,4 @@ class TestPaperMoney:
         assert pmb.equities['MSFT'].quantity == 7
         assert pmb.equities['MSFT'].cost == 713.51
         assert pmb.equities['SPY'].quantity == 47
-        assert pmb.equities['SPY'].cost == 11862.33
+        assert round(pmb.equities['SPY'].cost, 2) == 11862.33

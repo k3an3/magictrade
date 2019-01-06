@@ -27,6 +27,7 @@ class PaperMoneyBackend(Backend):
 
     def options_transact(self, symbol: str, expiration: str, strike: float,
                          quantity: int, mode: str, direction: str) -> Tuple[str, Position]:
+
         pass
 
     def buy(self, symbol: str, quantity: int) -> Tuple[str, Position]:
