@@ -26,7 +26,7 @@ class Backend(ABC):
 
     @abstractmethod
     def options_transact(self, symbol: str, expiration: str, strike: float, quantity: int,
-                         option_type: str, direction: str) -> Tuple[Any, Any]:
+                         option_type: str, action: str) -> Tuple[Any, Any]:
         pass
 
     @abstractmethod

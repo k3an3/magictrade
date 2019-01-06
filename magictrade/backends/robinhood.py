@@ -20,8 +20,9 @@ class RobinhoodBackend(Backend):
         return float(Account.all(self.client)["results"][0]["margin_balances"]["cash"])
 
     def options_transact(self, symbol: str, expiration: str, strike: float, quantity: int, option_type: str,
-                         direction: str) -> Tuple[Any, Any]:
-        if option_type not in ('call', 'put') or direction not in ('credit', 'debit'):
+                         action: str = 'buy', effect: str = 'open') -> Tuple[Any, Any]:
+        if option_type not in ('call', 'put') or action not in ('buy', 'sell') \
+                or effect not in ('open', 'close'):
             raise InvalidOptionError()
 
         stock = Stock.fetch(self.client, symbol)
@@ -34,18 +35,26 @@ class RobinhoodBackend(Backend):
 
         for op in ops:
             if op["strike_price"] == "{:.4f}".format(strike):
-                option_to_buy = op
+                option_to_trade = op
                 break
 
-        option_to_buy = Option.mergein_marketdata_list(self.client, [option_to_buy])[0]
+        option_to_trade = Option.mergein_marketdata_list(self.client, [option_to_trade])[0]
+
+        if action == 'buy' and effect == 'open':
+            direction = 'debit'
+            price = option_to_trade["bid_price"]
+        elif action == 'sell' and effect == 'close':
+            direction = 'credit'
+            price = option_to_trade["ask_price"]
+        else:
+            raise NotImplementedError()
+
         legs = [{
-            "side": "buy",
-            "option": option_to_buy["url"],
-            "position_effect": "open",
+            "side": action,
+            "option": option_to_trade["url"],
+            "position_effect": effect,
             "ratio_quantity": 1
         }]
-
-        price = option_to_buy["bid_price"]
 
         oo = OptionOrder.submit(self.client, direction, legs,
                                 price, quantity, "gfd", "immediate", "limit")
