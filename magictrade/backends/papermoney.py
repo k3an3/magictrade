@@ -31,35 +31,52 @@ class PaperMoneyBackend(Backend):
         return self._balance
 
     def options_transact(self, symbol: str, expiration: str, strike: float,
-                         quantity: int, option_type: str, direction: str) -> Tuple[str, Position]:
-
-        if option_type not in ('call', 'put') or direction not in ('credit', 'debit'):
+                         quantity: int, option_type: str, action: str = 'buy',
+                         effect: str = 'open') -> Tuple[str, Position]:
+        if option_type not in ('call', 'put') or action not in ('buy', 'sell') \
+                or effect not in ('open', 'close'):
             raise InvalidOptionError()
 
-        stock = Stock.fetch(self.client, symbol)
+        if self.data:
+            price = self.data[symbol]["Options"][expiration][option_type][strike]
+        else:
+            stock = Stock.fetch(self.client, symbol)
 
-        oc = OptionChain.fetch(self.client, stock["id"], symbol)
-        if expiration not in oc['expiration_dates']:
-            raise InvalidOptionError()
-        ops = Option.in_chain(self.client, oc["id"], expiration_dates=[expiration])
-        ops = list(filter(lambda x: x["type"] == option_type, ops))
+            oc = OptionChain.fetch(self.client, stock["id"], symbol)
+            if expiration not in oc['expiration_dates']:
+                raise InvalidOptionError()
+            ops = Option.in_chain(self.client, oc["id"], expiration_dates=[expiration])
+            ops = list(filter(lambda x: x["type"] == option_type, ops))
 
-        for op in ops:
-            if op["strike_price"] == "{:.4f}".format(strike):
-                option_to_buy = op
-                break
+            for op in ops:
+                if op["strike_price"] == "{:.4f}".format(strike):
+                    option_to_trade = op
+                    break
 
-        option_to_buy = Option.mergein_marketdata_list(self.client, [option_to_buy])[0]
-        legs = [{
-            "side": "buy",
-            "option": option_to_buy["url"],
-            "position_effect": "open",
-            "ratio_quantity": 1
-        }]
+            option_to_trade = Option.mergein_marketdata_list(self.client, [option_to_trade])[0]
 
-        price = option_to_buy["bid_price"]
+            if action == 'buy' and effect == 'open':
+                price = option_to_trade["bid_price"]
+            elif action == 'sell' and effect == 'close':
+                price = option_to_trade["ask_price"]
+            else:
+                raise NotImplementedError()
 
-        tPosition(symbol, price * 100, quantity, self, option_type, strike, expiration)
+        if action == 'buy' and self.balance - price < 0:
+            raise InsufficientFundsError()
+        p = self.options.get('{}:{}:{}'.format(symbol, expiration, strike))
+        if not p:
+            p = Position(symbol, price * 100, quantity, self, option_type, strike, expiration)
+            self.options['{}:{}:{}'.format(symbol, expiration, strike)] = p
+        else:
+            if effect == 'open':
+                p.quantity += quantity
+                p.cost += price * 100
+            else:
+                p.quantity -= quantity
+                p.cost -= price * 100
+        self._balance -= price * 100 * (-1 if effect == 'close' else 1)
+        return 'success', p
 
     def buy(self, symbol: str, quantity: int) -> Tuple[str, Position]:
         debit = self.get_quote(symbol) * quantity

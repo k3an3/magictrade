@@ -1,6 +1,9 @@
 import json
 import os
 
+import pytest
+
+from magictrade.backends import InsufficientFundsError, NonexistentAssetError
 from magictrade.backends.papermoney import PaperMoneyBackend
 
 "3KODWEPB1ZR37OT7"
@@ -19,6 +22,36 @@ quotes = {
             "09. change": "8.1800",
             "10. change percent": "3.3496%"
         },
+        "Options": {
+            '2019-07-04': {
+                'call': {
+                    249.5: 10.58,
+                    250.0: 10.37,
+                    250.5: 10.14,
+                    251.0: 10.01,
+                },
+                'put': {
+                    249.5: 8.47,
+                    250.0: 9.00,
+                    250.5: 9.25,
+                    251.0: 10.02,
+                }
+            },
+            '2019-07-11': {
+                'call': {
+                    249.5: 11.42,
+                    250.0: 11.07,
+                    250.5: 10.84,
+                    251.0: 10.51,
+                },
+                'put': {
+                    249.5: 10.17,
+                    250.0: 10.68,
+                    250.5: 10.98,
+                    251.0: 11.92,
+                }
+            }
+        }
     },
     'MSFT': {
         "Global Quote": {
@@ -36,7 +69,7 @@ quotes = {
     },
 }
 
-with open(os.path.join('tests', 'data', 'SPY_5min_intraday.json')) as f:
+with open(os.path.join(os.path.dirname(__file__), 'data', 'SPY_5min_intraday.json')) as f:
     dataset1 = json.loads(f.read())
 
 
@@ -87,3 +120,25 @@ class TestPaperMoney:
         assert pmb.equities['MSFT'].cost == 713.51
         assert pmb.equities['SPY'].quantity == 47
         assert round(pmb.equities['SPY'].cost, 2) == 11862.33
+
+    def test_exceeds_balance(self):
+        pmb = PaperMoneyBackend(balance=100, data=quotes)
+        with pytest.raises(InsufficientFundsError):
+            pmb.buy('SPY', 1)
+
+    def test_exceeds_holdings(self):
+        pmb = PaperMoneyBackend(data=quotes)
+        pmb.buy('SPY', 1)
+        with pytest.raises(NonexistentAssetError):
+            pmb.sell('SPY', 2)
+
+    def test_sell_no_holdings(self):
+        pmb = PaperMoneyBackend(data=quotes)
+        with pytest.raises(NonexistentAssetError):
+            pmb.sell('SPY', 1)
+
+    def test_buy_option(self):
+        pmb = PaperMoneyBackend(data=quotes)
+        pmb.options_transact('SPY', '2019-07-04', 250.0, 10, 'call')
+        assert pmb.balance == 989630.0
+        assert pmb.options['SPY:2019-04-04:250.0'].quantity == 10

@@ -19,8 +19,9 @@ class RobinhoodBackend(Backend):
     def balance(self) -> float:
         return float(Account.all(self.client)["results"][0]["margin_balances"]["cash"])
 
-    def options_transact(self, symbol: str, expiration: str, strike: float, quantity: int, option_type: str,
-                         action: str = 'buy', effect: str = 'open') -> Tuple[Any, Any]:
+    def options_transact(self, symbol: str, expiration: str, strike: float,
+                         quantity: int, option_type: str, action: str = 'buy',
+                         effect: str = 'open') -> Tuple[Any, Any]:
         if option_type not in ('call', 'put') or action not in ('buy', 'sell') \
                 or effect not in ('open', 'close'):
             raise InvalidOptionError()
