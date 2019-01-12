@@ -18,7 +18,7 @@ class InvalidOptionError(Exception):
 
 class Broker(ABC):
     @abstractmethod
-    def get_quote(self, symbol: str, date: str) -> float:
+    def get_quote(self, symbol: str) -> float:
         pass
 
     @property
@@ -28,7 +28,11 @@ class Broker(ABC):
 
     @property
     @abstractmethod
-    def balance(self) -> float:
+    def cash_balance(self) -> float:
+        pass
+
+    @abstractmethod
+    def get_value(self) -> float:
         pass
 
     @abstractmethod
@@ -47,4 +51,4 @@ class Broker(ABC):
     def log_balance(self):
         from magictrade import storage
         storage.rpush(self.account_id + ':dates', datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        storage.rpush(self.account_id + ':values', self.balance)
+        storage.rpush(self.account_id + ':values', self.cash_balance)

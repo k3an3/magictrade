@@ -1,30 +1,25 @@
-import json
-import os
-
 import pytest
 
 from magictrade import storage
 from magictrade.broker import InsufficientFundsError, NonexistentAssetError
 from magictrade.broker.papermoney import PaperMoneyBroker
+from magictrade.strategy.buyandhold import BuyandHoldStrategy
 from magictrade.utils import get_account_history
 
 "3KODWEPB1ZR37OT7"
 
 quotes = {
     'SPY': {
-        "Global Quote": {
-            "01. symbol": "SPY",
-            "02. open": "247.5900",
-            "03. high": "253.1100",
-            "04. low": "247.1700",
-            "05. price": "252.3900",
-            "06. volume": "142628834",
-            "07. latest trading day": "2019-01-04",
-            "08. previous close": "244.2100",
-            "09. change": "8.1800",
-            "10. change percent": "3.3496%"
+        "price": 252.3900,
+        "history": {
+            '2019-01-01': 255.55,
+            '2019-01-02': 254.87,
+            '2019-01-03': 253.26,
+            '2019-01-04': 256.01,
+            '2019-01-05': 253.11,
         },
-        "Options": {
+        "volume": 142628834,
+        "options": {
             '2019-07-04': {
                 'call': {
                     249.5: 10.58,
@@ -56,47 +51,30 @@ quotes = {
         }
     },
     'MSFT': {
-        "Global Quote": {
-            "01. symbol": "MSFT",
-            "02. open": "99.7200",
-            "03. high": "102.5100",
-            "04. low": "98.9300",
-            "05. price": "101.9300",
-            "06. volume": "44060620",
-            "07. latest trading day": "2019-01-04",
-            "08. previous close": "97.4000",
-            "09. change": "4.5300",
-            "10. change percent": "4.6509%"
-        },
+        "price": 101.9300,
     },
 }
-
-with open(os.path.join(os.path.dirname(__file__), 'data', 'SPY_5min_intraday.json')) as f:
-    dataset1 = json.loads(f.read())
 
 
 class TestPaperMoney:
     def test_default_balance(self):
         pmb = PaperMoneyBroker()
-        assert pmb.balance == 1_000_000
+        assert pmb.cash_balance == 1_000_000
 
     def test_balance(self):
         pmb = PaperMoneyBroker(balance=12_345)
-        assert pmb.balance == 12_345
+        assert pmb.cash_balance == 12_345
 
     def test_quote(self):
         pmb = PaperMoneyBroker(data=quotes)
         assert pmb.get_quote('SPY') == 252.39
-
-    def test_intraday_price(self):
-        pmb = PaperMoneyBroker(data={'SPY': dataset1})
-        assert pmb.get_quote('SPY', '2019-01-04 12:20:00') == 251.375
 
     def test_purchase_equity(self):
         pmb = PaperMoneyBroker(data=quotes)
         pmb.buy('SPY', 100)
         assert pmb.equities['SPY'].quantity == 100
         assert pmb.equities['SPY'].cost == 25_239
+        assert pmb.cash_balance == 974_761
 
     def test_sell_equity(self):
         pmb = PaperMoneyBroker(data=quotes)
@@ -104,6 +82,7 @@ class TestPaperMoney:
         pmb.sell('SPY', 100)
         assert pmb.equities['SPY'].quantity == 0
         assert pmb.equities['SPY'].cost == 0
+        assert pmb.cash_balance == 1_000_000
 
     def test_sell_equity_2(self):
         pmb = PaperMoneyBroker(data=quotes)
@@ -142,7 +121,7 @@ class TestPaperMoney:
     def test_buy_option(self):
         pmb = PaperMoneyBroker(data=quotes)
         pmb.options_transact('SPY', '2019-07-04', 250.0, 10, 'call')
-        assert pmb.balance == 989_630.0
+        assert pmb.cash_balance == 989_630.0
         assert pmb.options['SPY:2019-07-04:250.0c'].quantity == 10
         assert round(pmb.options['SPY:2019-07-04:250.0c'].cost) == 10_370
 
@@ -150,7 +129,7 @@ class TestPaperMoney:
         pmb = PaperMoneyBroker(data=quotes)
         pmb.options_transact('SPY', '2019-07-04', 250.0, 10, 'call')
         pmb.options_transact('SPY', '2019-07-04', 250.0, 10, 'call')
-        assert pmb.balance == 979_260.0
+        assert pmb.cash_balance == 979_260.0
         assert pmb.options['SPY:2019-07-04:250.0c'].quantity == 20
         assert round(pmb.options['SPY:2019-07-04:250.0c'].cost) == 20_740
 
@@ -158,7 +137,7 @@ class TestPaperMoney:
         pmb = PaperMoneyBroker(data=quotes)
         pmb.options_transact('SPY', '2019-07-04', 250.0, 10, 'call')
         pmb.options_transact('SPY', '2019-07-11', 249.5, 5, 'put')
-        assert pmb.balance == 984545
+        assert pmb.cash_balance == 984545
         assert pmb.options['SPY:2019-07-04:250.0c'].quantity == 10
         assert pmb.options['SPY:2019-07-11:249.5p'].quantity == 5
         assert round(pmb.options['SPY:2019-07-04:250.0c'].cost) == 10_370
@@ -169,7 +148,7 @@ class TestPaperMoney:
         pmb.options_transact('SPY', '2019-07-04', 250.0, 10, 'call')
         pmb.options_transact('SPY', '2019-07-04', 250.0, 10, 'call',
                              action='sell', effect='close')
-        assert pmb.balance == 1_000_000
+        assert pmb.cash_balance == 1_000_000
         assert pmb.options['SPY:2019-07-04:250.0c'].quantity == 0
         assert pmb.options['SPY:2019-07-04:250.0c'].cost == 0
 
@@ -178,9 +157,32 @@ class TestPaperMoney:
         pmb.options_transact('SPY', '2019-07-04', 250.0, 10, 'call')
         pmb.options_transact('SPY', '2019-07-04', 250.0, 5, 'call',
                              action='sell', effect='close')
-        assert pmb.balance == 994_815
+        assert pmb.cash_balance == 994_815
         assert pmb.options['SPY:2019-07-04:250.0c'].quantity == 5
         assert round(pmb.options['SPY:2019-07-04:250.0c'].cost) == 5_185
+
+    def test_value(self):
+        pmb = PaperMoneyBroker(data=quotes)
+        pmb.buy('SPY', 100)
+        assert pmb.equities['SPY'].value == 25_239
+
+    def test_historic_quote(self):
+        pmb = PaperMoneyBroker(date='2019-01-03', data=quotes)
+        assert pmb.get_quote('SPY') == 253.26
+
+    def test_historic_quote_1(self):
+        pmb = PaperMoneyBroker(date='2019-01-03', data=quotes)
+        pmb.date = '2019-01-04'
+        assert pmb.get_quote('SPY') == 256.01
+
+    def test_time_buy_sell(self):
+        pmb = PaperMoneyBroker(date='2019-01-01', data=quotes)
+        pmb.buy('SPY', 100)
+        assert pmb.equities['SPY'].value == 25_555
+        pmb.date = '2019-01-04'
+        assert pmb.equities['SPY'].value == 25_601
+        pmb.sell('SPY', 100)
+        assert pmb.cash_balance == 1_000_046
 
 
 class TestLogging:
@@ -211,3 +213,23 @@ class TestLogging:
         assert h[2] == 1_234
         storage.delete('test:dates')
         storage.delete('test:values')
+
+
+class TestStrategy:
+    def test_buy_and_hold(self):
+        pmb = PaperMoneyBroker(data=quotes)
+        ts = BuyandHoldStrategy(pmb)
+        assert ts.make_trade('SPY')
+        assert pmb.equities['SPY'].quantity == 3962
+
+    def test_buy_and_hold_1(self):
+        pmb = PaperMoneyBroker(data=quotes)
+        ts = BuyandHoldStrategy(pmb)
+        ts.make_trade('SPY')
+        assert not ts.make_trade('SPY')
+
+    def test_buy_and_hold_fail(self):
+        pmb = PaperMoneyBroker(balance=100, data=quotes)
+        ts = BuyandHoldStrategy(pmb)
+        assert not ts.make_trade('SPY')
+        assert not pmb.equities.get('SPY')

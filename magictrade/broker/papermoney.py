@@ -1,4 +1,5 @@
-from typing import Tuple, Dict
+import os
+from typing import Tuple, Dict, List
 
 from fast_arrow import Client, StockMarketdata, Stock, OptionChain, Option
 
@@ -8,32 +9,40 @@ from magictrade.broker import Broker, InsufficientFundsError, NonexistentAssetEr
 
 class PaperMoneyBroker(Broker):
     def __init__(self, balance: int = 1_000_000, data: Dict = {},
-                 account_id: str = None, api_key: str = None):
+                 account_id: str = None, date: str = None, data_files: List[Tuple[str, str]] = []):
         self._balance = balance
         self.equities = {}
         self.options = {}
+        self.date = date
         self.data = data
-        self.api_key = api_key
+        if not data:
+            for df in data_files:
+                data[df[0]] = {}
+                d = data[df[0]]
+                with open(os.path.join(os.path.dirname(__file__), 'data', df[1])) as f:
+                    for line in f:
+                        date, price = line.split(',')
+                        d[date] = float(price)
         self.client = Client()
         self._account_id = account_id
+
+    def get_value(self) -> float:
+        pass
 
     @property
     def account_id(self) -> str:
         return self._account_id
 
-    def get_quote(self, symbol: str, date: str = None) -> float:
+    def get_quote(self, symbol: str) -> float:
         if self.data:
-            if date:
-                for key in self.data.get(symbol):
-                    if "Time Series" in key:
-                        return float(self.data.get(symbol)[key][date]['1. open'])
-            else:
-                return float(self.data.get(symbol)['Global Quote']['05. price'])
+            if self.date:
+                return self.data[symbol]['history'][self.date]
+            return self.data[symbol]['price']
         else:
             return float(StockMarketdata.quote_by_symbol(self.client, symbol)['last_trade_price'])
 
     @property
-    def balance(self) -> float:
+    def cash_balance(self) -> float:
         return self._balance
 
     @staticmethod
@@ -50,7 +59,7 @@ class PaperMoneyBroker(Broker):
             raise InvalidOptionError()
 
         if self.data:
-            price = self.data[symbol]["Options"][expiration][option_type][strike]
+            price = self.data[symbol]["options"][expiration][option_type][strike]
         else:
             stock = Stock.fetch(self.client, symbol)
 
@@ -74,7 +83,7 @@ class PaperMoneyBroker(Broker):
             else:
                 raise NotImplementedError()
 
-        if action == 'buy' and self.balance - price < 0:
+        if action == 'buy' and self.cash_balance - price < 0:
             raise InsufficientFundsError()
         option = self._format_option(symbol, expiration, strike, option_type)
         p = self.options.get(option)
@@ -94,7 +103,7 @@ class PaperMoneyBroker(Broker):
 
     def buy(self, symbol: str, quantity: int) -> Tuple[str, Position]:
         debit = self.get_quote(symbol) * quantity
-        if self.balance - debit < 0:
+        if self.cash_balance - debit < 0:
             raise InsufficientFundsError()
         self._balance -= debit
         if self.equities.get(symbol):
@@ -109,7 +118,9 @@ class PaperMoneyBroker(Broker):
         if not position or position.quantity < quantity:
             raise NonexistentAssetError()
         credit = self.get_quote(symbol) * quantity
-        self._balance -= credit
+        self._balance += credit
         position.quantity -= quantity
         position.cost -= credit
+        if position.cost < 0:
+            position.cost == 0
         return 'success', position

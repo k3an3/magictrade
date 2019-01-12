@@ -15,15 +15,18 @@ class RobinhoodBroker(Broker):
         self.client.authenticate()
         self._account_id = Account.all(self.client)[0]['account_number']
 
-    def get_quote(self, symbol: str, date: str) -> float:
+    def get_quote(self, symbol: str) -> float:
         return float(StockMarketdata.quote_by_symbol(self.client, symbol)['last_trade_price'])
 
     @property
     def account_id(self) -> str:
         return self._account_id
 
+    def get_value(self) -> float:
+        raise NotImplementedError()
+
     @property
-    def balance(self) -> float:
+    def cash_balance(self) -> float:
         return float(Account.all(self.client)[0]["margin_balances"]["cash"])
 
     def options_transact(self, symbol: str, expiration: str, strike: float,
