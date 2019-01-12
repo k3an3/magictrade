@@ -3,8 +3,8 @@ import os
 
 import pytest
 
-from magictrade.backends import InsufficientFundsError, NonexistentAssetError
-from magictrade.backends.papermoney import PaperMoneyBackend
+from magictrade.broker import InsufficientFundsError, NonexistentAssetError
+from magictrade.broker.papermoney import PaperMoneyBroker
 
 "3KODWEPB1ZR37OT7"
 
@@ -75,43 +75,43 @@ with open(os.path.join(os.path.dirname(__file__), 'data', 'SPY_5min_intraday.jso
 
 class TestPaperMoney:
     def test_default_balance(self):
-        pmb = PaperMoneyBackend()
+        pmb = PaperMoneyBroker()
         assert pmb.balance == 1_000_000
 
     def test_balance(self):
-        pmb = PaperMoneyBackend(balance=12345)
+        pmb = PaperMoneyBroker(balance=12345)
         assert pmb.balance == 12345
 
     def test_quote(self):
-        pmb = PaperMoneyBackend(data=quotes)
+        pmb = PaperMoneyBroker(data=quotes)
         assert pmb.get_quote('SPY') == 252.39
 
     def test_intraday_price(self):
-        pmb = PaperMoneyBackend(data={'SPY': dataset1})
+        pmb = PaperMoneyBroker(data={'SPY': dataset1})
         assert pmb.get_quote('SPY', '2019-01-04 12:20:00') == 251.375
 
     def test_purchase_equity(self):
-        pmb = PaperMoneyBackend(data=quotes)
+        pmb = PaperMoneyBroker(data=quotes)
         pmb.buy('SPY', 100)
         assert pmb.equities['SPY'].quantity == 100
         assert pmb.equities['SPY'].cost == 25_239
 
     def test_sell_equity(self):
-        pmb = PaperMoneyBackend(data=quotes)
+        pmb = PaperMoneyBroker(data=quotes)
         pmb.buy('SPY', 100)
         pmb.sell('SPY', 100)
         assert pmb.equities['SPY'].quantity == 0
         assert pmb.equities['SPY'].cost == 0
 
     def test_sell_equity_2(self):
-        pmb = PaperMoneyBackend(data=quotes)
+        pmb = PaperMoneyBroker(data=quotes)
         pmb.buy('SPY', 100)
         pmb.sell('SPY', 50)
         assert pmb.equities['SPY'].quantity == 50
         assert round(pmb.equities['SPY'].cost, 2) == 25239 / 2
 
     def test_buy_sell_multiple(self):
-        pmb = PaperMoneyBackend(data=quotes)
+        pmb = PaperMoneyBroker(data=quotes)
         pmb.buy('MSFT', 12)
         pmb.buy('SPY', 97)
         pmb.sell('MSFT', 5)
@@ -122,23 +122,60 @@ class TestPaperMoney:
         assert round(pmb.equities['SPY'].cost, 2) == 11862.33
 
     def test_exceeds_balance(self):
-        pmb = PaperMoneyBackend(balance=100, data=quotes)
+        pmb = PaperMoneyBroker(balance=100, data=quotes)
         with pytest.raises(InsufficientFundsError):
             pmb.buy('SPY', 1)
 
     def test_exceeds_holdings(self):
-        pmb = PaperMoneyBackend(data=quotes)
+        pmb = PaperMoneyBroker(data=quotes)
         pmb.buy('SPY', 1)
         with pytest.raises(NonexistentAssetError):
             pmb.sell('SPY', 2)
 
     def test_sell_no_holdings(self):
-        pmb = PaperMoneyBackend(data=quotes)
+        pmb = PaperMoneyBroker(data=quotes)
         with pytest.raises(NonexistentAssetError):
             pmb.sell('SPY', 1)
 
     def test_buy_option(self):
-        pmb = PaperMoneyBackend(data=quotes)
+        pmb = PaperMoneyBroker(data=quotes)
         pmb.options_transact('SPY', '2019-07-04', 250.0, 10, 'call')
         assert pmb.balance == 989630.0
-        assert pmb.options['SPY:2019-04-04:250.0'].quantity == 10
+        assert pmb.options['SPY:2019-07-04:250.0c'].quantity == 10
+        assert round(pmb.options['SPY:2019-07-04:250.0c'].cost) == 10370
+
+    def test_buy_option_1(self):
+        pmb = PaperMoneyBroker(data=quotes)
+        pmb.options_transact('SPY', '2019-07-04', 250.0, 10, 'call')
+        pmb.options_transact('SPY', '2019-07-04', 250.0, 10, 'call')
+        assert pmb.balance == 979260.0
+        assert pmb.options['SPY:2019-07-04:250.0c'].quantity == 20
+        assert round(pmb.options['SPY:2019-07-04:250.0c'].cost) == 20740
+
+    def test_buy_option_2(self):
+        pmb = PaperMoneyBroker(data=quotes)
+        pmb.options_transact('SPY', '2019-07-04', 250.0, 10, 'call')
+        pmb.options_transact('SPY', '2019-07-11', 249.5, 5, 'put')
+        assert pmb.balance == 984545
+        assert pmb.options['SPY:2019-07-04:250.0c'].quantity == 10
+        assert pmb.options['SPY:2019-07-11:249.5p'].quantity == 5
+        assert round(pmb.options['SPY:2019-07-04:250.0c'].cost) == 10370
+        assert round(pmb.options['SPY:2019-07-11:249.5p'].cost) == 5085
+
+    def test_sell_option(self):
+        pmb = PaperMoneyBroker(data=quotes)
+        pmb.options_transact('SPY', '2019-07-04', 250.0, 10, 'call')
+        pmb.options_transact('SPY', '2019-07-04', 250.0, 10, 'call',
+                             action='sell', effect='close')
+        assert pmb.balance == 1_000_000
+        assert pmb.options['SPY:2019-07-04:250.0c'].quantity == 0
+        assert pmb.options['SPY:2019-07-04:250.0c'].cost == 0
+
+    def test_sell_option_1(self):
+        pmb = PaperMoneyBroker(data=quotes)
+        pmb.options_transact('SPY', '2019-07-04', 250.0, 10, 'call')
+        pmb.options_transact('SPY', '2019-07-04', 250.0, 5, 'call',
+                             action='sell', effect='close')
+        assert pmb.balance == 994_815
+        assert pmb.options['SPY:2019-07-04:250.0c'].quantity == 5
+        assert round(pmb.options['SPY:2019-07-04:250.0c'].cost) == 5185

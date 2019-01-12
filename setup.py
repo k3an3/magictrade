@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name='magictrade',
     version='0.1',
-    packages=['magictrade', 'magictrade.backends'],
+    packages=['magictrade', 'magictrade.broker'],
     url='',
     license='',
     author="Keane O'Kelley",
@@ -11,6 +11,7 @@ setup(
     description='',
     install_requires=[
         'pytest',
+        'redis',
     ],
     dependency_links=[
         'https://github.com/KloudTrader/paperbroker#egg=paperbroker',

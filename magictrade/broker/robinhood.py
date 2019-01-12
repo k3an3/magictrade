@@ -1,23 +1,29 @@
 from typing import Tuple, Any
 
-from fast_arrow import Client, Stock, StockMarketdata, OptionChain, Option, OptionOrder
-from paperbroker.accounts import Account
+from fast_arrow import Client, Stock, StockMarketdata, OptionChain, Option, OptionOrder, User
+from fast_arrow.resources.account import Account
 
-from magictrade import Backend, Position
-from magictrade.backends import InvalidOptionError
+from magictrade import Broker, Position
+from magictrade.broker import InvalidOptionError
 
 
-class RobinhoodBackend(Backend):
-    def __init__(self, username: str, password: str, mfa_token: str = None):
-        self.client = Client(username, password, mfa_token)
+class RobinhoodBroker(Broker):
+    def __init__(self, username: str, password: str, mfa_code: str = None):
+        self.client = Client(username=username,
+                             password=password,
+                             mfa_code=mfa_code)
         self.client.authenticate()
+        self.account_id = Account.all(self.client)[0]['account_number']
 
     def get_quote(self, symbol: str, date: str) -> float:
         return float(StockMarketdata.quote_by_symbol(self.client, symbol)['last_trade_price'])
 
+    def get_account_id(self) -> str:
+        return self.account_id
+
     @property
-    def balance(self) -> float:
-        return float(Account.all(self.client)["results"][0]["margin_balances"]["cash"])
+    def get_balance(self) -> float:
+        return float(Account.all(self.client)[0]["margin_balances"]["cash"])
 
     def options_transact(self, symbol: str, expiration: str, strike: float,
                          quantity: int, option_type: str, action: str = 'buy',

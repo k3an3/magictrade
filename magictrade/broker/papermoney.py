@@ -3,17 +3,22 @@ from typing import Tuple, Dict
 from fast_arrow import Client, StockMarketdata, Stock, OptionChain, Option
 
 from magictrade import Position
-from magictrade.backends import Backend, InsufficientFundsError, NonexistentAssetError, InvalidOptionError
+from magictrade.broker import Broker, InsufficientFundsError, NonexistentAssetError, InvalidOptionError
 
 
-class PaperMoneyBackend(Backend):
-    def __init__(self, balance: int = 1_000_000, data: Dict = {}, api_key: str = None):
+class PaperMoneyBroker(Broker):
+    def __init__(self, balance: int = 1_000_000, data: Dict = {},
+                 account_id: str = None, api_key: str = None):
         self._balance = balance
         self.equities = {}
         self.options = {}
         self.data = data
         self.api_key = api_key
         self.client = Client()
+        self.account_id = account_id
+
+    def get_account_id(self) -> str:
+        return self.account_id
 
     def get_quote(self, symbol: str, date: str = None) -> float:
         if self.data:
@@ -27,8 +32,14 @@ class PaperMoneyBackend(Backend):
             return float(StockMarketdata.quote_by_symbol(self.client, symbol)['last_trade_price'])
 
     @property
-    def balance(self) -> float:
+    def get_balance(self) -> float:
         return self._balance
+
+    @staticmethod
+    def _format_option(symbol: str, expiration: str,
+                       strike: float, option_type: str):
+        return '{}:{}:{}{}'.format(symbol, expiration, strike,
+                                   'c' if option_type == 'call' else 'p')
 
     def options_transact(self, symbol: str, expiration: str, strike: float,
                          quantity: int, option_type: str, action: str = 'buy',
@@ -64,18 +75,20 @@ class PaperMoneyBackend(Backend):
 
         if action == 'buy' and self.balance - price < 0:
             raise InsufficientFundsError()
-        p = self.options.get('{}:{}:{}'.format(symbol, expiration, strike))
+        option = self._format_option(symbol, expiration, strike, option_type)
+        p = self.options.get(option)
+        price = price * quantity * 100
         if not p:
-            p = Position(symbol, price * 100, quantity, self, option_type, strike, expiration)
-            self.options['{}:{}:{}'.format(symbol, expiration, strike)] = p
+            p = Position(symbol, price, quantity, self, option_type, strike, expiration)
+            self.options[option] = p
         else:
             if effect == 'open':
                 p.quantity += quantity
-                p.cost += price * 100
+                p.cost += price
             else:
                 p.quantity -= quantity
-                p.cost -= price * 100
-        self._balance -= price * 100 * (-1 if effect == 'close' else 1)
+                p.cost -= price
+        self._balance -= price * (-1 if effect == 'close' else 1)
         return 'success', p
 
     def buy(self, symbol: str, quantity: int) -> Tuple[str, Position]:

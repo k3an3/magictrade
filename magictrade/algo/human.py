@@ -1,6 +1,6 @@
 from typing import Dict
 
-from magictrade.algos import TradingAlgo
+from magictrade.algo import TradingAlgo
 
 DEFAULT_CONFIG = {
     'security_type': 'option',

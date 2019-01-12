@@ -14,14 +14,18 @@ class InvalidOptionError(Exception):
     pass
 
 
-class Backend(ABC):
+class Broker(ABC):
     @abstractmethod
     def get_quote(self, symbol: str, date: str) -> float:
         pass
 
+    @abstractmethod
+    def get_account_id(self) -> str:
+        pass
+
     @property
     @abstractmethod
-    def balance(self) -> float:
+    def get_balance(self) -> float:
         pass
 
     @abstractmethod

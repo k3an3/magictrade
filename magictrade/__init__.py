@@ -1,10 +1,12 @@
 import datetime
 
-from magictrade.backends import Backend
+from magictrade.broker import Broker
+
+#storage = redis.StrictRedis(db=0, decode_responses=True)
 
 
 class Position:
-    def __init__(self, symbol: str, cost: float, quantity: int, backend: Backend, type: str = "equity",
+    def __init__(self, symbol: str, cost: float, quantity: int, backend: Broker, type: str = "equity",
                  strike: float = None, exp_date: str = None):
         self.symbol = symbol
         self.cost = cost
