@@ -22,7 +22,7 @@ class RobinhoodBroker(Broker):
         return self.account_id
 
     @property
-    def get_balance(self) -> float:
+    def balance(self) -> float:
         return float(Account.all(self.client)[0]["margin_balances"]["cash"])
 
     def options_transact(self, symbol: str, expiration: str, strike: float,

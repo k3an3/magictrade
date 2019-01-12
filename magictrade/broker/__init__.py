@@ -25,7 +25,7 @@ class Broker(ABC):
 
     @property
     @abstractmethod
-    def get_balance(self) -> float:
+    def balance(self) -> float:
         pass
 
     @abstractmethod

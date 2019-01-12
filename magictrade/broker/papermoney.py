@@ -32,7 +32,7 @@ class PaperMoneyBroker(Broker):
             return float(StockMarketdata.quote_by_symbol(self.client, symbol)['last_trade_price'])
 
     @property
-    def get_balance(self) -> float:
+    def balance(self) -> float:
         return self._balance
 
     @staticmethod
