@@ -1,6 +1,9 @@
 from math import floor
 from typing import Dict
 
+import numpy as np
+from scipy.stats import linregress
+
 from magictrade import Broker, storage
 from magictrade.strategy import TradingStrategy
 
@@ -42,6 +45,17 @@ class HumanTradingStrategy(TradingStrategy):
                 self.broker.sell(symbol, p.quantity)
                 storage.incr('sell')
 
-    def get_slope(self, symbol: str) -> float:
+    @staticmethod
+    def get_slope(symbol: str) -> float:
+        h = [float(s) for s in storage.lrange(symbol, 0, -1)]
+        return linregress(range(len(h)), h).slope
+
+    @staticmethod
+    def get_slope2(symbol: str) -> float:
         h = [float(s) for s in storage.lrange(symbol, 0, -1)]
         return (h[-1] - h[0]) / len(h)
+
+    @staticmethod
+    def get_percentage_change(start: float, end: float) -> float:
+        chg = end - start
+        return chg / start * 100

@@ -13,6 +13,7 @@ setup(
         'matplotlib',
         'pytest',
         'redis',
+        'scipy',
     ],
     dependency_links=[
         'https://github.com/KloudTrader/paperbroker#egg=paperbroker',

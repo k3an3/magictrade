@@ -4,6 +4,7 @@ from magictrade import storage
 from magictrade.broker import InsufficientFundsError, NonexistentAssetError
 from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.strategy.buyandhold import BuyandHoldStrategy
+from magictrade.strategy.human import HumanTradingStrategy
 from magictrade.utils import get_account_history
 
 "3KODWEPB1ZR37OT7"
@@ -238,3 +239,18 @@ class TestStrategy:
         ts = BuyandHoldStrategy(pmb)
         assert not ts.make_trade('SPY')
         assert not pmb.stocks.get('SPY')
+
+    def test_get_slope(self):
+        storage.delete('test')
+        storage.rpush('test', )
+        assert HumanTradingStrategy.get_slope('test')
+        storage.delete('test')
+
+    def test_get_percentage_change(self):
+        assert HumanTradingStrategy.get_percentage_change(100, 200) == 100
+
+    def test_get_percentage_change_1(self):
+        assert round(HumanTradingStrategy.get_percentage_change(100, 100.57), 2) == 0.57
+
+    def test_get_percentage_change_2(self):
+        assert HumanTradingStrategy.get_percentage_change(100, 50) == -50

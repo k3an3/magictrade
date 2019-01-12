@@ -11,7 +11,7 @@ parser = argparse.ArgumentParser(description='Plot results of trading algorithms
 parser.add_argument('-m', dest='momentum', type=float)
 args = parser.parse_args()
 
-for i in [x * 0.01 for x in range(0, 100)]:
+for i in [x * 0.05 for x in range(0, 100)]:
 
     CONFIG = {
         'security_type': 'stock',
