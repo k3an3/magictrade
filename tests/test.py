@@ -72,24 +72,24 @@ class TestPaperMoney:
     def test_purchase_equity(self):
         pmb = PaperMoneyBroker(data=quotes)
         pmb.buy('SPY', 100)
-        assert pmb.equities['SPY'].quantity == 100
-        assert pmb.equities['SPY'].cost == 25_239
+        assert pmb.stocks['SPY'].quantity == 100
+        assert pmb.stocks['SPY'].cost == 25_239
         assert pmb.cash_balance == 974_761
 
     def test_sell_equity(self):
         pmb = PaperMoneyBroker(data=quotes)
         pmb.buy('SPY', 100)
         pmb.sell('SPY', 100)
-        assert pmb.equities['SPY'].quantity == 0
-        assert pmb.equities['SPY'].cost == 0
+        assert pmb.stocks['SPY'].quantity == 0
+        assert pmb.stocks['SPY'].cost == 0
         assert pmb.cash_balance == 1_000_000
 
     def test_sell_equity_2(self):
         pmb = PaperMoneyBroker(data=quotes)
         pmb.buy('SPY', 100)
         pmb.sell('SPY', 50)
-        assert pmb.equities['SPY'].quantity == 50
-        assert round(pmb.equities['SPY'].cost, 2) == 25_239 / 2
+        assert pmb.stocks['SPY'].quantity == 50
+        assert round(pmb.stocks['SPY'].cost, 2) == 25_239 / 2
 
     def test_buy_sell_multiple(self):
         pmb = PaperMoneyBroker(data=quotes)
@@ -97,10 +97,10 @@ class TestPaperMoney:
         pmb.buy('SPY', 97)
         pmb.sell('MSFT', 5)
         pmb.sell('SPY', 50)
-        assert pmb.equities['MSFT'].quantity == 7
-        assert pmb.equities['MSFT'].cost == 713.51
-        assert pmb.equities['SPY'].quantity == 47
-        assert round(pmb.equities['SPY'].cost, 2) == 11_862.33
+        assert pmb.stocks['MSFT'].quantity == 7
+        assert pmb.stocks['MSFT'].cost == 713.51
+        assert pmb.stocks['SPY'].quantity == 47
+        assert round(pmb.stocks['SPY'].cost, 2) == 11_862.33
 
     def test_exceeds_balance(self):
         pmb = PaperMoneyBroker(balance=100, data=quotes)
@@ -164,7 +164,7 @@ class TestPaperMoney:
     def test_holding_value(self):
         pmb = PaperMoneyBroker(data=quotes)
         pmb.buy('SPY', 100)
-        assert pmb.equities['SPY'].value == 25_239
+        assert pmb.stocks['SPY'].value == 25_239
 
     def test_account_value(self):
         pmb = PaperMoneyBroker(data=quotes)
@@ -183,9 +183,9 @@ class TestPaperMoney:
     def test_time_buy_sell(self):
         pmb = PaperMoneyBroker(date='2019-01-01', data=quotes)
         pmb.buy('SPY', 100)
-        assert pmb.equities['SPY'].value == 25_555
+        assert pmb.stocks['SPY'].value == 25_555
         pmb.date = '2019-01-04'
-        assert pmb.equities['SPY'].value == 25_601
+        assert pmb.stocks['SPY'].value == 25_601
         pmb.sell('SPY', 100)
         assert pmb.cash_balance == 1_000_046
 
@@ -225,7 +225,7 @@ class TestStrategy:
         pmb = PaperMoneyBroker(data=quotes)
         ts = BuyandHoldStrategy(pmb)
         assert ts.make_trade('SPY')
-        assert pmb.equities['SPY'].quantity == 3962
+        assert pmb.stocks['SPY'].quantity == 3962
 
     def test_buy_and_hold_1(self):
         pmb = PaperMoneyBroker(data=quotes)
@@ -237,4 +237,4 @@ class TestStrategy:
         pmb = PaperMoneyBroker(balance=100, data=quotes)
         ts = BuyandHoldStrategy(pmb)
         assert not ts.make_trade('SPY')
-        assert not pmb.equities.get('SPY')
+        assert not pmb.stocks.get('SPY')

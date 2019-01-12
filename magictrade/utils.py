@@ -24,7 +24,7 @@ def reset_plot():
     rcParams.update(rcParamsDefault)
 
     # Adjust a few parameters to liking
-#    rcParams['figure.figsize'] = (8, 5)
+    rcParams['figure.figsize'] = (8, 5)
     rcParams['axes.labelsize'] = 10
     rcParams['xtick.labelsize'] = 8
     rcParams['ytick.labelsize'] = 8
@@ -43,6 +43,7 @@ def plot_account_balances(account_ids: List[str], graph_ticks: int = 30) -> None
     colors = ['r', 'b', 'g', 'y', 'c', 'm']
 
     for i, dv in enumerate([get_account_history(a) for a in account_ids]):
+        plt.figure("Magictrade")
         plt.style.use('fivethirtyeight')
         plt.plot(dv[0], dv[1], color=colors[i], linewidth=3, label=account_ids[i], alpha=0.8)
         plt.xlabel('Date')

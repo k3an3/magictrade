@@ -11,7 +11,7 @@ class PaperMoneyBroker(Broker):
     def __init__(self, balance: int = 1_000_000, data: Dict = {},
                  account_id: str = None, date: str = None, data_files: List[Tuple[str, str]] = []):
         self._balance = balance
-        self.equities = {}
+        self.stocks = {}
         self.options = {}
         self.date = date
         self.data = data
@@ -28,8 +28,8 @@ class PaperMoneyBroker(Broker):
 
     def get_value(self) -> float:
         value = self.cash_balance
-        for equity in self.equities:
-            value += self.equities[equity]  .value
+        for equity in self.stocks:
+            value += self.stocks[equity]  .value
         return value
 
     @property
@@ -109,15 +109,15 @@ class PaperMoneyBroker(Broker):
         if self.cash_balance - debit < 0:
             raise InsufficientFundsError()
         self._balance -= debit
-        if self.equities.get(symbol):
-            self.equities[symbol].quantity += quantity
-            self.equities[symbol].cost += quantity
+        if self.stocks.get(symbol):
+            self.stocks[symbol].quantity += quantity
+            self.stocks[symbol].cost += quantity
         else:
-            self.equities[symbol] = Position(symbol, debit, quantity, self)
-        return 'success', self.equities[symbol]
+            self.stocks[symbol] = Position(symbol, debit, quantity, self)
+        return 'success', self.stocks[symbol]
 
     def sell(self, symbol: str, quantity: int) -> Tuple[str, Position]:
-        position = self.equities.get(symbol)
+        position = self.stocks.get(symbol)
         if not position or position.quantity < quantity:
             raise NonexistentAssetError()
         credit = self.get_quote(symbol) * quantity
