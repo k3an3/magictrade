@@ -13,13 +13,14 @@ class RobinhoodBroker(Broker):
                              password=password,
                              mfa_code=mfa_code)
         self.client.authenticate()
-        self.account_id = Account.all(self.client)[0]['account_number']
+        self._account_id = Account.all(self.client)[0]['account_number']
 
     def get_quote(self, symbol: str, date: str) -> float:
         return float(StockMarketdata.quote_by_symbol(self.client, symbol)['last_trade_price'])
 
-    def get_account_id(self) -> str:
-        return self.account_id
+    @property
+    def account_id(self) -> str:
+        return self._account_id
 
     @property
     def balance(self) -> float:

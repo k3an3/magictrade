@@ -3,8 +3,10 @@ import os
 
 import pytest
 
+from magictrade import storage
 from magictrade.broker import InsufficientFundsError, NonexistentAssetError
 from magictrade.broker.papermoney import PaperMoneyBroker
+from magictrade.utils import get_account_history
 
 "3KODWEPB1ZR37OT7"
 
@@ -79,8 +81,8 @@ class TestPaperMoney:
         assert pmb.balance == 1_000_000
 
     def test_balance(self):
-        pmb = PaperMoneyBroker(balance=12345)
-        assert pmb.balance == 12345
+        pmb = PaperMoneyBroker(balance=12_345)
+        assert pmb.balance == 12_345
 
     def test_quote(self):
         pmb = PaperMoneyBroker(data=quotes)
@@ -108,7 +110,7 @@ class TestPaperMoney:
         pmb.buy('SPY', 100)
         pmb.sell('SPY', 50)
         assert pmb.equities['SPY'].quantity == 50
-        assert round(pmb.equities['SPY'].cost, 2) == 25239 / 2
+        assert round(pmb.equities['SPY'].cost, 2) == 25_239 / 2
 
     def test_buy_sell_multiple(self):
         pmb = PaperMoneyBroker(data=quotes)
@@ -119,7 +121,7 @@ class TestPaperMoney:
         assert pmb.equities['MSFT'].quantity == 7
         assert pmb.equities['MSFT'].cost == 713.51
         assert pmb.equities['SPY'].quantity == 47
-        assert round(pmb.equities['SPY'].cost, 2) == 11862.33
+        assert round(pmb.equities['SPY'].cost, 2) == 11_862.33
 
     def test_exceeds_balance(self):
         pmb = PaperMoneyBroker(balance=100, data=quotes)
@@ -140,17 +142,17 @@ class TestPaperMoney:
     def test_buy_option(self):
         pmb = PaperMoneyBroker(data=quotes)
         pmb.options_transact('SPY', '2019-07-04', 250.0, 10, 'call')
-        assert pmb.balance == 989630.0
+        assert pmb.balance == 989_630.0
         assert pmb.options['SPY:2019-07-04:250.0c'].quantity == 10
-        assert round(pmb.options['SPY:2019-07-04:250.0c'].cost) == 10370
+        assert round(pmb.options['SPY:2019-07-04:250.0c'].cost) == 10_370
 
     def test_buy_option_1(self):
         pmb = PaperMoneyBroker(data=quotes)
         pmb.options_transact('SPY', '2019-07-04', 250.0, 10, 'call')
         pmb.options_transact('SPY', '2019-07-04', 250.0, 10, 'call')
-        assert pmb.balance == 979260.0
+        assert pmb.balance == 979_260.0
         assert pmb.options['SPY:2019-07-04:250.0c'].quantity == 20
-        assert round(pmb.options['SPY:2019-07-04:250.0c'].cost) == 20740
+        assert round(pmb.options['SPY:2019-07-04:250.0c'].cost) == 20_740
 
     def test_buy_option_2(self):
         pmb = PaperMoneyBroker(data=quotes)
@@ -159,8 +161,8 @@ class TestPaperMoney:
         assert pmb.balance == 984545
         assert pmb.options['SPY:2019-07-04:250.0c'].quantity == 10
         assert pmb.options['SPY:2019-07-11:249.5p'].quantity == 5
-        assert round(pmb.options['SPY:2019-07-04:250.0c'].cost) == 10370
-        assert round(pmb.options['SPY:2019-07-11:249.5p'].cost) == 5085
+        assert round(pmb.options['SPY:2019-07-04:250.0c'].cost) == 10_370
+        assert round(pmb.options['SPY:2019-07-11:249.5p'].cost) == 5_085
 
     def test_sell_option(self):
         pmb = PaperMoneyBroker(data=quotes)
@@ -178,4 +180,34 @@ class TestPaperMoney:
                              action='sell', effect='close')
         assert pmb.balance == 994_815
         assert pmb.options['SPY:2019-07-04:250.0c'].quantity == 5
-        assert round(pmb.options['SPY:2019-07-04:250.0c'].cost) == 5185
+        assert round(pmb.options['SPY:2019-07-04:250.0c'].cost) == 5_185
+
+
+class TestLogging:
+    def test_account_history(self):
+        storage.delete('test:dates')
+        storage.delete('test:values')
+        pmb = PaperMoneyBroker(account_id='test')
+        pmb.log_balance()
+        _, h = get_account_history(pmb.account_id)
+        assert len(h) == 1
+        assert h[0] == 1_000_000
+        storage.delete('test:dates')
+        storage.delete('test:values')
+
+    def test_account_history_1(self):
+        storage.delete('test:dates')
+        storage.delete('test:values')
+        pmb = PaperMoneyBroker(account_id='test')
+        pmb.log_balance()
+        pmb._balance = 5_000_000
+        pmb.log_balance()
+        pmb._balance = 1_234
+        pmb.log_balance()
+        _, h = get_account_history(pmb.account_id)
+        assert len(h) == 3
+        assert h[0] == 1_000_000
+        assert h[1] == 5_000_000
+        assert h[2] == 1_234
+        storage.delete('test:dates')
+        storage.delete('test:values')

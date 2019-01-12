@@ -1,6 +1,6 @@
 from typing import Dict
 
-from magictrade.algo import TradingAlgo
+from magictrade.strategy import TradingStrategy
 
 DEFAULT_CONFIG = {
     'security_type': 'option',
@@ -9,7 +9,7 @@ DEFAULT_CONFIG = {
 }
 
 
-class HumanTradingAlgo(TradingAlgo):
+class HumanTradingStrategy(TradingStrategy):
     def __init__(self, config: Dict):
         self.config = DEFAULT_CONFIG.update(config)
 

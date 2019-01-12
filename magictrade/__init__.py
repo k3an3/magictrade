@@ -1,8 +1,10 @@
 import datetime
 
+import redis
+
 from magictrade.broker import Broker
 
-#storage = redis.StrictRedis(db=0, decode_responses=True)
+storage = redis.StrictRedis(decode_responses=True)
 
 
 class Position:

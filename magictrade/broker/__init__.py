@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Tuple, Any
 
+import datetime
+
 
 class InsufficientFundsError(Exception):
     pass
@@ -19,8 +21,9 @@ class Broker(ABC):
     def get_quote(self, symbol: str, date: str) -> float:
         pass
 
+    @property
     @abstractmethod
-    def get_account_id(self) -> str:
+    def account_id(self) -> str:
         pass
 
     @property
@@ -40,3 +43,8 @@ class Broker(ABC):
     @abstractmethod
     def sell(self, symbol: str, quantity: int) -> Tuple[str, Any]:
         pass
+
+    def log_balance(self):
+        from magictrade import storage
+        storage.rpush(self.account_id + ':dates', datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        storage.rpush(self.account_id + ':values', self.balance)

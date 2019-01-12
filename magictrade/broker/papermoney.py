@@ -15,10 +15,11 @@ class PaperMoneyBroker(Broker):
         self.data = data
         self.api_key = api_key
         self.client = Client()
-        self.account_id = account_id
+        self._account_id = account_id
 
-    def get_account_id(self) -> str:
-        return self.account_id
+    @property
+    def account_id(self) -> str:
+        return self._account_id
 
     def get_quote(self, symbol: str, date: str = None) -> float:
         if self.data:

@@ -10,8 +10,9 @@ setup(
     author_email='keane.m.okelley@gmail.com',
     description='',
     install_requires=[
+        'matplotlib',
         'pytest',
-        'redis',
+        'redis', 'numpy'
     ],
     dependency_links=[
         'https://github.com/KloudTrader/paperbroker#egg=paperbroker',
