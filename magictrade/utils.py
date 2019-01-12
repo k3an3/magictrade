@@ -1,4 +1,4 @@
-import random
+import argparse
 from typing import List, Tuple
 
 import matplotlib.pyplot as plt
@@ -8,7 +8,11 @@ from magictrade import storage
 
 
 def plot_cli():
-    plot_account_balances(['test'])
+    parser = argparse.ArgumentParser(description='Plot results of trading algorithms.')
+    parser.add_argument('account_ids', metavar='id', nargs='+',
+                        help='Display graphs for these account IDs in the database.')
+    args = parser.parse_args()
+    plot_account_balances(args.account_ids)
 
 
 # Shamelessly ripped from https://github.com/WillKoehrsen/Data-Analysis/blob/master/stocker/stocker.py; MIT licensed
@@ -18,7 +22,7 @@ def reset_plot():
     rcParams.update(rcParamsDefault)
 
     # Adjust a few parameters to liking
-    rcParams['figure.figsize'] = (8, 5)
+#    rcParams['figure.figsize'] = (8, 5)
     rcParams['axes.labelsize'] = 10
     rcParams['xtick.labelsize'] = 8
     rcParams['ytick.labelsize'] = 8
@@ -42,7 +46,11 @@ def plot_account_balances(account_ids: List[str]) -> None:
         plt.xlabel('Date')
         plt.xticks(dv[0], rotation='vertical')
         plt.ylabel('USD')
-        plt.title('Strategy Comparison {} to {}'.format(dv[0][0], dv[0][-1]))
+        try:
+            plt.title('Strategy Comparison {} to {}'.format(dv[0][0], dv[0][-1]))
+        except IndexError:
+            print("Warning: there was no data for account '{}'. Skipping...".format(account_ids[i]))
+            continue
         plt.legend(prop={'size': 10})
         plt.grid(color='k', alpha=0.4)
 
@@ -50,11 +58,4 @@ def plot_account_balances(account_ids: List[str]) -> None:
 
 
 if __name__ == "__main__":
-    storage.delete('test:values')
-    storage.delete('test:dates')
-    for i in range(100):
-        storage.rpush('test:values', 1_000_000 + random.randint(0, 10_000))
-        storage.rpush('test:dates', i)
     plot_cli()
-    storage.delete('test:values')
-    storage.delete('test:dates')
