@@ -17,9 +17,9 @@ class PaperMoneyBroker(Broker):
         self.data = data
         if not data:
             for df in data_files:
-                data[df[0]] = {}
-                d = data[df[0]]
-                with open(os.path.join(os.path.dirname(__file__), 'data', df[1])) as f:
+                data[df[0]] = {'history': {}}
+                d = data[df[0]]['history']
+                with open(os.path.join(os.path.dirname(__file__), '..', '..', 'tests', 'data', df[1])) as f:
                     for line in f:
                         date, price = line.split(',')
                         d[date] = float(price)
@@ -27,7 +27,10 @@ class PaperMoneyBroker(Broker):
         self._account_id = account_id
 
     def get_value(self) -> float:
-        pass
+        value = self.cash_balance
+        for equity in self.equities:
+            value += self.equities[equity]  .value
+        return value
 
     @property
     def account_id(self) -> str:

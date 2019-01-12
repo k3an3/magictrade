@@ -48,7 +48,7 @@ class Broker(ABC):
     def sell(self, symbol: str, quantity: int) -> Tuple[str, Any]:
         pass
 
-    def log_balance(self):
+    def log_balance(self, date: str = None):
         from magictrade import storage
-        storage.rpush(self.account_id + ':dates', datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        storage.rpush(self.account_id + ':values', self.cash_balance)
+        storage.rpush(self.account_id + ':dates', date or datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        storage.rpush(self.account_id + ':values', self.get_value())

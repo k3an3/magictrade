@@ -2,7 +2,7 @@ import argparse
 from typing import List, Tuple
 
 import matplotlib.pyplot as plt
-from matplotlib import rcParamsDefault, rcParams
+from matplotlib import rcParamsDefault, rcParams, pyplot
 
 from magictrade import storage
 
@@ -11,8 +11,10 @@ def plot_cli():
     parser = argparse.ArgumentParser(description='Plot results of trading algorithms.')
     parser.add_argument('account_ids', metavar='id', nargs='+',
                         help='Display graphs for these account IDs in the database.')
+    parser.add_argument('-t', '--ticks', dest='ticks', type=int,
+                        help='How many ticks to display on the x-axis.')
     args = parser.parse_args()
-    plot_account_balances(args.account_ids)
+    plot_account_balances(args.account_ids, args.ticks)
 
 
 # Shamelessly ripped from https://github.com/WillKoehrsen/Data-Analysis/blob/master/stocker/stocker.py; MIT licensed
@@ -35,7 +37,7 @@ def get_account_history(account_id: str) -> Tuple[List[str], List[float]]:
            [float(v) for v in storage.lrange(account_id + ":values", 0, -1)]
 
 
-def plot_account_balances(account_ids: List[str]) -> None:
+def plot_account_balances(account_ids: List[str], graph_ticks: int = 30) -> None:
     reset_plot()
 
     colors = ['r', 'b', 'g', 'y', 'c', 'm']
@@ -46,6 +48,7 @@ def plot_account_balances(account_ids: List[str]) -> None:
         plt.xlabel('Date')
         plt.xticks(dv[0], rotation='vertical')
         plt.ylabel('USD')
+        pyplot.locator_params(axis='x', nbins=graph_ticks)
         try:
             plt.title('Strategy Comparison {} to {}'.format(dv[0][0], dv[0][-1]))
         except IndexError:

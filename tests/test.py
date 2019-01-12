@@ -161,10 +161,15 @@ class TestPaperMoney:
         assert pmb.options['SPY:2019-07-04:250.0c'].quantity == 5
         assert round(pmb.options['SPY:2019-07-04:250.0c'].cost) == 5_185
 
-    def test_value(self):
+    def test_holding_value(self):
         pmb = PaperMoneyBroker(data=quotes)
         pmb.buy('SPY', 100)
         assert pmb.equities['SPY'].value == 25_239
+
+    def test_account_value(self):
+        pmb = PaperMoneyBroker(data=quotes)
+        pmb.buy('SPY', 100)
+        assert pmb.get_value() == 1_000_000
 
     def test_historic_quote(self):
         pmb = PaperMoneyBroker(date='2019-01-03', data=quotes)
