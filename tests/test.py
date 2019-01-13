@@ -56,6 +56,18 @@ quotes = {
     },
 }
 
+human_quotes_1 = {
+    'TST': {
+        'history': {
+            1: 250,
+            2: 251,
+            3: 252,
+            4: 253,
+            5: 254,
+        }
+    }
+}
+
 
 class TestPaperMoney:
     def test_default_balance(self):
@@ -81,8 +93,7 @@ class TestPaperMoney:
         pmb = PaperMoneyBroker(data=quotes)
         pmb.buy('SPY', 100)
         pmb.sell('SPY', 100)
-        assert pmb.stocks['SPY'].quantity == 0
-        assert pmb.stocks['SPY'].cost == 0
+        assert not pmb.stocks.get('SPY')
         assert pmb.cash_balance == 1_000_000
 
     def test_sell_equity_2(self):
@@ -221,7 +232,7 @@ class TestLogging:
         storage.delete('test:values')
 
 
-class TestStrategy:
+class TestBAHStrategy:
     def test_buy_and_hold(self):
         pmb = PaperMoneyBroker(data=quotes)
         ts = BuyandHoldStrategy(pmb)
@@ -240,12 +251,8 @@ class TestStrategy:
         assert not ts.make_trade('SPY')
         assert not pmb.stocks.get('SPY')
 
-    def test_get_slope(self):
-        storage.delete('test')
-        storage.rpush('test', )
-        assert HumanTradingStrategy.get_slope('test')
-        storage.delete('test')
 
+class TestHumanStrategy:
     def test_get_percentage_change(self):
         assert HumanTradingStrategy.get_percentage_change(100, 200) == 100
 

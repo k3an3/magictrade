@@ -24,7 +24,7 @@ def reset_plot():
     rcParams.update(rcParamsDefault)
 
     # Adjust a few parameters to liking
-    rcParams['figure.figsize'] = (8, 5)
+    rcParams['figure.figsize'] = (20, 10)
     rcParams['axes.labelsize'] = 10
     rcParams['xtick.labelsize'] = 8
     rcParams['ytick.labelsize'] = 8

@@ -1,3 +1,4 @@
+
 import argparse
 from datetime import datetime, timedelta
 
@@ -5,11 +6,12 @@ from magictrade import storage
 from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.strategy.buyandhold import BuyandHoldStrategy
 from magictrade.strategy.human import HumanTradingStrategy
-from magictrade.utils import plot_account_balances
 
 parser = argparse.ArgumentParser(description='Plot results of trading algorithms.')
 parser.add_argument('-m', dest='momentum', type=float)
 args = parser.parse_args()
+
+storage.flushdb()
 
 for i in [x * 0.05 for x in range(0, 100)]:
 
@@ -22,7 +24,7 @@ for i in [x * 0.05 for x in range(0, 100)]:
         'sample_frequency_minutes': 5,
         'stop_loss_percent': 10,
         'stop_loss_take_gain_percent': 20,
-        'max_equity': 1_000_000,
+        'max_equity': 100_000_000,
     }
 
 
@@ -32,20 +34,14 @@ for i in [x * 0.05 for x in range(0, 100)]:
 
     date = datetime.strptime('1998-01-02', '%Y-%m-%d')
     date = datetime.strptime('2019-01-07 09:31:00', '%Y-%m-%d %H:%M:%S')
-    storage.delete("Buy and Hold:dates")
-    storage.delete("Buy and Hold:values")
-    storage.delete("Human:dates")
-    storage.delete("Human:values")
-    storage.delete("SPY")
-    storage.delete("buy")
-    storage.delete("sell")
+
     pmb1 = PaperMoneyBroker(date=date_fmt(date),
                             account_id='Buy and Hold',
-                            data_files=(('SPY', 'SPY_1min_1_11_19.csv'),))
+                            data_files=(('SPY', 'SPY_1min_1_7-11_19.csv'),))
                             #data_files=(('SPY', 'SPY_daily_20yr.csv'),))
     pmb2 = PaperMoneyBroker(date=date_fmt(date),
-                            account_id='Human',
-                            data_files=(('SPY', 'SPY_1min_1_11_19.csv'),))
+                            account_id='Human' + str(i),
+                            data_files=(('SPY', 'SPY_1min_1_7-11_19.csv'),))
                             #data_files=(('SPY', 'SPY_daily_20yr.csv'),))
 
     bhs = BuyandHoldStrategy(pmb1)
@@ -63,4 +59,3 @@ for i in [x * 0.05 for x in range(0, 100)]:
 
     print("{}: {} buys, {} sells".format(i, storage.get('buy'), storage.get('sell')))
     print("Using {}, got bah {} and hts {}".format(round(i, 2), pmb1.get_value(), pmb2.get_value()))
-    plot_account_balances([pmb1.account_id, pmb2.account_id])

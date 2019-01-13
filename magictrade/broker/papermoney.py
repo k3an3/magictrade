@@ -124,6 +124,7 @@ class PaperMoneyBroker(Broker):
         self._balance += credit
         position.quantity -= quantity
         position.cost -= credit
-        if position.cost < 0:
-            position.cost == 0
+        if position.quantity == 0:
+            del self.stocks[symbol]
+            position = None
         return 'success', position

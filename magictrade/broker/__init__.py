@@ -1,3 +1,4 @@
+import os
 from abc import ABC, abstractmethod
 from typing import Tuple, Any
 
@@ -50,5 +51,10 @@ class Broker(ABC):
 
     def log_balance(self, date: str = None):
         from magictrade import storage
-        storage.rpush(self.account_id + ':dates', date or datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        storage.rpush(self.account_id + ':values', self.get_value())
+        date = date or datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        value = self.get_value()
+        storage.rpush(self.account_id + ':dates', date)
+        storage.rpush(self.account_id + ':values', value)
+        filename = self.account_id + ".log"
+        with open(os.path.join('logs', filename), 'a' if os.path.exists(filename) else 'w') as f:
+            f.write("{},{}\n".format(date, value))

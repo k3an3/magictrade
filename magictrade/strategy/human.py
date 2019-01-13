@@ -1,7 +1,7 @@
+import sys
 from math import floor
 from typing import Dict
 
-import numpy as np
 from scipy.stats import linregress
 
 from magictrade import Broker, storage
@@ -12,10 +12,11 @@ DEFAULT_CONFIG = {
     'exp_days': 30,  # options
     'strike_dist': 5,  # options
     'momentum_slope': 0.20,
-    'momentum_window_samples': 10,
+    'momentum_window': 10,
+    'peak_window': 30,
     'sample_frequency_minutes': 5,
     'stop_loss_percent': 10,
-    'stop_loss_take_gain_percent': 20,
+    'take_gain_percent': 20,
     'max_equity': 1_000_000,
 }
 
@@ -26,12 +27,33 @@ class HumanTradingStrategy(TradingStrategy):
         self.config = {}
         self.config.update(DEFAULT_CONFIG)
         self.config.update(config)
+        self.min = 0
+        self.max = 0
 
     def make_trade(self, symbol: str):
         q = self.broker.get_quote(symbol)
         storage.rpush(symbol, q)
-        if storage.llen(symbol) > self.config['stop_loss_percent']:
-            storage.lpop(symbol)
+        if self.config['security_type'] == 'option':
+            raise NotImplementedError()
+        else:
+            p = self.broker.stocks.get(symbol)
+        # Update min/max values
+        if q > self.max:
+            self.max = q
+        elif q < self.min or self.min == 0:
+            self.min = q
+        # Already bought, decide whether to sell
+        if p:
+            chg_since_buy = self.get_percentage_change(p.cost, p.value)
+            if chg_since_buy <= -1 * self.config['stop_loss_percent']:
+                self.broker.sell(symbol, p.quantity)
+            elif chg_since_buy >= self.config['take_gain_percent']:
+                # Mark that the minimum gain threshold has been crossed
+                p.above_min_gain = True
+            elif chg_since_buy < self.config['take_gain_percent'] and p.above_min_gain:
+                # We went above a threshold but dropped below it again; sell
+                self.broker.sell(symbol, p.quantity)
+
         slope = self.get_slope(symbol)
         # Buy trigger
         if slope >= self.config['momentum_slope']:
