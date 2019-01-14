@@ -1,6 +1,7 @@
 import os
 from typing import Tuple, Dict, List
 
+import datetime
 from fast_arrow import Client, StockMarketdata, Stock, OptionChain, Option
 
 from magictrade import Position
@@ -13,7 +14,7 @@ class PaperMoneyBroker(Broker):
         self._balance = balance
         self.stocks = {}
         self.options = {}
-        self.date = date
+        self._date = date
         self.data = data
         if not data:
             for df in data_files:
@@ -33,12 +34,20 @@ class PaperMoneyBroker(Broker):
         return value
 
     @property
+    def date(self) -> str:
+        return self._date or datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    @date.setter
+    def date(self, date: str):
+        self._date = date
+
+    @property
     def account_id(self) -> str:
         return self._account_id
 
     def get_quote(self, symbol: str) -> float:
         if self.data:
-            if self.date:
+            if self._date:
                 return self.data[symbol]['history'][self.date]
             return self.data[symbol]['price']
         else:

@@ -2,8 +2,6 @@ import os
 from abc import ABC, abstractmethod
 from typing import Tuple, Any
 
-import datetime
-
 
 class InsufficientFundsError(Exception):
     pass
@@ -36,6 +34,11 @@ class Broker(ABC):
     def get_value(self) -> float:
         pass
 
+    @property
+    @abstractmethod
+    def date(self) -> str:
+        pass
+
     @abstractmethod
     def options_transact(self, symbol: str, expiration: str, strike: float, quantity: int,
                          option_type: str, action: str) -> Tuple[Any, Any]:
@@ -49,12 +52,11 @@ class Broker(ABC):
     def sell(self, symbol: str, quantity: int) -> Tuple[str, Any]:
         pass
 
-    def log_balance(self, date: str = None):
+    def log_balance(self):
         from magictrade import storage
-        date = date or datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         value = self.get_value()
-        storage.rpush(self.account_id + ':dates', date)
+        storage.rpush(self.account_id + ':dates', self.date)
         storage.rpush(self.account_id + ':values', value)
         filename = self.account_id + ".log"
         with open(os.path.join('logs', filename), 'a' if os.path.exists(filename) else 'w') as f:
-            f.write("{},{}\n".format(date, value))
+            f.write("{},{}\n".format(self.date, value))

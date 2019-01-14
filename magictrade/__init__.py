@@ -18,6 +18,7 @@ class Position:
         self.exp_date = exp_date
         self.date = datetime.datetime.now()
         self.backend = backend
+        self.data = {}
 
     def _transact(self, quantity, mode: str):
         if self.type in ('call', 'put'):

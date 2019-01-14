@@ -4,72 +4,20 @@ from magictrade import storage
 from magictrade.broker import InsufficientFundsError, NonexistentAssetError
 from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.strategy.buyandhold import BuyandHoldStrategy
-from magictrade.strategy.human import HumanTradingStrategy
+from magictrade.strategy.human import HumanTradingStrategy, DEFAULT_CONFIG
 from magictrade.utils import get_account_history
+from tests.data import quotes, human_quotes_1
 
 "3KODWEPB1ZR37OT7"
 
-quotes = {
-    'SPY': {
-        "price": 252.3900,
-        "history": {
-            '2019-01-01': 255.55,
-            '2019-01-02': 254.87,
-            '2019-01-03': 253.26,
-            '2019-01-04': 256.01,
-            '2019-01-05': 253.11,
-        },
-        "volume": 142628834,
-        "options": {
-            '2019-07-04': {
-                'call': {
-                    249.5: 10.58,
-                    250.0: 10.37,
-                    250.5: 10.14,
-                    251.0: 10.01,
-                },
-                'put': {
-                    249.5: 8.47,
-                    250.0: 9.00,
-                    250.5: 9.25,
-                    251.0: 10.02,
-                }
-            },
-            '2019-07-11': {
-                'call': {
-                    249.5: 11.42,
-                    250.0: 11.07,
-                    250.5: 10.84,
-                    251.0: 10.51,
-                },
-                'put': {
-                    249.5: 10.17,
-                    250.0: 10.68,
-                    250.5: 10.98,
-                    251.0: 11.92,
-                }
-            }
-        }
-    },
-    'MSFT': {
-        "price": 101.9300,
-    },
-}
-
-human_quotes_1 = {
-    'TST': {
-        'history': {
-            1: 250,
-            2: 251,
-            3: 252,
-            4: 253,
-            5: 254,
-        }
-    }
-}
-
 
 class TestPaperMoney:
+    def test_date(self):
+        pmb = PaperMoneyBroker(date='1234')
+        assert pmb.date == '1234'
+        pmb.date = '5555'
+        assert pmb.date == '5555'
+
     def test_default_balance(self):
         pmb = PaperMoneyBroker()
         assert pmb.cash_balance == 1_000_000
@@ -253,11 +201,80 @@ class TestBAHStrategy:
 
 
 class TestHumanStrategy:
+    def test_config_init(self):
+        hts = HumanTradingStrategy(None, {'peak_window': 45})
+        assert hts.config['peak_window'] == 45
+        assert hts.config['stop_loss_pct'] == DEFAULT_CONFIG['stop_loss_pct']
+
     def test_get_percentage_change(self):
         assert HumanTradingStrategy.get_percentage_change(100, 200) == 100
-
-    def test_get_percentage_change_1(self):
         assert round(HumanTradingStrategy.get_percentage_change(100, 100.57), 2) == 0.57
-
-    def test_get_percentage_change_2(self):
         assert HumanTradingStrategy.get_percentage_change(100, 50) == -50
+
+    def test_get_quantity(self):
+        pmb = PaperMoneyBroker()
+        hts = HumanTradingStrategy(pmb, config={'max_equity': 5_000})
+        assert hts._get_quantity(252.39) == 19
+        assert hts._get_quantity(5_001) == 0
+
+    def test_get_window_chg(self):
+        storage.delete('TST')
+        pmb = PaperMoneyBroker()
+        hts = HumanTradingStrategy(pmb, config={'short_window': 10})
+        assert hts._get_window_change('TST', 'short') == 0.0
+        storage.delete('TST')
+
+    def test_get_window_chg_1(self):
+        storage.delete('TST')
+        storage.rpush('TST', *range(1, 6))
+        pmb = PaperMoneyBroker()
+        hts = HumanTradingStrategy(pmb, config={'short_window': 10})
+        assert hts._get_window_change('TST', 'short') == 400.0
+        storage.delete('TST')
+
+    def test_get_window_chg_2(self):
+        storage.delete('TST')
+        storage.rpush('TST', *range(1, 31))
+        pmb = PaperMoneyBroker()
+        hts = HumanTradingStrategy(pmb, config={'short_window': 11})
+        assert hts._get_window_change('TST', 'short') == 50.0
+        storage.delete('TST')
+
+    def test_get_window_chg_3(self):
+        storage.delete('TST')
+        storage.rpush('TST', *range(31, 1, -1))
+        pmb = PaperMoneyBroker()
+        hts = HumanTradingStrategy(pmb, config={'short_window': 9})
+        assert hts._get_window_change('TST', 'short') == -80.0
+        storage.delete('TST')
+
+    def test_algo(self):
+        storage.delete('TST')
+        storage.delete('sell')
+        storage.delete('buy')
+        config = {
+            'momentum_slope': 0.20,
+            'momentum_window': 10,
+            'peak_window': 30,
+            'sample_frequency_minutes': 5,
+            'stop_loss_pct': 10,
+            'take_gain_pct': 20,
+            'max_equity': 1_000,
+            'short_window': 6,
+            'short_window_pct': 50,
+            'med_window': 10,
+            'med_window_pct': 100,
+            'long_window': 20,
+            'long_window_pct': 200,
+        }
+        pmb = PaperMoneyBroker(date=1, data=human_quotes_1)
+        hts = HumanTradingStrategy(pmb, config=config)
+        for i in range(50):
+            hts.make_trade('TST')
+            pmb.date += 1
+        t1 = hts.trades.get(6)
+        assert t1
+        assert t1[0] == 'buy'
+        assert t1[1] == 'TST'
+        assert t1[2] == 66
+        assert t1[3] == 'short window met'
