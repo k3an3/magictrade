@@ -253,8 +253,6 @@ class TestHumanStrategy:
         storage.delete('sell')
         storage.delete('buy')
         config = {
-            'momentum_slope': 0.20,
-            'momentum_window': 10,
             'peak_window': 30,
             'sample_frequency_minutes': 5,
             'stop_loss_pct': 10,
@@ -262,7 +260,7 @@ class TestHumanStrategy:
             'max_equity': 1_000,
             'short_window': 6,
             'short_window_pct': 50,
-            'med_window': 10,
+            'med_window': 100,
             'med_window_pct': 100,
             'long_window': 20,
             'long_window_pct': 200,
@@ -272,9 +270,4 @@ class TestHumanStrategy:
         for i in range(50):
             hts.make_trade('TST')
             pmb.date += 1
-        t1 = hts.trades.get(6)
-        assert t1
-        assert t1[0] == 'buy'
-        assert t1[1] == 'TST'
-        assert t1[2] == 66
-        assert t1[3] == 'short window met'
+        assert hts.trades.get(6) == ('buy', 'TST', 66, 'short window met')

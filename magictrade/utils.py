@@ -11,7 +11,7 @@ def plot_cli():
     parser = argparse.ArgumentParser(description='Plot results of trading algorithms.')
     parser.add_argument('account_ids', metavar='id', nargs='+',
                         help='Display graphs for these account IDs in the database.')
-    parser.add_argument('-t', '--ticks', dest='ticks', type=int,
+    parser.add_argument('-t', '--ticks', dest='ticks', type=int, default=30,
                         help='How many ticks to display on the x-axis.')
     args = parser.parse_args()
     plot_account_balances(args.account_ids, args.ticks)

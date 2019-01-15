@@ -57,6 +57,3 @@ class Broker(ABC):
         value = self.get_value()
         storage.rpush(self.account_id + ':dates', self.date)
         storage.rpush(self.account_id + ':values', value)
-        filename = self.account_id + ".log"
-        with open(os.path.join('logs', filename), 'a' if os.path.exists(filename) else 'w') as f:
-            f.write("{},{}\n".format(self.date, value))

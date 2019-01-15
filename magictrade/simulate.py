@@ -6,6 +6,7 @@ from magictrade import storage
 from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.strategy.buyandhold import BuyandHoldStrategy
 from magictrade.strategy.human import HumanTradingStrategy
+from tests.data import human_quotes_1
 
 parser = argparse.ArgumentParser(description='Plot results of trading algorithms.')
 parser.add_argument('-m', dest='momentum', type=float)
@@ -13,49 +14,57 @@ args = parser.parse_args()
 
 storage.flushdb()
 
-for i in [x * 0.05 for x in range(0, 100)]:
 
-    CONFIG = {
-        'security_type': 'stock',
-        'exp_days': 30,  # options
-        'strike_dist': 5,  # options
-        'momentum_slope': i,
-        'momentum_window_samples': 10,
-        'sample_frequency_minutes': 5,
-        'stop_loss_percent': 10,
-        'stop_loss_take_gain_percent': 20,
-        'max_equity': 100_000_000,
-    }
-
-
-    def date_fmt(dt: datetime):
-        return dt.strftime('%Y-%m-%d %H:%M:%S')
+CONFIG = {
+    'peak_window': 30,
+    'sample_frequency_minutes': 5,
+    'stop_loss_pct': 10,
+    'take_gain_pct': 20,
+    'max_equity': 1_000_000,
+    'short_window': 5,
+    'short_window_pct': 0.1,
+    'med_window': 10,
+    'med_window_pct': 100,
+    'long_window': 20,
+    'long_window_pct': 200,
+}
 
 
-    date = datetime.strptime('1998-01-02', '%Y-%m-%d')
-    date = datetime.strptime('2019-01-07 09:31:00', '%Y-%m-%d %H:%M:%S')
+def date_fmt(dt: datetime):
+    return dt.strftime('%Y-%m-%d %H:%M:%S')
 
-    pmb1 = PaperMoneyBroker(date=date_fmt(date),
-                            account_id='Buy and Hold',
-                            data_files=(('SPY', 'SPY_1min_1_7-11_19.csv'),))
-                            #data_files=(('SPY', 'SPY_daily_20yr.csv'),))
-    pmb2 = PaperMoneyBroker(date=date_fmt(date),
-                            account_id='Human' + str(i),
-                            data_files=(('SPY', 'SPY_1min_1_7-11_19.csv'),))
-                            #data_files=(('SPY', 'SPY_daily_20yr.csv'),))
 
-    bhs = BuyandHoldStrategy(pmb1)
-    hts = HumanTradingStrategy(pmb2, config=CONFIG)
+date = datetime.strptime('1998-01-02', '%Y-%m-%d')
+date = datetime.strptime('2019-01-07 09:31:00', '%Y-%m-%d %H:%M:%S')
 
-    while date < datetime.today():
-        if pmb1.data['SPY']['history'].get(date_fmt(date)):
-            pmb1.date = date_fmt(date)
-            pmb2.date = date_fmt(date)
-            pmb1.log_balance(date_fmt(date))
-            pmb2.log_balance(date_fmt(date))
-            bhs.make_trade('SPY')
-            hts.make_trade('SPY')
-        date += timedelta(minutes=1)
+pmb1 = PaperMoneyBroker(date=date_fmt(date),
+                        account_id='Buy and Hold',
+                        #data_files=(('SPY', 'SPY_1min_1_7-11_19.csv'),))
+                        data=human_quotes_1)
+                        #data_files=(('SPY', 'SPY_daily_20yr.csv'),))
+pmb2 = PaperMoneyBroker(date=date_fmt(date),
+                        account_id='Human',
+                        data=human_quotes_1)
+                        #data_files=(('SPY', 'SPY_1min_1_7-11_19.csv'),))
+                        #data_files=(('SPY', 'SPY_daily_20yr.csv'),))
 
-    print("{}: {} buys, {} sells".format(i, storage.get('buy'), storage.get('sell')))
-    print("Using {}, got bah {} and hts {}".format(round(i, 2), pmb1.get_value(), pmb2.get_value()))
+bhs = BuyandHoldStrategy(pmb1)
+hts = HumanTradingStrategy(pmb2, config=CONFIG)
+
+#while date < datetime.today():
+#    if pmb1.data['TST']['history'].get(date_fmt(date)):
+for i in range(1, 90):
+        pmb1.date = date_fmt(date)
+        pmb2.date = date_fmt(date)
+        pmb1.date = i
+        pmb2.date = i
+        pmb1.log_balance()
+        pmb2.log_balance()
+        bhs.make_trade('TST')
+        hts.make_trade('TST')
+#    date += timedelta(minutes=1)
+
+print("Buys:", storage.get('buy'), "Sells:", storage.get('sell'))
+print("Finishing balances:")
+print("Buy and Hold:", round(pmb1.cash_balance, 2), round(pmb1.get_value(), 2))
+print("Human:", round(pmb2.cash_balance, 2), round(pmb2.get_value(), 2))

@@ -29,8 +29,6 @@ class HumanTradingStrategy(TradingStrategy):
     def __init__(self, broker: Broker, config: Dict = {}):
         super().__init__(broker)
         self.config = {**DEFAULT_CONFIG, **config}
-        self.min = 0
-        self.max = 0
         self.trades = {}
 
     def _buy(self, symbol: str, quantity: int, reason: str = None):
@@ -47,25 +45,25 @@ class HumanTradingStrategy(TradingStrategy):
 
     def _should_buy(self, symbol: str, q: float):
         for win in ('short', 'med', 'long'):
-            if self._handle_windows(self._get_window_change(symbol, win),
-                                    self.config['{}_window_pct'.format(win)]):
+            if self._get_window_change(symbol, win) >= self.config['{}_window_pct'.format(win)]:
                 self._buy(symbol, self._get_quantity(q), "{} window met".format(win))
                 break
 
     def _should_sell(self, p: Position):
+        # Mark that the minimum gain threshold has been crossed
         chg_since_buy = self.get_percentage_change(p.cost, p.value)
+        # Mark that the minimum gain threshold has been crossed
+        if chg_since_buy >= self.config['take_gain_pct']:
+            p.data['above_min_gain'] = True
         if chg_since_buy <= -1 * self.config['stop_loss_pct']:
             self._sell(p.symbol, p.quantity, "Stop loss")
-        elif chg_since_buy >= self.config['take_gain_pct']:
-            # Mark that the minimum gain threshold has been crossed
-            p.data['above_min_gain'] = True
         elif chg_since_buy < self.config['take_gain_pct'] and p.data.get('above_min_gain'):
             # We went above a threshold but dropped below it again; sell
-            self._sell(p.symbol, p.quantity, "Take gain")
-
-    @staticmethod
-    def _handle_windows(change: float, min_chg: float):
-        return change >= min_chg
+            self._sell(p.symbol, p.quantity, "Take min gain")
+        else:
+            for win in ('short', 'med', 'long'):
+                if self._get_window_change(p.symbol, win) <= self.config['{}_window_pct'.format(win)] <= 0:
+                    self._sell(p.symbol, p.quantity, "Take gain off peak")
 
     def make_trade(self, symbol: str):
         q = self.broker.get_quote(symbol)
@@ -74,13 +72,13 @@ class HumanTradingStrategy(TradingStrategy):
             raise NotImplementedError()
         else:
             p = self.broker.stocks.get(symbol)
-        # Update min/max values
-        if q > self.max:
-            self.max = q
-        elif q < self.min or self.min == 0:
-            self.min = q
         # Already bought, decide whether to sell
         if p:
+            # Update min/max values
+            if q > p.data.get('max', 0):
+                p.data['max'] = q
+            elif not p.data.get('min') or q < p.data.get('min'):
+                p.data['min'] = q
             self._should_sell(p)
         # Haven't bought, may need to
         else:
