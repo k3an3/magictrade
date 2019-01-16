@@ -49,7 +49,7 @@ human_quotes_1 = {
     'TST': {
         'history': {
             **{i: 9 + i for i in range(1, 51)},
-            **{51 + i: 60 - i for i in range(0, 40)},
+            **{51 + i: 60 - i * 2 for i in range(0, 20)},
         }
     }
 }

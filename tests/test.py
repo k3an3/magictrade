@@ -259,15 +259,18 @@ class TestHumanStrategy:
             'take_gain_pct': 20,
             'max_equity': 1_000,
             'short_window': 6,
-            'short_window_pct': 50,
-            'med_window': 100,
+            'short_window_pct': 15,
+            'med_window': 10,
             'med_window_pct': 100,
             'long_window': 20,
             'long_window_pct': 200,
         }
         pmb = PaperMoneyBroker(date=1, data=human_quotes_1)
         hts = HumanTradingStrategy(pmb, config=config)
-        for i in range(50):
+        for i in range(70):
             hts.make_trade('TST')
             pmb.date += 1
-        assert hts.trades.get(6) == ('buy', 'TST', 66, 'short window met')
+        assert hts.trades.get(3) == ('buy', 'TST', 83, 'short window met')
+        assert hts.trades.get(56) == ('sell', 'TST', 83, 'take gain off peak')
+        assert int(storage.get('buy')) == 1
+        assert int(storage.get('sell')) == 1

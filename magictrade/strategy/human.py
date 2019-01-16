@@ -1,4 +1,3 @@
-import sys
 from math import floor
 from typing import Dict
 
@@ -37,7 +36,7 @@ class HumanTradingStrategy(TradingStrategy):
 
     def _sell(self, symbol: str, quantity: int, reason: str = None):
         self.broker.sell(symbol, quantity)
-        self._transact(symbol, quantity, 'self', reason)
+        self._transact(symbol, quantity, 'sell', reason)
 
     def _transact(self, symbol: str, quantity: int, action: str, reason: str = None):
         self.trades[self.broker.date] = (action, symbol, quantity, reason)
@@ -56,14 +55,15 @@ class HumanTradingStrategy(TradingStrategy):
         if chg_since_buy >= self.config['take_gain_pct']:
             p.data['above_min_gain'] = True
         if chg_since_buy <= -1 * self.config['stop_loss_pct']:
-            self._sell(p.symbol, p.quantity, "Stop loss")
+            self._sell(p.symbol, p.quantity, "stop loss")
         elif chg_since_buy < self.config['take_gain_pct'] and p.data.get('above_min_gain'):
             # We went above a threshold but dropped below it again; sell
-            self._sell(p.symbol, p.quantity, "Take min gain")
+            self._sell(p.symbol, p.quantity, "take min gain")
         else:
             for win in ('short', 'med', 'long'):
-                if self._get_window_change(p.symbol, win) <= self.config['{}_window_pct'.format(win)] <= 0:
-                    self._sell(p.symbol, p.quantity, "Take gain off peak")
+                wc = self._get_window_change(p.symbol, win)
+                if wc < self.config['{}_window_pct'.format(win)] * -1 < 0:
+                    self._sell(p.symbol, p.quantity, "take gain off peak")
 
     def make_trade(self, symbol: str):
         q = self.broker.get_quote(symbol)
