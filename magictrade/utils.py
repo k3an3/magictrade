@@ -1,5 +1,5 @@
 import argparse
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 import matplotlib.pyplot as plt
 from matplotlib import rcParamsDefault, rcParams, pyplot
@@ -37,10 +37,10 @@ def get_account_history(account_id: str) -> Tuple[List[str], List[float]]:
            [float(v) for v in storage.lrange(account_id + ":values", 0, -1)]
 
 
-def plot_account_balances(account_ids: List[str], graph_ticks: int = 30) -> None:
+def plot_account_balances(account_ids: List[str], graph_ticks: int = 30, trades: Dict = {}) -> None:
     reset_plot()
 
-    colors = ['r', 'b', 'g', 'y', 'c', 'm']
+    colors = ['b', 'c', 'm', 'k']
 
     for i, dv in enumerate([get_account_history(a) for a in account_ids]):
         plt.figure("Magictrade")
@@ -57,8 +57,28 @@ def plot_account_balances(account_ids: List[str], graph_ticks: int = 30) -> None
             continue
         plt.legend(prop={'size': 10})
         plt.grid(color='k', alpha=0.4)
+        buy_plot = ([], [])
+        sell_plot = ([], [])
+        for j, k in enumerate(dv[0]):
+            t = trades.get(k)
+            if t:
+                if t[0] == 'buy':
+                    buy_plot[0].append(k)
+                    buy_plot[1].append(dv[1][j])
+                elif t[0] == 'sell':
+                    sell_plot[0].append(k)
+                    sell_plot[1].append(dv[1][j])
+        if buy_plot[0]:
+            plt.plot(buy_plot[0], buy_plot[1], linestyle='None', marker='^', color='g', markersize=12)
+        if sell_plot[0]:
+            plt.plot(sell_plot[0], sell_plot[1], linestyle='None', marker='v', color='r', markersize=12)
 
     plt.show()
+
+
+def get_percentage_change(start: float, end: float) -> float:
+    chg = end - start
+    return chg / start * 100
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ from scipy.stats import linregress
 
 from magictrade import Broker, storage, Position
 from magictrade.strategy import TradingStrategy
+from magictrade.utils import get_percentage_change
 
 DEFAULT_CONFIG = {
     'security_type': 'stock',
@@ -50,7 +51,7 @@ class HumanTradingStrategy(TradingStrategy):
 
     def _should_sell(self, p: Position):
         # Mark that the minimum gain threshold has been crossed
-        chg_since_buy = self.get_percentage_change(p.cost, p.value)
+        chg_since_buy = get_percentage_change(p.cost, p.value)
         # Mark that the minimum gain threshold has been crossed
         if chg_since_buy >= self.config['take_gain_pct']:
             p.data['above_min_gain'] = True
@@ -103,10 +104,6 @@ class HumanTradingStrategy(TradingStrategy):
             start = 0
         r = [float(n) for n in storage.lrange(symbol, -1 * start, -1)]
         if r:
-            return self.get_percentage_change(r[0], r[-1])
+            return get_percentage_change(r[0], r[-1])
         return 0.0
 
-    @staticmethod
-    def get_percentage_change(start: float, end: float) -> float:
-        chg = end - start
-        return chg / start * 100

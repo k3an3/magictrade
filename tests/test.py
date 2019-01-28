@@ -5,8 +5,9 @@ from magictrade.broker import InsufficientFundsError, NonexistentAssetError
 from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.strategy.buyandhold import BuyandHoldStrategy
 from magictrade.strategy.human import HumanTradingStrategy, DEFAULT_CONFIG
-from magictrade.utils import get_account_history
-from tests.data import quotes, human_quotes_1
+from magictrade.strategy.reactive import ReactiveStrategy
+from magictrade.utils import get_account_history, get_percentage_change
+from tests.data import quotes, human_quotes_1, reactive_quotes
 
 "3KODWEPB1ZR37OT7"
 
@@ -180,6 +181,13 @@ class TestLogging:
         storage.delete('test:values')
 
 
+class TestUtils:
+    def test_get_percentage_change(self):
+        assert get_percentage_change(100, 200) == 100
+        assert round(get_percentage_change(100, 100.57), 2) == 0.57
+        assert get_percentage_change(100, 50) == -50
+
+
 class TestBAHStrategy:
     def test_buy_and_hold(self):
         pmb = PaperMoneyBroker(data=quotes)
@@ -200,16 +208,34 @@ class TestBAHStrategy:
         assert not pmb.stocks.get('SPY')
 
 
+class TestReactiveStrategy:
+    def test_reactive(self):
+        pmb = PaperMoneyBroker(balance=100, data=reactive_quotes, date=1)
+        rts = ReactiveStrategy(pmb)
+        assert rts.make_trade('TST') == ('buy', 10)
+        pmb.date += 1
+        assert rts.make_trade('TST') == ('buy', 0)
+        pmb.date += 1
+        assert rts.make_trade('TST') == ('buy', 0)
+        pmb.date += 1
+        assert rts.make_trade('TST') == ('buy', 0)
+        pmb.date += 1
+        assert rts.make_trade('TST') == ('sell', 10)
+        pmb.date += 1
+        assert rts.make_trade('TST') == ('buy', 10)
+        pmb.date += 1
+        assert rts.make_trade('TST') == ('sell', 10)
+        pmb.date += 1
+        assert rts.make_trade('TST') == ('sell', 0)
+        pmb.date += 1
+        assert rts.make_trade('TST') == ('buy', 10)
+
+
 class TestHumanStrategy:
     def test_config_init(self):
         hts = HumanTradingStrategy(None, {'peak_window': 45})
         assert hts.config['peak_window'] == 45
         assert hts.config['stop_loss_pct'] == DEFAULT_CONFIG['stop_loss_pct']
-
-    def test_get_percentage_change(self):
-        assert HumanTradingStrategy.get_percentage_change(100, 200) == 100
-        assert round(HumanTradingStrategy.get_percentage_change(100, 100.57), 2) == 0.57
-        assert HumanTradingStrategy.get_percentage_change(100, 50) == -50
 
     def test_get_quantity(self):
         pmb = PaperMoneyBroker()
