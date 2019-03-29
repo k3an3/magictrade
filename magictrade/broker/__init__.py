@@ -1,6 +1,6 @@
 import os
 from abc import ABC, abstractmethod
-from typing import Tuple, Any
+from typing import Tuple, Any, List
 
 
 class InsufficientFundsError(Exception):
@@ -37,6 +37,18 @@ class Broker(ABC):
     @property
     @abstractmethod
     def date(self) -> str:
+        pass
+
+    @abstractmethod
+    def get_options(self, symbol: str) -> List:
+        pass
+
+    @abstractmethod
+    def get_options_data(self, options: List) -> List:
+        pass
+
+    @abstractmethod
+    def filter_options(self, options: List, exp_dates: List):
         pass
 
     @abstractmethod
