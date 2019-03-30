@@ -42,7 +42,14 @@ class RobinhoodBroker(Broker):
         return Option.in_chain(self.client, options["id"], expiration_dates=exp_dates)
 
     def get_options_data(self, options: List) -> List:
-        return Option.mergein_marketdata_list(self.client, options)
+        options = Option.mergein_marketdata_list(self.client, options)
+        for option in options:
+            for key, value in option:
+                try:
+                    option[key] = float(value)
+                except ValueError:
+                    pass
+        return options
 
     def options_transact(self, legs: List[Dict], symbol: str, direction: str, price: float,
                          quantity: int, action: str = 'buy',

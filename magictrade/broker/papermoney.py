@@ -9,6 +9,15 @@ from magictrade.broker import Broker, InsufficientFundsError, NonexistentAssetEr
 
 
 class PaperMoneyBroker(Broker):
+    def get_options(self, symbol: str) -> List:
+        pass
+
+    def get_options_data(self, options: List) -> List:
+        pass
+
+    def filter_options(self, options: List, exp_dates: List):
+        pass
+
     def __init__(self, balance: int = 1_000_000, data: Dict = {},
                  account_id: str = None, date: str = None, data_files: List[Tuple[str, str]] = []):
         self._balance = balance

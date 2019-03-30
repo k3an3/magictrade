@@ -35,8 +35,10 @@ class OptionAlphaTradingStrategy(TradingStrategy):
 
     @staticmethod
     def _find_option_with_probability(options: List, probability: int, ttype: str = 'short'):
-        for option in options:
-            if float(option['chance_of_profit_' + ttype]) >= probability:
+        key = 'chance_of_profit_' + ttype
+        options = [o for o in options if o[key] is not None]
+        for option in sorted(options, key=lambda o: o[key]):
+            if option[key] * 100 >= probability:
                 return option
 
     @staticmethod
@@ -44,28 +46,28 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         return list(filter(lambda x: x["type"] == o_type, options))
 
     @staticmethod
-    def _get_long_leg(options: List, short_leg: Dict):
+    def _get_long_leg(options: List, short_leg: Dict, o_type: str):
         match = 100
         while match > 50:
-            for option in options:
-                if (float(short_leg['mark_price']) - float(option['mark_price'])) / 100 >= float(short_leg['chance_of_profit_short']) * match / 100:
-                    return option
+            for option in sorted(options, key=lambda o: o['strike_price']):
+                if o_type == 'call' and option['strike_price'] > short_leg['strike_price'] \
+                        or o_type == 'put' and option['strike_price'] < short_leg['strike_price']:
+                    distance = abs(option['strike_price'] - short_leg['strike_price'])
+                    if distance >= 1:
+                        # This calculation might be superfluous. Maybe increase minmatch to make it worth it?
+                        if short_leg['mark_price'] - option['mark_price'] >= distance * short_leg['chance_of_profit_long'] * match / 100:
+                            return option
             match -= 1
 
     def iron_butterfly(self, config: Dict, symbol: str, quote: float, options: List, direction: str):
-        closest_strike = None
-        closest_call = None
         calls = self._filter_option_type(options, 'call')
         puts = self._filter_option_type(options, 'put')
-        for option in calls:
-            if not closest_strike or float(option['strike_price']) - quote < closest_strike:
-                closest_strike = float(option['strike_price'])
-                closest_call = option
+        closest_call = [c for c in sorted(calls, key=lambda o: o['strike_price']) if c['strike_price'] >= quote][0]
         for option in puts:
-            if float(option['strike_price']) == closest_strike:
+            if option['strike_price'] == closest_call['strike_price']:
                 closest_put = option
-        call_wing = self._find_option_with_probability(calls, config['probability'], 'long')
-        put_wing = self._find_option_with_probability(puts, config['probability'], 'long')
+        call_wing = self._find_option_with_probability(calls, config['probability'])
+        put_wing = self._find_option_with_probability(puts, config['probability'])
         return (closest_call, 'sell', 'open'), (closest_put, 'sell', 'open'), \
                (call_wing, 'buy', 'open'), (put_wing, 'buy', 'open')
 
@@ -81,7 +83,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             o_type = 'call'
         options = self._filter_option_type(options, o_type)
         short_leg = self._find_option_with_probability(options, config['probability'])
-        long_leg = self._get_long_leg(options, short_leg)
+        long_leg = self._get_long_leg(options, short_leg, o_type)
         return (short_leg, 'sell', 'open'), (long_leg, 'buy', 'open')
 
     def make_trade(self, symbol: str, direction: str, iv_rank: int = 50, allocation: int = 3, timeline: int = 50):

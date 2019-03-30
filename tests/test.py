@@ -5,9 +5,10 @@ from magictrade.broker import InsufficientFundsError, NonexistentAssetError
 from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.strategy.buyandhold import BuyandHoldStrategy
 from magictrade.strategy.human import HumanTradingStrategy, DEFAULT_CONFIG
+from magictrade.strategy.optionalpha import OptionAlphaTradingStrategy, strategies
 from magictrade.strategy.reactive import ReactiveStrategy
 from magictrade.utils import get_account_history, get_percentage_change
-from tests.data import quotes, human_quotes_1, reactive_quotes
+from tests.data import quotes, human_quotes_1, reactive_quotes, oa_options_1
 
 "3KODWEPB1ZR37OT7"
 
@@ -300,3 +301,72 @@ class TestHumanStrategy:
         assert hts.trades.get(56) == ('sell', 'TST', 83, 'take gain off peak')
         assert int(storage.get('buy')) == 1
         assert int(storage.get('sell')) == 1
+
+
+class TestOAStrategy:
+    def test_filter_option_type_call(self):
+        pmb = PaperMoneyBroker()
+        oab = OptionAlphaTradingStrategy(pmb)
+        for option in oab._filter_option_type(oa_options_1, 'call'):
+            assert option['type'] == 'call'
+
+    def test_filter_option_type_put(self):
+        pmb = PaperMoneyBroker()
+        oab = OptionAlphaTradingStrategy(pmb)
+        for option in oab._filter_option_type(oa_options_1, 'put'):
+            assert option['type'] == 'put'
+
+    def test_find_probability_call_short(self):
+        pmb = PaperMoneyBroker()
+        oab = OptionAlphaTradingStrategy(pmb)
+        calls = oab._filter_option_type(oa_options_1, 'call')
+        assert oab._find_option_with_probability(calls, 70, 'short')['id'] == '9d870f5d-bd44-4750-8ff6-7aee58249b9f'
+
+    def test_find_probability_call_long(self):
+        pmb = PaperMoneyBroker()
+        oab = OptionAlphaTradingStrategy(pmb)
+        calls = oab._filter_option_type(oa_options_1, 'call')
+        assert oab._find_option_with_probability(calls, 48, 'long')['id'] == '03facad1-959d-4674-85d5-79d50ff75ea6'
+
+    def test_find_probability_put_short(self):
+        pmb = PaperMoneyBroker()
+        oab = OptionAlphaTradingStrategy(pmb)
+        puts = oab._filter_option_type(oa_options_1, 'put')
+        assert oab._find_option_with_probability(puts, 72, 'short')['id'] == 'f3acdb4d-82da-417b-ad13-5255613745bd'
+
+    def test_find_probability_put_long(self):
+        pmb = PaperMoneyBroker()
+        oab = OptionAlphaTradingStrategy(pmb)
+        puts = oab._filter_option_type(oa_options_1, 'put')
+        assert oab._find_option_with_probability(puts, 27, 'long')['id'] == 'f3acdb4d-82da-417b-ad13-5255613745bd'
+
+    def test_get_long_leg_put(self):
+        pmb = PaperMoneyBroker()
+        oab = OptionAlphaTradingStrategy(pmb)
+        puts = oab._filter_option_type(oa_options_1, 'put')
+        for option in puts:
+            if option['id'] == 'f3acdb4d-82da-417b-ad13-5255613745bd':
+                short_leg = option
+        assert oab._get_long_leg(puts, short_leg, 'put')['id'] == '9d4345bc-e2f5-453b-90ef-7c76e83a33ba'
+
+    def test_get_long_leg_call(self):
+        pmb = PaperMoneyBroker()
+        oab = OptionAlphaTradingStrategy(pmb)
+        puts = oab._filter_option_type(oa_options_1, 'call')
+        for option in puts:
+            if option['id'] == 'c4eedd7e-118b-4bf1-a824-4d87ef2ee648':
+                short_leg = option
+        assert oab._get_long_leg(puts, short_leg, 'call')['id'] == '65e71443-7a04-4a66-9033-de678baa7c1b'
+
+    def test_iron_butterfly(self):
+        pmb = PaperMoneyBroker()
+        oab = OptionAlphaTradingStrategy(pmb)
+        wings = oab.iron_butterfly(strategies['iron_butterfly'], None, 39.5, oa_options_1, None)
+        assert wings[0][0]['strike_price'] == 39.5
+        assert wings[1][0]['strike_price'] == 39.5
+        assert wings[2][0]['strike_price'] == 42.0
+        assert wings[3][0]['strike_price'] == 36.5
+        assert wings[0][1:] == ('sell', 'open')
+        assert wings[1][1:] == ('sell', 'open')
+        assert wings[2][1:] == ('buy', 'open')
+        assert wings[3][1:] == ('buy', 'open')
