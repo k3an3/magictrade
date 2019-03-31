@@ -15,7 +15,7 @@ class BuyandHoldStrategy(TradingStrategy):
         super().__init__(broker)
 
     def make_trade(self, symbol: str):
-        n_shares = floor(self.broker.cash_balance / self.broker.get_quote(symbol))
+        n_shares = floor(self.broker.balance / self.broker.get_quote(symbol))
         while n_shares > 0:
             try:
                 result = self.broker.buy(symbol, n_shares)

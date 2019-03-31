@@ -86,7 +86,7 @@ class HumanTradingStrategy(TradingStrategy):
             self._should_buy(symbol, q)
 
     def _get_quantity(self, q: float):
-        return floor(min(self.config['max_equity'], self.broker.cash_balance) / q)
+        return floor(min(self.config['max_equity'], self.broker.balance) / q)
 
     @staticmethod
     def get_slope(symbol: str) -> float:

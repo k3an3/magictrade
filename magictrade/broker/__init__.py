@@ -27,7 +27,12 @@ class Broker(ABC):
 
     @property
     @abstractmethod
-    def cash_balance(self) -> float:
+    def balance(self) -> float:
+        pass
+
+    @property
+    @abstractmethod
+    def buying_power(self) -> float:
         pass
 
     @abstractmethod

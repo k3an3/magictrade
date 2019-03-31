@@ -1,3 +1,5 @@
+from datetime import timedelta, datetime
+
 import pytest
 
 from magictrade import storage
@@ -22,11 +24,11 @@ class TestPaperMoney:
 
     def test_default_balance(self):
         pmb = PaperMoneyBroker()
-        assert pmb.cash_balance == 1_000_000
+        assert pmb.balance == 1_000_000
 
     def test_balance(self):
         pmb = PaperMoneyBroker(balance=12_345)
-        assert pmb.cash_balance == 12_345
+        assert pmb.balance == 12_345
 
     def test_quote(self):
         pmb = PaperMoneyBroker(data=quotes)
@@ -37,14 +39,14 @@ class TestPaperMoney:
         pmb.buy('SPY', 100)
         assert pmb.stocks['SPY'].quantity == 100
         assert pmb.stocks['SPY'].cost == 25_239
-        assert pmb.cash_balance == 974_761
+        assert pmb.balance == 974_761
 
     def test_sell_equity(self):
         pmb = PaperMoneyBroker(data=quotes)
         pmb.buy('SPY', 100)
         pmb.sell('SPY', 100)
         assert not pmb.stocks.get('SPY')
-        assert pmb.cash_balance == 1_000_000
+        assert pmb.balance == 1_000_000
 
     def test_sell_equity_2(self):
         pmb = PaperMoneyBroker(data=quotes)
@@ -83,7 +85,7 @@ class TestPaperMoney:
     def test_buy_option(self):
         pmb = PaperMoneyBroker(data=quotes)
         pmb.options_transact('SPY', '2019-07-04', 250.0, 10, 'call')
-        assert pmb.cash_balance == 989_630.0
+        assert pmb.balance == 989_630.0
         assert pmb.options['SPY:2019-07-04:250.0c'].quantity == 10
         assert round(pmb.options['SPY:2019-07-04:250.0c'].cost) == 10_370
 
@@ -91,7 +93,7 @@ class TestPaperMoney:
         pmb = PaperMoneyBroker(data=quotes)
         pmb.options_transact('SPY', '2019-07-04', 250.0, 10, 'call')
         pmb.options_transact('SPY', '2019-07-04', 250.0, 10, 'call')
-        assert pmb.cash_balance == 979_260.0
+        assert pmb.balance == 979_260.0
         assert pmb.options['SPY:2019-07-04:250.0c'].quantity == 20
         assert round(pmb.options['SPY:2019-07-04:250.0c'].cost) == 20_740
 
@@ -99,7 +101,7 @@ class TestPaperMoney:
         pmb = PaperMoneyBroker(data=quotes)
         pmb.options_transact('SPY', '2019-07-04', 250.0, 10, 'call')
         pmb.options_transact('SPY', '2019-07-11', 249.5, 5, 'put')
-        assert pmb.cash_balance == 984545
+        assert pmb.balance == 984545
         assert pmb.options['SPY:2019-07-04:250.0c'].quantity == 10
         assert pmb.options['SPY:2019-07-11:249.5p'].quantity == 5
         assert round(pmb.options['SPY:2019-07-04:250.0c'].cost) == 10_370
@@ -110,7 +112,7 @@ class TestPaperMoney:
         pmb.options_transact('SPY', '2019-07-04', 250.0, 10, 'call')
         pmb.options_transact('SPY', '2019-07-04', 250.0, 10, 'call',
                              action='sell', effect='close')
-        assert pmb.cash_balance == 1_000_000
+        assert pmb.balance == 1_000_000
         assert pmb.options['SPY:2019-07-04:250.0c'].quantity == 0
         assert pmb.options['SPY:2019-07-04:250.0c'].cost == 0
 
@@ -119,7 +121,7 @@ class TestPaperMoney:
         pmb.options_transact('SPY', '2019-07-04', 250.0, 10, 'call')
         pmb.options_transact('SPY', '2019-07-04', 250.0, 5, 'call',
                              action='sell', effect='close')
-        assert pmb.cash_balance == 994_815
+        assert pmb.balance == 994_815
         assert pmb.options['SPY:2019-07-04:250.0c'].quantity == 5
         assert round(pmb.options['SPY:2019-07-04:250.0c'].cost) == 5_185
 
@@ -149,7 +151,7 @@ class TestPaperMoney:
         pmb.date = '2019-01-04'
         assert pmb.stocks['SPY'].value == 25_601
         pmb.sell('SPY', 100)
-        assert pmb.cash_balance == 1_000_046
+        assert pmb.balance == 1_000_046
 
 
 class TestLogging:
@@ -361,7 +363,7 @@ class TestOAStrategy:
     def test_iron_butterfly(self):
         pmb = PaperMoneyBroker()
         oab = OptionAlphaTradingStrategy(pmb)
-        wings = oab.iron_butterfly(strategies['iron_butterfly'], None, 39.5, oa_options_1, None)
+        wings = oab.iron_butterfly(strategies['iron_butterfly'], oa_options_1, quote=39.5)
         assert wings[0][0]['strike_price'] == 39.5
         assert wings[1][0]['strike_price'] == 39.5
         assert wings[2][0]['strike_price'] == 42.0
@@ -370,3 +372,59 @@ class TestOAStrategy:
         assert wings[1][1:] == ('sell', 'open')
         assert wings[2][1:] == ('buy', 'open')
         assert wings[3][1:] == ('buy', 'open')
+
+    def test_iron_butterfly_1(self):
+        pmb = PaperMoneyBroker()
+        oab = OptionAlphaTradingStrategy(pmb)
+        strategies['iron_butterfly']['probability'] = 75
+        wings = oab.iron_butterfly(strategies['iron_butterfly'], oa_options_1, quote=39.5)
+        assert wings[0][0]['strike_price'] == 39.5
+        assert wings[1][0]['strike_price'] == 39.5
+        assert wings[2][0]['strike_price'] == 40.5
+        assert wings[3][0]['strike_price'] == 38.0
+        assert wings[0][1:] == ('sell', 'open')
+        assert wings[1][1:] == ('sell', 'open')
+        assert wings[2][1:] == ('buy', 'open')
+        assert wings[3][1:] == ('buy', 'open')
+
+    def test_get_allocations(self):
+        pmb = PaperMoneyBroker(balance=1_000_000)
+        oab = OptionAlphaTradingStrategy(pmb)
+        assert oab._get_allocation(3) == 30_000
+        assert oab._get_allocation(4.5) == 45_000
+
+    def test_get_target_date(self):
+        pmb = PaperMoneyBroker(balance=1_000_000)
+        oab = OptionAlphaTradingStrategy(pmb)
+        options = {'expiration_dates': []}
+        for i in range(70):
+            dt = (datetime.now() + timedelta(days=i)).strftime('%Y-%m-%d')
+            options['expiration_dates'].append(dt)
+        target = (datetime.now() + timedelta(days=45)).strftime('%Y-%m-%d')
+        assert oab._get_target_date({'timeline': [30, 60]}, options, 50) == target
+        target = (datetime.now() + timedelta(days=60)).strftime('%Y-%m-%d')
+        assert oab._get_target_date({'timeline': [30, 60]}, options, 100) == target
+        target = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
+        assert oab._get_target_date({'timeline': [30, 60]}, options, 0) == target
+
+    def test_iron_condor(self):
+        pmb = PaperMoneyBroker()
+        oab = OptionAlphaTradingStrategy(pmb)
+        wings = oab.iron_condor(strategies['iron_condor'], oa_options_1)
+        assert wings[0][0]['strike_price'] == 42.0
+        assert wings[1][0]['strike_price'] == 43.0
+        assert wings[2][0]['strike_price'] == 36.5
+        assert wings[3][0]['strike_price'] == 35.5
+        assert wings[0][1:] == ('sell', 'open')
+        assert wings[1][1:] == ('buy', 'open')
+        assert wings[2][1:] == ('sell', 'open')
+        assert wings[3][1:] == ('buy', 'open')
+
+    def test_credit_spread(self):
+        pmb = PaperMoneyBroker()
+        oab = OptionAlphaTradingStrategy(pmb)
+        legs = oab.credit_spread(strategies['credit_spread'], oa_options_1, direction='bullish')
+        assert legs[0][0]['strike_price'] == 38.5
+        assert legs[0][1:] == ('sell', 'open')
+        assert legs[1][0]['strike_price'] == 37.5
+        assert legs[1][1:] == ('buy', 'open')

@@ -30,8 +30,12 @@ class RobinhoodBroker(Broker):
         raise NotImplementedError()
 
     @property
-    def cash_balance(self) -> float:
-        return float(Account.all(self.client)[0]["margin_balances"]["cash"])
+    def balance(self) -> float:
+        return float(Account.all(self.client)[0]["cash"])
+
+    @property
+    def buying_power(self) -> float:
+        return float(Account.all(self.client)[0]["buying_power"])
 
     def get_options(self, symbol: str) -> List:
         stock = Stock.fetch(self.client, symbol)

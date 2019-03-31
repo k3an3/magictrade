@@ -9,15 +9,6 @@ from magictrade.broker import Broker, InsufficientFundsError, NonexistentAssetEr
 
 
 class PaperMoneyBroker(Broker):
-    def get_options(self, symbol: str) -> List:
-        pass
-
-    def get_options_data(self, options: List) -> List:
-        pass
-
-    def filter_options(self, options: List, exp_dates: List):
-        pass
-
     def __init__(self, balance: int = 1_000_000, data: Dict = {},
                  account_id: str = None, date: str = None, data_files: List[Tuple[str, str]] = []):
         self._balance = balance
@@ -36,10 +27,23 @@ class PaperMoneyBroker(Broker):
         self.client = Client()
         self._account_id = account_id
 
+    @property
+    def buying_power(self) -> float:
+        pass
+
+    def get_options(self, symbol: str) -> List:
+        pass
+
+    def get_options_data(self, options: List) -> List:
+        pass
+
+    def filter_options(self, options: List, exp_dates: List):
+        pass
+
     def get_value(self) -> float:
-        value = self.cash_balance
+        value = self.balance
         for equity in self.stocks:
-            value += self.stocks[equity]  .value
+            value += self.stocks[equity].value
         return value
 
     @property
@@ -63,7 +67,7 @@ class PaperMoneyBroker(Broker):
             return float(StockMarketdata.quote_by_symbol(self.client, symbol)['last_trade_price'])
 
     @property
-    def cash_balance(self) -> float:
+    def balance(self) -> float:
         return self._balance
 
     @staticmethod
@@ -104,7 +108,7 @@ class PaperMoneyBroker(Broker):
             else:
                 raise NotImplementedError()
 
-        if action == 'buy' and self.cash_balance - price < 0:
+        if action == 'buy' and self.balance - price < 0:
             raise InsufficientFundsError()
         option = self._format_option(symbol, expiration, strike, option_type)
         p = self.options.get(option)
@@ -124,7 +128,7 @@ class PaperMoneyBroker(Broker):
 
     def buy(self, symbol: str, quantity: int) -> Tuple[str, Position]:
         debit = self.get_quote(symbol) * quantity
-        if self.cash_balance - debit < 0:
+        if self.balance - debit < 0:
             raise InsufficientFundsError()
         self._balance -= debit
         if self.stocks.get(symbol):

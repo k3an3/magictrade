@@ -20,12 +20,13 @@ strategies = {
     'credit_spread': {
         'timeline': [30, 60],
         'target': 50,
-        'probability': 70
+        'probability': 70,
+        'width': 3
     },
 }
 
 high_iv = 75
-
+total_allocation = 40
 valid_directions = ('neutral', 'bullish', 'bearish')
 
 
@@ -46,20 +47,19 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         return list(filter(lambda x: x["type"] == o_type, options))
 
     @staticmethod
-    def _get_long_leg(options: List, short_leg: Dict, o_type: str):
+    def _get_long_leg(options: List, short_leg: Dict, o_type: str, width: int):
         match = 100
         while match > 50:
             for option in sorted(options, key=lambda o: o['strike_price']):
                 if o_type == 'call' and option['strike_price'] > short_leg['strike_price'] \
                         or o_type == 'put' and option['strike_price'] < short_leg['strike_price']:
                     distance = abs(option['strike_price'] - short_leg['strike_price'])
-                    if distance >= 1:
-                        # This calculation might be superfluous. Maybe increase minmatch to make it worth it?
-                        if short_leg['mark_price'] - option['mark_price'] >= distance * short_leg['chance_of_profit_long'] * match / 100:
-                            return option
+                    if distance >= width:
+                        return option
             match -= 1
 
-    def iron_butterfly(self, config: Dict, symbol: str, quote: float, options: List, direction: str):
+    def iron_butterfly(self, config: Dict, options: List, **kwargs):
+        quote = kwargs['quote']
         calls = self._filter_option_type(options, 'call')
         puts = self._filter_option_type(options, 'put')
         closest_call = [c for c in sorted(calls, key=lambda o: o['strike_price']) if c['strike_price'] >= quote][0]
@@ -71,22 +71,37 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         return (closest_call, 'sell', 'open'), (closest_put, 'sell', 'open'), \
                (call_wing, 'buy', 'open'), (put_wing, 'buy', 'open')
 
-    def iron_condor(self, config: Dict, symbol: str, quote: float, options: List, direction: str):
-        call_wing = self.credit_spread(config, symbol, quote, self._filter_option_type(options, 'call'), 'bearish')
-        put_wing = self.credit_spread(config, symbol, quote, self._filter_option_type(options, 'put'), 'bullish')
+    def iron_condor(self, config: Dict, options: List, **kwargs):
+        call_wing = self.credit_spread(config, self._filter_option_type(options, 'call'), direction='bearish')
+        put_wing = self.credit_spread(config, self._filter_option_type(options, 'put'), direction='bullish')
         return call_wing[0], call_wing[1], put_wing[0], put_wing[1]
 
-    def credit_spread(self, config: Dict, symbol: str, quote: float, options: List, direction: str):
+    def credit_spread(self, config: Dict, options: List, **kwargs):
+        direction = kwargs['direction']
         if direction == 'bullish':
             o_type = 'put'
         else:
             o_type = 'call'
         options = self._filter_option_type(options, o_type)
         short_leg = self._find_option_with_probability(options, config['probability'])
-        long_leg = self._get_long_leg(options, short_leg, o_type)
+        long_leg = self._get_long_leg(options, short_leg, o_type, config['width'])
         return (short_leg, 'sell', 'open'), (long_leg, 'buy', 'open')
 
+    def _get_allocation(self, allocation: int):
+        return self.broker.balance * allocation / 100
+
+    def _get_target_date(self, config: Dict, options: List, timeline: int):
+        timeline_range = config['timeline'][1] - config['timeline'][0]
+        timeline = config['timeline'][0] + timeline_range * timeline / 100
+
+        target_date = None
+        while target_date not in options['expiration_dates']:
+            target_date = (datetime.now() + timedelta(days=timeline)).strftime("%Y-%m-%d")
+            timeline -= 1
+        return target_date
+
     def make_trade(self, symbol: str, direction: str, iv_rank: int = 50, allocation: int = 3, timeline: int = 50):
+        # TODO Decide if a trade should even be made based on cash reserves. Probably in whatever calls this
         q = self.broker.get_quote()
 
         if direction not in valid_directions:
@@ -113,18 +128,13 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         config = strategies[strategy]
 
         symbol = symbol.upper()
-        allocation = self.broker.cash_balance * allocation / 100
+        allocation = self._get_allocation(allocation)
         options = self.broker.get_options(symbol)
-        timeline_range = config['timeline'][1] - config['timeline'][0]
-        timeline = config['timeline'][0] + len(timeline_range) * timeline / 100
 
-        target_date = None
-        while target_date not in options['expiration_dates']:
-            timeline -= timedelta(days=1)
-            target_date = (datetime.now() + timedelta(days=timeline)).strftime("%Y-%m-%d")
+        target_date = self._get_target_date(config, options, timeline)
 
         options = self.broker.filter_options(options, [target_date])
         options = self.broker.get_options_data(options)
 
-        legs = method(self, config, symbol, q, options, allocation, target_date, direction)
+        legs = method(self, config, options, quote=q, direction=direction)
         self.broker.options_transact(legs, symbol, 'credit')

@@ -64,8 +64,8 @@ while date < datetime.strptime('2019-01-12', '%Y-%m-%d'):
 
 print("Buys:", storage.get('buy'), "Sells:", storage.get('sell'))
 print("Finishing balances:")
-print("Buy and Hold:", round(pmb1.cash_balance, 2), round(pmb1.get_value(), 2))
-print("Human:", round(pmb2.cash_balance, 2), round(pmb2.get_value(), 2))
+print("Buy and Hold:", round(pmb1.balance, 2), round(pmb1.get_value(), 2))
+print("Human:", round(pmb2.balance, 2), round(pmb2.get_value(), 2))
 print("Advantage: {:.2%}, Total: {:.2%}".format(get_percentage_change(pmb1.get_value(), pmb2.get_value()) / 100,
                                                 get_percentage_change(1_000_000, pmb2.get_value()) / 100))
 plot_account_balances(['Buy and Hold', 'Human'], trades=hts.trades, graph_ticks=350)
