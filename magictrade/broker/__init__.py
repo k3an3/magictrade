@@ -72,5 +72,5 @@ class Broker(ABC):
     def log_balance(self):
         from magictrade import storage
         value = self.get_value()
-        storage.rpush(self.account_id + ':dates', self.date)
+        storage.rpush(self.account_id + ':dates', self.date.strftime("%Y-%m-%d %H-%M-%S"))
         storage.rpush(self.account_id + ':values', value)

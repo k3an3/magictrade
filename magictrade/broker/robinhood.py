@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Tuple, Any, List, Dict
 
 from fast_arrow import Client, Stock, StockMarketdata, OptionChain, Option, OptionOrder, User
@@ -17,7 +18,7 @@ class RobinhoodBroker(Broker):
 
     @property
     def date(self) -> str:
-        pass
+        return datetime.now()
 
     def get_quote(self, symbol: str) -> float:
         return float(StockMarketdata.quote_by_symbol(self.client, symbol)['last_trade_price'])
@@ -56,19 +57,13 @@ class RobinhoodBroker(Broker):
         return options
 
     def options_transact(self, legs: List[Dict], symbol: str, direction: str, price: float,
-                         quantity: int, action: str = 'buy',
-                         effect: str = 'open') -> Tuple[Any, Any]:
-        if action not in ('buy', 'sell') or effect not in ('open', 'close') \
+                         quantity: int, effect: str = 'open') -> Tuple[Any, Any]:
+        if effect not in ('open', 'close') \
                 or direction not in ('credit', 'debit'):
             raise InvalidOptionError()
 
         new_legs = []
-        price = 0
         for leg, action, effect in legs:
-            if action == 'sell':
-                price += leg['mark_price']
-            else:
-                price -= leg['mark_price']
             new_legs.append({
                 'side': action,
                 'option': leg['url'],
