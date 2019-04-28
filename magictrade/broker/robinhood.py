@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Tuple, Any, List, Dict
 
-from fast_arrow import Client, Stock, StockMarketdata, OptionChain, Option, OptionOrder, User
+from fast_arrow import Client, Stock, StockMarketdata, OptionChain, Option, OptionOrder, User, OptionPosition
 from fast_arrow.resources.account import Account
 
 from magictrade import Broker, Position
@@ -33,6 +33,9 @@ class RobinhoodBroker(Broker):
     @property
     def balance(self) -> float:
         return float(Account.all(self.client)[0]["cash"])
+
+    def options_positions(self) -> List:
+        OptionPosition.all(self.client)
 
     @property
     def buying_power(self) -> float:
@@ -73,7 +76,7 @@ class RobinhoodBroker(Broker):
 
         oo = OptionOrder.submit(self.client, direction, legs,
                                 str(abs(price)), quantity, "gfd", "immediate", "limit")
-        return oo, Position(symbol, price * 100, quantity, self, legs)
+        return oo
 
     def buy(self, symbol: str, quantity: int) -> Tuple[str, Any]:
         raise NotImplementedError()

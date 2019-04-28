@@ -8,8 +8,9 @@ storage = redis.StrictRedis(decode_responses=True)
 
 
 class Position:
-    def __init__(self, symbol: str, cost: float, quantity: int, backend: Broker, type: str = "equity",
+    def __init__(self, uuid: str, symbol: str, cost: float, quantity: int, backend: Broker, type: str = "equity",
                  strike: float = None, exp_date: str = None):
+        self.id = uuid
         self.symbol = symbol
         self.cost = cost
         self.quantity = quantity

@@ -1,7 +1,7 @@
 from datetime import timedelta
 from typing import List, Dict
 
-from magictrade import Broker
+from magictrade import Broker, storage
 from magictrade.strategy import TradingStrategy
 
 strategies = {
@@ -32,6 +32,8 @@ class TradeException(Exception):
 
 
 class OptionAlphaTradingStrategy(TradingStrategy):
+    name = "oatrading"
+
     def __init__(self, broker: Broker):
         self.broker = broker
 
@@ -126,6 +128,15 @@ class OptionAlphaTradingStrategy(TradingStrategy):
     def _get_quantity(allocation: float, price: float):
         return int(allocation / price)
 
+    @staticmethod
+    def notify(msg: str):
+        pass
+
+    def maintenance(self):
+        positions = list(filter(lambda p: float(p["quantity"]) > 0.0,
+                                self.broker.options_positions()))
+
+
     def make_trade(self, symbol: str, direction: str, iv_rank: int = 50, allocation: int = 3, timeline: int = 50,
                    spread_width: int = 3):
         # TODO Decide if a trade should even be made based on cash reserves. Probably in whatever calls this
@@ -167,5 +178,14 @@ class OptionAlphaTradingStrategy(TradingStrategy):
 
         price = self._get_price(legs)
         quantity = self._get_quantity(allocation, price)
-        return strategy, legs, quantity, quantity * price, self.broker.options_transact(legs, symbol, 'credit', price,
-                                                                                        quantity, 'open')
+        oo = self.broker.options_transact(legs, symbol, 'credit', price,
+                                                quantity, 'open')
+        leg_ids = [l["id"] for l in oo["legs"]]
+        storage.lpush(self.name + ":positions", oo["id"])
+        for leg in leg_ids:
+            storage.lpush("{}:{}".format(self.name, oo["id"]), leg)
+        self.notify("Opened {} for direction {} with quantity {} and price {}.".format(strategy,
+                                                                                       direction,
+                                                                                       quantity,
+                                                                                       price))
+        return strategy, legs, quantity, quantity * price, oo

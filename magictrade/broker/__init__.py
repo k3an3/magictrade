@@ -45,6 +45,10 @@ class Broker(ABC):
         pass
 
     @abstractmethod
+    def options_positions(self) -> List:
+        pass
+
+    @abstractmethod
     def get_options(self, symbol: str) -> List:
         pass
 
