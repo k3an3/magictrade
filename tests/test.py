@@ -416,7 +416,7 @@ class TestOAStrategy:
         assert oab._get_allocation(4.5) == 45_000
 
     def test_get_target_date(self):
-        pmb = PaperMoneyBroker(balance=1_000_000)
+        pmb = PaperMoneyBroker(balance=1_000_000, date=datetime.strptime('2019-03-31', '%Y-%m-%d'))
         oab = OptionAlphaTradingStrategy(pmb)
         options = {'expiration_dates': exp_dates}
         assert oab._get_target_date({'timeline': [30, 60]}, options, 0) == '2019-05-03'

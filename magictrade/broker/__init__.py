@@ -1,5 +1,5 @@
-import os
 from abc import ABC, abstractmethod
+
 from typing import Tuple, Any, List
 
 
@@ -48,13 +48,15 @@ class Broker(ABC):
     def options_positions(self) -> List:
         pass
 
+    def options_positions_data(self, options: List) -> List:
+        return options
+
     @abstractmethod
     def get_options(self, symbol: str) -> List:
         pass
 
-    @abstractmethod
     def get_options_data(self, options: List) -> List:
-        pass
+        return options
 
     @abstractmethod
     def filter_options(self, options: List, exp_dates: List):

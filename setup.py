@@ -18,6 +18,6 @@ setup(
     ],
     dependency_links=[
         'https://github.com/KloudTrader/paperbroker#egg=paperbroker',
-        'https://github.com/westonplatter/fast_arrow#egg=fast_arrow'
+        'https://github.com/k3an3/fast_arrow#egg=fast_arrow'
     ],
 )

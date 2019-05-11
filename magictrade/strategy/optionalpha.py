@@ -3,6 +3,7 @@ from typing import List, Dict
 
 from magictrade import Broker, storage
 from magictrade.strategy import TradingStrategy
+from magictrade.utils import get_percentage_change
 
 strategies = {
     'iron_condor': {
@@ -36,6 +37,9 @@ class OptionAlphaTradingStrategy(TradingStrategy):
 
     def __init__(self, broker: Broker):
         self.broker = broker
+
+    def get_name(self):
+        return "{}-{}".format(self.name, self.broker.account_id)
 
     @staticmethod
     def _find_option_with_probability(options: List, probability: int, ttype: str = 'short'):
@@ -118,9 +122,9 @@ class OptionAlphaTradingStrategy(TradingStrategy):
     def _get_price(legs: List):
         price = 0
         for leg, action, _ in legs:
-            if action == 'sell':
+            if action in ('sell', 'short'):
                 price += leg['mark_price']
-            else:
+            elif action in ('buy', 'long'):
                 price -= leg['mark_price']
         return price * 100
 
@@ -133,9 +137,13 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         pass
 
     def maintenance(self):
-        positions = list(filter(lambda p: float(p["quantity"]) > 0.0,
-                                self.broker.options_positions()))
-
+        positions = storage.lrange(self.get_name() + ":positions", 0, -1)
+        for position in positions:
+            strategy, oid, price = position
+            legs = storage.lrange("{}:{}".format(self.get_name(), oid))
+            legs = self.broker.options_positions_data(legs)
+            value = self._get_price(legs)
+            change = get_percentage_change(price, value)
 
     def make_trade(self, symbol: str, direction: str, iv_rank: int = 50, allocation: int = 3, timeline: int = 50,
                    spread_width: int = 3):
@@ -178,14 +186,13 @@ class OptionAlphaTradingStrategy(TradingStrategy):
 
         price = self._get_price(legs)
         quantity = self._get_quantity(allocation, price)
-        oo = self.broker.options_transact(legs, symbol, 'credit', price,
-                                                quantity, 'open')
-        leg_ids = [l["id"] for l in oo["legs"]]
-        storage.lpush(self.name + ":positions", oo["id"])
-        for leg in leg_ids:
-            storage.lpush("{}:{}".format(self.name, oo["id"]), leg)
+        option_order = self.broker.options_transact(legs, symbol, 'credit', price,
+                                          quantity, 'open')
+        storage.lpush(self.get_name() + ":positions", "{}:{}".format(strategy, option_order["id"]))
+        for leg in option_order["legs"]:
+            storage.hmset("{}:{}".format(self.get_name(), option_order["id"]), leg)
         self.notify("Opened {} for direction {} with quantity {} and price {}.".format(strategy,
                                                                                        direction,
                                                                                        quantity,
                                                                                        price))
-        return strategy, legs, quantity, quantity * price, oo
+        return strategy, legs, quantity, quantity * price, option_order

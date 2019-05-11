@@ -35,7 +35,10 @@ class RobinhoodBroker(Broker):
         return float(Account.all(self.client)[0]["cash"])
 
     def options_positions(self) -> List:
-        OptionPosition.all(self.client)
+        return OptionPosition.all(self.client, nonzero=True)
+
+    def options_positions_data(self, options: List) -> List:
+        return OptionPosition.mergein_marketdata_list(self.client, options)
 
     @property
     def buying_power(self) -> float:

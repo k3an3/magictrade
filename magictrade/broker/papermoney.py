@@ -1,4 +1,6 @@
 import os
+
+import uuid
 from datetime import datetime
 from typing import Tuple, Dict, List, Any
 
@@ -33,6 +35,9 @@ class PaperMoneyBroker(Broker):
 
     @property
     def buying_power(self) -> float:
+        pass
+
+    def options_positions(self) -> List:
         pass
 
     def get_options(self, symbol: str) -> List:
@@ -92,24 +97,18 @@ class PaperMoneyBroker(Broker):
 
         if direction == 'debit' and self.balance - price < 0:
             raise InsufficientFundsError()
-        return True
-        """
-        option = self._format_option(symbol, expiration, strike, option_type)
-        p = self.options.get(option)
-        price = price * quantity * 100
-        if not p:
-            p = Position(symbol, price, quantity, self, option_type, strike, expiration)
-            self.options[option] = p
-        else:
-            if effect == 'open':
-                p.quantity += quantity
-                p.cost += price
-            else:
-                p.quantity -= quantity
-                p.cost -= price
         self._balance -= price * (-1 if effect == 'close' else 1)
-        """
-        return 'success', p
+        newlegs = []
+        # workarounds for dataset
+        for leg in legs:
+            leg = leg[0]
+            leg.pop('min_ticks')
+            newdict = {}
+            for key, value in leg.items():
+                if value is not None:
+                    newdict[key] = value
+            newlegs.append(newdict)
+        return {'id': str(uuid.uuid4()), 'legs': newlegs}
 
     def buy(self, symbol: str, quantity: int) -> Tuple[str, Position]:
         debit = self.get_quote(symbol) * quantity
@@ -120,7 +119,7 @@ class PaperMoneyBroker(Broker):
             self.stocks[symbol].quantity += quantity
             self.stocks[symbol].cost += quantity
         else:
-            self.stocks[symbol] = Position(symbol, debit, quantity, self)
+            self.stocks[symbol] = Position(str(uuid.uuid4()), symbol, debit, quantity, self)
         return 'success', self.stocks[symbol]
 
     def sell(self, symbol: str, quantity: int) -> Tuple[str, Position]:
