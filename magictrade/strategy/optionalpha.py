@@ -33,7 +33,7 @@ class TradeException(Exception):
 
 
 class OptionAlphaTradingStrategy(TradingStrategy):
-    name = "oatrading"
+    name = 'oatrading'
 
     def __init__(self, broker: Broker):
         self.broker = broker
@@ -136,14 +136,34 @@ class OptionAlphaTradingStrategy(TradingStrategy):
     def notify(msg: str):
         pass
 
+    def _delete_position(self, order_id: str):
+        storage.lrem("{}:positions".format(self.get_name()), 0, order_id)
+        for leg in storage.lrange("{}:{}:legs".format(self.get_name(), order_id), 0, -1):
+            storage.delete("{}:leg:{}".format(self.get_name(), leg))
+        storage.delete("{}:{}:legs".format(self.get_name(), order_id))
+        storage.delete("{}:{}".format(self.get_name(), order_id))
+
     def maintenance(self):
         positions = storage.lrange(self.get_name() + ":positions", 0, -1)
+        orders = []
         for position in positions:
-            strategy, oid, price = position
-            legs = storage.lrange("{}:{}".format(self.get_name(), oid))
+            data = storage.hgetall("{}:{}".format(self.get_name(), position))
+            leg_ids = storage.lrange("{}:{}:legs".format(self.get_name(), position), 0, -1)
+            legs = []
+            for leg in leg_ids:
+                legs.append(storage.hgetall("{}:leg:{}".format(self.get_name(), leg)))
             legs = self.broker.options_positions_data(legs)
             value = self._get_price(legs)
-            change = get_percentage_change(price, value)
+            change = get_percentage_change(data['price'], value)
+            if change >= strategies[data['strategy']]['target']:
+                option_order = self.broker.options_transact(legs, data['symbol'],
+                                                            'debit', data['price'],
+                                                            value, data['quantity'],
+                                                            'close'
+                                                            )
+                self._delete_position(position)
+                orders.append(option_order)
+        return orders
 
     def make_trade(self, symbol: str, direction: str, iv_rank: int = 50, allocation: int = 3, timeline: int = 50,
                    spread_width: int = 3):
@@ -187,10 +207,19 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         price = self._get_price(legs)
         quantity = self._get_quantity(allocation, price)
         option_order = self.broker.options_transact(legs, symbol, 'credit', price,
-                                          quantity, 'open')
-        storage.lpush(self.get_name() + ":positions", "{}:{}".format(strategy, option_order["id"]))
+                                                    quantity, 'open')
+        storage.lpush(self.get_name() + ":positions", option_order["id"])
+        storage.hmset("{}:{}".format(self.get_name(), option_order["id"]),
+                                     {
+                                         'strategy': strategy,
+                                         'price': price,
+                                         'quantity': quantity,
+                                         'symbol': symbol,
+                                     })
         for leg in option_order["legs"]:
-            storage.hmset("{}:{}".format(self.get_name(), option_order["id"]), leg)
+            storage.lpush("{}:{}:legs".format(self.get_name(), option_order["id"]),
+                          leg["id"])
+            storage.hmset("{}:leg:{}".format(self.get_name(), leg["id"]), leg)
         self.notify("Opened {} for direction {} with quantity {} and price {}.".format(strategy,
                                                                                        direction,
                                                                                        quantity,
