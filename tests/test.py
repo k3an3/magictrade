@@ -501,7 +501,8 @@ class TestOAStrategy:
         assert oab._get_quantity(30_000, 31) == 967
 
     def test_make_trade_neutral_mid_iv(self):
-        pmb = PaperMoneyBroker(account_id='test', date=date, data=quotes, options_data=oa_options_1, exp_dates=exp_dates)
+        pmb = PaperMoneyBroker(account_id='test', date=date, data=quotes, options_data=oa_options_1,
+                               exp_dates=exp_dates)
         oab = OptionAlphaTradingStrategy(pmb)
         strategy, legs, q, p, _ = oab.make_trade('MU', 'neutral', 52)
         assert strategy == 'iron_condor'
@@ -512,7 +513,8 @@ class TestOAStrategy:
         assert p == 29_977
 
     def test_make_trade_neutral_high_iv(self):
-        pmb = PaperMoneyBroker(account_id='test', date=date, data=quotes, options_data=oa_options_1, exp_dates=exp_dates)
+        pmb = PaperMoneyBroker(account_id='test', date=date, data=quotes, options_data=oa_options_1,
+                               exp_dates=exp_dates)
         oab = OptionAlphaTradingStrategy(pmb)
         strategy, legs, q, p, _ = oab.make_trade('MU', 'neutral', high_iv)
         assert strategy == 'iron_butterfly'
@@ -522,7 +524,8 @@ class TestOAStrategy:
         assert round(p, ndigits=1) == 29_945.5
 
     def test_make_trade_bearish(self):
-        pmb = PaperMoneyBroker(account_id='test', date=date, data=quotes, options_data=oa_options_1, exp_dates=exp_dates)
+        pmb = PaperMoneyBroker(account_id='test', date=date, data=quotes, options_data=oa_options_1,
+                               exp_dates=exp_dates)
         oab = OptionAlphaTradingStrategy(pmb)
         strategy, legs, q, p, _ = oab.make_trade('MU', 'bearish', high_iv)
         assert strategy == 'credit_spread'
@@ -558,8 +561,30 @@ class TestOAStrategy:
                                   positions,
                                   legs)
 
-       def test_storage(self):
-           pmb = PaperMoneyBroker(account_id='test', date=date, data=quotes, options_data=oa_options_1, exp_dates=exp_dates)
-           oab = OptionAlphaTradingStrategy(pmb)
-           _, _, _, _, oo = oab.make_trade('MU', 'bearish', high_iv)
-           
+    def test_storage(self):
+        name = 'oatrading-teststor'
+        pmb = PaperMoneyBroker(account_id='teststor', date=date, data=quotes, options_data=oa_options_1,
+                               exp_dates=exp_dates)
+        oab = OptionAlphaTradingStrategy(pmb)
+        _, _, quantity, price, oo = oab.make_trade('MU', 'bearish', high_iv)
+        oid = oo["id"]
+        assert oid == storage.lrange(name + ":positions", 0, -1)[0]
+        data = storage.hgetall("{}:{}".format(name, oid))
+        assert data['strategy'] == 'credit_spread'
+        assert int(data['quantity']) == quantity
+        assert float(data['price']) == price
+        legs = storage.lrange("{}:{}:legs".format(name, oid), 0, -1)
+        assert len(legs) == 2
+        assert oo["legs"][0]["id"] in legs
+        assert oo["legs"][1]["id"] in legs
+        oab._delete_position(oid)
+
+    def test_maintenance(self):
+        name = 'oatrading-testmaint'
+        pmb = PaperMoneyBroker(account_id='testmaint', date=date, data=quotes, options_data=oa_options_1,
+                               exp_dates=exp_dates)
+        oab = OptionAlphaTradingStrategy(pmb)
+        _, _, quantity, price, oo = oab.make_trade('MU', 'bearish', high_iv)
+        orders = oab.maintenance()
+        assert not orders
+

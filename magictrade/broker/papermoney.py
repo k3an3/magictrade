@@ -40,6 +40,13 @@ class PaperMoneyBroker(Broker):
     def options_positions(self) -> List:
         pass
 
+    def options_positions_data(self, options: List) -> List:
+        for option in options:
+            for od in self.options_data:
+                if 'option' in option and option['option'] == od['instrument']:
+                    option.update(od)
+        return options
+
     def get_options(self, symbol: str) -> List:
         return self.options_data
 
@@ -98,17 +105,16 @@ class PaperMoneyBroker(Broker):
         if direction == 'debit' and self.balance - price < 0:
             raise InsufficientFundsError()
         self._balance -= price * (-1 if effect == 'close' else 1)
-        newlegs = []
-        # workarounds for dataset
-        for leg in legs:
-            leg = leg[0]
-            leg.pop('min_ticks')
-            newdict = {}
-            for key, value in leg.items():
-                if value is not None:
-                    newdict[key] = value
-            newlegs.append(newdict)
-        return {'id': str(uuid.uuid4()), 'legs': newlegs}
+        new_legs = []
+        for leg, action, effect in legs:
+            new_legs.append({
+                'side': action,
+                'option': leg['url'],
+                'position_effect': effect,
+                'ratio_quantity': '1',
+                'id': str(uuid.uuid4()),
+            })
+        return {'id': str(uuid.uuid4()), 'legs': new_legs}
 
     def buy(self, symbol: str, quantity: int) -> Tuple[str, Position]:
         debit = self.get_quote(symbol) * quantity

@@ -121,11 +121,19 @@ class OptionAlphaTradingStrategy(TradingStrategy):
     @staticmethod
     def _get_price(legs: List):
         price = 0
-        for leg, action, _ in legs:
-            if action in ('sell', 'short'):
-                price += leg['mark_price']
-            elif action in ('buy', 'long'):
-                price -= leg['mark_price']
+        for leg in legs:
+            if len(leg) == 3:
+                action = leg[1]
+                leg_price = leg[0]['mark_price']
+            else:
+                if 'side' not in leg:
+                    continue
+                action = leg['side']
+                leg_price = leg['mark_price']
+            if action == 'sell':
+                price += leg_price
+            elif action == 'buy':
+                price -= leg_price
         return price * 100
 
     @staticmethod
@@ -154,7 +162,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
                 legs.append(storage.hgetall("{}:leg:{}".format(self.get_name(), leg)))
             legs = self.broker.options_positions_data(legs)
             value = self._get_price(legs)
-            change = get_percentage_change(data['price'], value)
+            change = get_percentage_change(float(data['price']), value)
             if change >= strategies[data['strategy']]['target']:
                 option_order = self.broker.options_transact(legs, data['symbol'],
                                                             'debit', data['price'],
@@ -210,12 +218,12 @@ class OptionAlphaTradingStrategy(TradingStrategy):
                                                     quantity, 'open')
         storage.lpush(self.get_name() + ":positions", option_order["id"])
         storage.hmset("{}:{}".format(self.get_name(), option_order["id"]),
-                                     {
-                                         'strategy': strategy,
-                                         'price': price,
-                                         'quantity': quantity,
-                                         'symbol': symbol,
-                                     })
+                      {
+                          'strategy': strategy,
+                          'price': price * quantity,
+                          'quantity': quantity,
+                          'symbol': symbol,
+                      })
         for leg in option_order["legs"]:
             storage.lpush("{}:{}:legs".format(self.get_name(), option_order["id"]),
                           leg["id"])
