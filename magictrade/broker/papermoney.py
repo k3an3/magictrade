@@ -43,8 +43,9 @@ class PaperMoneyBroker(Broker):
     def options_positions_data(self, options: List) -> List:
         for option in options:
             for od in self.options_data:
-                if 'option' in option and option['option'] == od['instrument']:
+                if option['option'] == od['instrument']:
                     option.update(od)
+                    break
         return options
 
     def get_options(self, symbol: str) -> List:
@@ -106,7 +107,11 @@ class PaperMoneyBroker(Broker):
             raise InsufficientFundsError()
         self._balance -= price * (-1 if effect == 'close' else 1)
         new_legs = []
-        for leg, action, effect in legs:
+        for leg in legs:
+            if len(leg) == 3:
+                leg, action, effect = leg
+            else:
+                action = leg['side']
             new_legs.append({
                 'side': action,
                 'option': leg['url'],

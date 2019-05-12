@@ -572,19 +572,53 @@ class TestOAStrategy:
         data = storage.hgetall("{}:{}".format(name, oid))
         assert data['strategy'] == 'credit_spread'
         assert int(data['quantity']) == quantity
-        assert float(data['price']) == price
+        assert float(data['price']) == price / quantity
         legs = storage.lrange("{}:{}:legs".format(name, oid), 0, -1)
         assert len(legs) == 2
         assert oo["legs"][0]["id"] in legs
         assert oo["legs"][1]["id"] in legs
         oab._delete_position(oid)
 
-    def test_maintenance(self):
-        name = 'oatrading-testmaint'
-        pmb = PaperMoneyBroker(account_id='testmaint', date=date, data=quotes, options_data=oa_options_1,
+    def test_maintenance_no_action(self):
+        name = 'testmaint-' + str(uuid.uuid4())
+        pmb = PaperMoneyBroker(account_id=name, date=date, data=quotes, options_data=oa_options_1,
                                exp_dates=exp_dates)
         oab = OptionAlphaTradingStrategy(pmb)
-        _, _, quantity, price, oo = oab.make_trade('MU', 'bearish', high_iv)
+        oab.make_trade('MU', 'bearish', high_iv)
         orders = oab.maintenance()
         assert not orders
 
+    def test_maintenance_close(self):
+        name = 'testmaint-' + str(uuid.uuid4())
+        pmb = PaperMoneyBroker(account_id=name, date=date, data=quotes, options_data=oa_options_1,
+                               exp_dates=exp_dates)
+        name = 'oatrading-' + name
+        test_id = str(uuid.uuid4())
+        id_1 = str(uuid.uuid4())
+        id_2 = str(uuid.uuid4())
+        leg1 = "{}:leg:{}".format(name, id_1)
+        leg2 = "{}:leg:{}".format(name, id_2)
+        data = "{}:{}".format(name, test_id)
+        positions = name + ":positions"
+        legs = "{}:{}:legs".format(name, test_id)
+
+        storage.hmset(data, {'price': 112, 'quantity': 540, 'symbol': 'MU',
+                             'strategy': 'credit_spread'})
+        storage.lpush(positions, test_id)
+        storage.lpush(legs, id_1)
+        storage.lpush(legs, id_2)
+        storage.hmset(leg1, {'option': 'https://api.robinhood.com/options/instruments/9d870f5d-bd44-4750-8ff6'
+                                       '-7aee58249b9f/',
+                             'side': 'sell',
+                             'ratio_quantity': 1,
+                             })
+        storage.hmset(leg2, {'option': 'https://api.robinhood.com/options/instruments/388082d5-b1d9-404e-8aad'
+                                       '-c92f40ee9ddb/',
+                             'side': 'buy',
+                             'ratio_quantity': 1,
+                             })
+        oab = OptionAlphaTradingStrategy(pmb)
+        orders = oab.maintenance()
+        assert len(orders) == 1
+        assert len(orders[0]['legs']) == 2
+        assert not storage.lrange(name + ":positions", 0, -1)

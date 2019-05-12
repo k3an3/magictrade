@@ -126,8 +126,6 @@ class OptionAlphaTradingStrategy(TradingStrategy):
                 action = leg[1]
                 leg_price = leg[0]['mark_price']
             else:
-                if 'side' not in leg:
-                    continue
                 action = leg['side']
                 leg_price = leg['mark_price']
             if action == 'sell':
@@ -163,10 +161,10 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             legs = self.broker.options_positions_data(legs)
             value = self._get_price(legs)
             change = get_percentage_change(float(data['price']), value)
-            if change >= strategies[data['strategy']]['target']:
+            if -1 * change >= strategies[data['strategy']]['target']:
                 option_order = self.broker.options_transact(legs, data['symbol'],
-                                                            'debit', data['price'],
-                                                            value, data['quantity'],
+                                                            'debit', value,
+                                                            data['quantity'],
                                                             'close'
                                                             )
                 self._delete_position(position)
@@ -220,7 +218,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         storage.hmset("{}:{}".format(self.get_name(), option_order["id"]),
                       {
                           'strategy': strategy,
-                          'price': price * quantity,
+                          'price': price,
                           'quantity': quantity,
                           'symbol': symbol,
                       })
