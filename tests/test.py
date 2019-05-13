@@ -424,6 +424,14 @@ class TestOAStrategy:
         assert oab._get_target_date({'timeline': [30, 60]}, options, 50) == '2019-05-17'
         assert oab._get_target_date({'timeline': [30, 60]}, options, 100) == '2019-05-17'
 
+    def test_get_target_date_days_out(self):
+        pmb = PaperMoneyBroker(account_id='test', balance=1_000_000, date=datetime.strptime('2019-03-31', '%Y-%m-%d'))
+        oab = OptionAlphaTradingStrategy(pmb)
+        options = {'expiration_dates': exp_dates}
+        assert oab._get_target_date({'timeline': [30, 60]}, options, days_out=30) == '2019-05-03'
+        assert oab._get_target_date({'timeline': [30, 60]}, options, days_out=45) == '2019-05-17'
+        assert oab._get_target_date({'timeline': [30, 60]}, options, days_out=60) == '2019-05-17'
+
     def test_iron_condor(self):
         pmb = PaperMoneyBroker(account_id='test')
         oab = OptionAlphaTradingStrategy(pmb)
@@ -498,7 +506,7 @@ class TestOAStrategy:
     def test_get_quantity(self):
         pmb = PaperMoneyBroker(account_id='test', )
         oab = OptionAlphaTradingStrategy(pmb)
-        assert oab._get_quantity(30_000, 31) == 967
+        assert oab._get_quantity(30_000, 3) == 100
 
     def test_make_trade_neutral_mid_iv(self):
         pmb = PaperMoneyBroker(account_id='test', date=date, data=quotes, options_data=oa_options_1,
@@ -509,8 +517,8 @@ class TestOAStrategy:
         assert oab._get_price(legs) <= pmb.balance * 0.03
         assert legs[0][0]["strike_price"] == 42.0
         assert oab._get_price(legs) == 31.0
-        assert q == 967
-        assert p == 29_977
+        assert q == 100
+        assert p == 3_100
 
     def test_make_trade_neutral_high_iv(self):
         pmb = PaperMoneyBroker(account_id='test', date=date, data=quotes, options_data=oa_options_1,
@@ -520,8 +528,8 @@ class TestOAStrategy:
         assert strategy == 'iron_butterfly'
         assert oab._get_price(legs) <= pmb.balance * 0.03
         assert legs[0][0]["strike_price"] == 38.5
-        assert q == 271
-        assert round(p, ndigits=1) == 29_945.5
+        assert q == 100
+        assert round(p) == 1_1050
 
     def test_make_trade_bearish(self):
         pmb = PaperMoneyBroker(account_id='test', date=date, data=quotes, options_data=oa_options_1,
@@ -531,8 +539,8 @@ class TestOAStrategy:
         assert strategy == 'credit_spread'
         assert oab._get_price(legs) <= pmb.balance * 0.03
         assert legs[0][0]["strike_price"] == 40.0
-        assert q == 540
-        assert round(p) == 29_970
+        assert q == 100
+        assert round(p) == 5_550
 
     def test_delete_position(self):
         name = 'oatrading-testdel'

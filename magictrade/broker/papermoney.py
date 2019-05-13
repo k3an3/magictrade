@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Tuple, Dict, List, Any
 
-from fast_arrow import Client, StockMarketdata
+from fast_arrow import Client, StockMarketdata, Stock, OptionChain, Option, OptionPosition
 
 from magictrade import Position
 from magictrade.broker import Broker, InsufficientFundsError, NonexistentAssetError, InvalidOptionError
@@ -41,21 +41,36 @@ class PaperMoneyBroker(Broker):
         pass
 
     def options_positions_data(self, options: List) -> List:
-        for option in options:
-            for od in self.options_data:
-                if option['option'] == od['instrument']:
-                    option.update(od)
-                    break
-        return options
+        if self.options_data:
+            for option in options:
+                for od in self.options_data:
+                    if option['option'] == od['instrument']:
+                        option.update(od)
+                        break
+            return options
+        return OptionPosition.mergein_marketdata_list(self.client, options)
 
     def get_options(self, symbol: str) -> List:
-        return self.options_data
+        if self.options_data:
+            return self.options_data
+        stock = Stock.fetch(self.client, symbol)
+        return OptionChain.fetch(self.client, stock["id"], symbol)
 
     def get_options_data(self, options: List) -> List:
-        return self.options_data
+        if self.options_data:
+            return self.options_data
+        options = Option.mergein_marketdata_list(self.client, options)
+        for option in options:
+            for key, value in option:
+                try:
+                    option[key] = float(value)
+                except ValueError:
+                    pass
+        return options
 
     def filter_options(self, options: List, exp_dates: List):
-        pass
+        if not self.options_data:
+            return Option.in_chain(self.client, options["id"], expiration_dates=exp_dates)
 
     def get_value(self) -> float:
         value = self.balance

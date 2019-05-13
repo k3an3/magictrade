@@ -1,10 +1,10 @@
 from datetime import datetime
 from typing import Tuple, Any, List, Dict
 
-from fast_arrow import Client, Stock, StockMarketdata, OptionChain, Option, OptionOrder, User, OptionPosition
+from fast_arrow import Client, Stock, StockMarketdata, OptionChain, Option, OptionOrder, OptionPosition
 from fast_arrow.resources.account import Account
 
-from magictrade import Broker, Position
+from magictrade import Broker
 from magictrade.broker import InvalidOptionError
 
 

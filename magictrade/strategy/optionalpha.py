@@ -98,9 +98,12 @@ class OptionAlphaTradingStrategy(TradingStrategy):
     def _get_allocation(self, allocation: int):
         return self.broker.balance * allocation / 100
 
-    def _get_target_date(self, config: Dict, options: List, timeline: int):
-        timeline_range = config['timeline'][1] - config['timeline'][0]
-        timeline = config['timeline'][0] + timeline_range * timeline / 100
+    def _get_target_date(self, config: Dict, options: List, timeline: int = 0, days_out: int = 0):
+        if not days_out:
+            timeline_range = config['timeline'][1] - config['timeline'][0]
+            timeline = config['timeline'][0] + timeline_range * timeline / 100
+        else:
+            timeline = days_out
 
         target_date = None
         offset = 0
@@ -135,12 +138,11 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         return price * 100
 
     @staticmethod
-    def _get_quantity(allocation: float, price: float):
-        return int(allocation / price)
+    def _get_quantity(allocation: float, spread_width: float):
+        return int(allocation / (spread_width * 100))
 
-    @staticmethod
-    def notify(msg: str):
-        pass
+    def log(self, msg: str):
+        storage.lpush(self.get_name() + ":log", msg)
 
     def _delete_position(self, order_id: str):
         storage.lrem("{}:positions".format(self.get_name()), 0, order_id)
@@ -169,10 +171,13 @@ class OptionAlphaTradingStrategy(TradingStrategy):
                                                             )
                 self._delete_position(position)
                 orders.append(option_order)
+                self.log("Closed {} with quantity {} and price {}.".format(data['strategy'],
+                                                                           data['quantity'],
+                                                                           value))
         return orders
 
     def make_trade(self, symbol: str, direction: str, iv_rank: int = 50, allocation: int = 3, timeline: int = 50,
-                   spread_width: int = 3):
+                   spread_width: int = 3, days_out: int = 0):
         # TODO Decide if a trade should even be made based on cash reserves. Probably in whatever calls this
         q = self.broker.get_quote(symbol)
 
@@ -211,7 +216,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         legs = method(config, options, quote=q, direction=direction, width=spread_width)
 
         price = self._get_price(legs)
-        quantity = self._get_quantity(allocation, price)
+        quantity = self._get_quantity(allocation, spread_width)
         option_order = self.broker.options_transact(legs, symbol, 'credit', price,
                                                     quantity, 'open')
         storage.lpush(self.get_name() + ":positions", option_order["id"])
@@ -226,8 +231,8 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             storage.lpush("{}:{}:legs".format(self.get_name(), option_order["id"]),
                           leg["id"])
             storage.hmset("{}:leg:{}".format(self.get_name(), leg["id"]), leg)
-        self.notify("Opened {} for direction {} with quantity {} and price {}.".format(strategy,
-                                                                                       direction,
-                                                                                       quantity,
-                                                                                       price))
+        self.log("Opened {} for direction {} with quantity {} and price {}.".format(strategy,
+                                                                                    direction,
+                                                                                    quantity,
+                                                                                    price))
         return strategy, legs, quantity, quantity * price, option_order
