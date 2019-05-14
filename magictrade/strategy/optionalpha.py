@@ -1,4 +1,5 @@
-from datetime import timedelta
+import json
+from datetime import timedelta, datetime
 from typing import List, Dict
 
 from magictrade import Broker, storage
@@ -231,8 +232,13 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             storage.lpush("{}:{}:legs".format(self.get_name(), option_order["id"]),
                           leg["id"])
             storage.hmset("{}:leg:{}".format(self.get_name(), leg["id"]), leg)
-        self.log("Opened {} for direction {} with quantity {} and price {}.".format(strategy,
-                                                                                    direction,
-                                                                                    quantity,
-                                                                                    price))
+        storage.lpush("{}:raw:{}".format(self.get_name(), option_order["id"]), str(legs))
+        self.log("{} [{}]: Opened {} in {} for direction {} with quantity {} and price {}.".format(
+            datetime.now().timestamp(),
+            option_order["id"],
+            strategy,
+            symbol,
+            direction,
+            quantity,
+            round(price, 2)))
         return strategy, legs, quantity, quantity * price, option_order

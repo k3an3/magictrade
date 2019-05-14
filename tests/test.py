@@ -1,10 +1,10 @@
 import uuid
-from datetime import timedelta, datetime
+from datetime import datetime
 
 import pytest
 
 from magictrade import storage
-from magictrade.broker import InsufficientFundsError, NonexistentAssetError, InvalidOptionError
+from magictrade.broker import InsufficientFundsError, NonexistentAssetError
 from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.strategy.buyandhold import BuyandHoldStrategy
 from magictrade.strategy.human import HumanTradingStrategy, DEFAULT_CONFIG
@@ -13,7 +13,6 @@ from magictrade.strategy.reactive import ReactiveStrategy
 from magictrade.utils import get_account_history, get_percentage_change
 from tests.data import quotes, human_quotes_1, reactive_quotes, oa_options_1, exp_dates
 
-"3KODWEPB1ZR37OT7"
 
 date = datetime.strptime("2019-03-31", "%Y-%m-%d")
 

@@ -1,20 +1,22 @@
 import os
-
 import uuid
 from datetime import datetime
 from typing import Tuple, Dict, List, Any
 
-from fast_arrow import Client, StockMarketdata, Stock, OptionChain, Option, OptionPosition
+import requests
 
 from magictrade import Position
 from magictrade.broker import Broker, InsufficientFundsError, NonexistentAssetError, InvalidOptionError
+from magictrade.broker.robinhood import RobinhoodBroker
+
+API_KEY = "3KODWEPB1ZR37OT7"
 
 
 class PaperMoneyBroker(Broker):
-    def __init__(self, balance: int = 1_000_000, data: Dict = {},
-                 account_id: str = None, date: str = None, data_files: List[Tuple[str, str]] = [],
-                 options_data: Dict = [],
-                 exp_dates: Dict = {}):
+    def __init__(self, balance: int = 1_000_000, data: Dict = {}, account_id: str = None,
+                 date: str = None, data_files: List[Tuple[str, str]] = [],
+                 options_data: Dict = [], exp_dates: Dict = {}, username: str = None,
+                 password: str = None, mfa_code: str = None, robinhood: bool = False):
         self._balance = balance
         self.stocks = {}
         self.options = {}
@@ -30,8 +32,11 @@ class PaperMoneyBroker(Broker):
                     for line in f:
                         date, price = line.split(',')
                         d[date] = float(price)
-        self.client = Client()
-        self._account_id = account_id
+        if robinhood:
+            self.rb = RobinhoodBroker(username, password, mfa_code)
+            self._account_id = self.rb.account_id
+        else:
+            self._account_id = account_id
 
     @property
     def buying_power(self) -> float:
@@ -48,29 +53,21 @@ class PaperMoneyBroker(Broker):
                         option.update(od)
                         break
             return options
-        return OptionPosition.mergein_marketdata_list(self.client, options)
+        return self.rb.options_positions_data(options)
 
     def get_options(self, symbol: str) -> List:
         if self.options_data:
             return self.options_data
-        stock = Stock.fetch(self.client, symbol)
-        return OptionChain.fetch(self.client, stock["id"], symbol)
+        return self.rb.get_options(symbol)
 
     def get_options_data(self, options: List) -> List:
         if self.options_data:
             return self.options_data
-        options = Option.mergein_marketdata_list(self.client, options)
-        for option in options:
-            for key, value in option:
-                try:
-                    option[key] = float(value)
-                except ValueError:
-                    pass
-        return options
+        return self.rb.get_options_data(options)
 
     def filter_options(self, options: List, exp_dates: List):
         if not self.options_data:
-            return Option.in_chain(self.client, options["id"], expiration_dates=exp_dates)
+            return self.rb.filter_options(options, exp_dates)
 
     def get_value(self) -> float:
         value = self.balance
@@ -100,7 +97,12 @@ class PaperMoneyBroker(Broker):
                 return self.data[symbol]['history'][date]
             return self.data[symbol]['price']
         else:
-            return float(StockMarketdata.quote_by_symbol(self.client, symbol)['last_trade_price'])
+            data = requests.get('https://www.alphavantage.co/query', params={'function': 'GLOBAL_QUOTE',
+                                                                             'symbol': symbol,
+                                                                             'apikey': API_KEY
+                                                                             }
+                                )
+            return float(data.json()['Global Quote']['02. open'])
 
     @property
     def balance(self) -> float:

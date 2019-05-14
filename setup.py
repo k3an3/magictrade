@@ -14,7 +14,7 @@ setup(
         'pytest',
         'redis',
         'scipy',
-        'fast_arrow',
+        'fast_arrow', 'requests'
     ],
     dependency_links=[
         'https://github.com/KloudTrader/paperbroker#egg=paperbroker',
