@@ -34,7 +34,7 @@ def normalize_trade(trade: Dict) -> Dict:
 def main():
     next_run = 0
     while True:
-        if True or market_is_open():
+        if market_is_open():
             if not next_run:
                 logging.info("Running maintenance...")
                 logging.info("Completed {} tasks.".format(len(strategy.maintenance())))
