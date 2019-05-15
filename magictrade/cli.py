@@ -4,7 +4,7 @@ from datetime import datetime
 
 from magictrade import storage
 
-queue_name = 'oatrading-queue'
+default_queue_name = 'oatrading-queue'
 
 
 def cli():
@@ -25,16 +25,21 @@ def cli():
     parser.add_argument('-s', '--days-out', type=int, default=0, dest='days_out', help='Number of days to target, '
                                                                                        'cannot be used with timeline.')
     parser.add_argument('-w', '--spread-width', type=float, default=3, dest='spread_width', help='Width of spreads.')
+    parser.add_argument('-q', '--queue-name', dest='queue_name', help='Redis queue name that the '
+                                                                                           'daemon is reading from..')
 
     args = parser.parse_args()
-    identifier = "{}-{}".format(args.symbol, datetime.now().strftime("%Y%m%d%H%M%S"))
-    storage.lpush(queue_name, identifier)
 
     if args.days_out and args.timeline:
         print("Can't use timeline with days_out. Aborting.")
         raise SystemExit
 
+    queue_name = args.queue_name or default_queue_name
+    identifier = "{}-{}".format(args.symbol, datetime.now().strftime("%Y%m%d%H%M%S"))
+
     storage.hmset("{}:{}".format(queue_name, identifier), vars(args))
+    storage.lpush(queue_name, identifier)
+
     print("Placed trade:\n{}".format(vars(args)))
 
 

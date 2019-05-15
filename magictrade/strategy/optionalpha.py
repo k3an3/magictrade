@@ -232,7 +232,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             storage.lpush("{}:{}:legs".format(self.get_name(), option_order["id"]),
                           leg["id"])
             storage.hmset("{}:leg:{}".format(self.get_name(), leg["id"]), leg)
-        storage.lpush("{}:raw:{}".format(self.get_name(), option_order["id"]), str(legs))
+        storage.set("{}:raw:{}".format(self.get_name(), option_order["id"]), str(legs))
         self.log("{} [{}]: Opened {} in {} for direction {} with quantity {} and price {}.".format(
             datetime.now().timestamp(),
             option_order["id"],

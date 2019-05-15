@@ -49,12 +49,14 @@ def main():
                     strategy.make_trade(**trade)
                 except Exception as e:
                     logging.error("Error while making trade '{}': {}".format(trade, e))
+                    storage.set("{}:fail:{}".format(queue_name, identifier))
                     try:
                         sentry_sdk.capture_exception(e)
                     except NameError:
                         pass
                 else:
                     logging.info("Completed transaction: " + str(trade))
+                    storage.set("{}:success:{}".format(queue_name, identifier))
             if next_run:
                 next_run -= 1
         else:
