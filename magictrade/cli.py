@@ -16,6 +16,7 @@ def handle_trade(args):
     queue_name = args.queue_name
     args = vars(args)
     args.pop('func')
+    args.pop('cmd')
     storage.hmset("{}:{}".format(queue_name, identifier), args)
     storage.lpush(queue_name, identifier)
 
