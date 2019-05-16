@@ -1,10 +1,9 @@
-import json
 from datetime import timedelta, datetime
 from typing import List, Dict
 
 from magictrade import Broker, storage
 from magictrade.strategy import TradingStrategy
-from magictrade.utils import get_percentage_change
+from magictrade.utils import get_percentage_change, get_allocation
 
 strategies = {
     'iron_condor': {
@@ -52,7 +51,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
 
     @staticmethod
     def _filter_option_type(options: List, o_type: str):
-        return list(filter(lambda x: x["type"] == o_type, options))
+        return [o for o in options if o["type"] == o_type]
 
     @staticmethod
     def _get_long_leg(options: List, short_leg: Dict, o_type: str, width: int):
@@ -95,9 +94,6 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         short_leg = self._find_option_with_probability(options, config['probability'])
         long_leg = self._get_long_leg(options, short_leg, o_type, width)
         return (short_leg, 'sell', 'open'), (long_leg, 'buy', 'open')
-
-    def _get_allocation(self, allocation: int):
-        return self.broker.balance * allocation / 100
 
     def _get_target_date(self, config: Dict, options: List, timeline: int = 0, days_out: int = 0):
         if not days_out:
@@ -145,7 +141,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
     def log(self, msg: str):
         storage.lpush(self.get_name() + ":log", msg)
 
-    def _delete_position(self, order_id: str):
+    def delete_position(self, order_id: str):
         storage.lrem("{}:positions".format(self.get_name()), 0, order_id)
         for leg in storage.lrange("{}:{}:legs".format(self.get_name(), order_id), 0, -1):
             storage.delete("{}:leg:{}".format(self.get_name(), leg))
@@ -170,7 +166,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
                                                             data['quantity'],
                                                             'close'
                                                             )
-                self._delete_position(position)
+                self.delete_position(position)
                 orders.append(option_order)
                 self.log("Closed {} with quantity {} and price {}.".format(data['strategy'],
                                                                            data['quantity'],
@@ -179,7 +175,6 @@ class OptionAlphaTradingStrategy(TradingStrategy):
 
     def make_trade(self, symbol: str, direction: str, iv_rank: int = 50, allocation: int = 3, timeline: int = 50,
                    spread_width: int = 3, days_out: int = 0):
-        # TODO Decide if a trade should even be made based on cash reserves. Probably in whatever calls this
         q = self.broker.get_quote(symbol)
 
         if direction not in valid_directions:
@@ -206,7 +201,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         config = strategies[strategy]
 
         symbol = symbol.upper()
-        allocation = self._get_allocation(allocation)
+        allocation = get_allocation(self.broker, allocation)
         options = self.broker.get_options(symbol)
 
         target_date = self._get_target_date(config, options, timeline)

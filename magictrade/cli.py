@@ -46,7 +46,7 @@ def cli():
     list_parser.set_defaults(func=handle_list)
     check_parser.add_argument('identifier', help='Trade identifier returned by this tool when placing a trade')
     trade_parser.add_argument('symbol', help="Symbol to trade. e.g. \"SPY\"")
-    trade_parser.add_argument('-d', '--direction', required=True, dest='direction',
+    trade_parser.add_argument('-d', '--direction', default='neutral', dest='direction',
                               choices=('bullish', 'bearish', 'neutral'), help='Type of trade to make')
     # trade_parser.add_argument('-q', '--quantity', type=int, default=1, dest='quantity', help='Number of contracts
     # to trade')

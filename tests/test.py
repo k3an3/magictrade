@@ -10,7 +10,7 @@ from magictrade.strategy.buyandhold import BuyandHoldStrategy
 from magictrade.strategy.human import HumanTradingStrategy, DEFAULT_CONFIG
 from magictrade.strategy.optionalpha import OptionAlphaTradingStrategy, strategies, TradeException, high_iv
 from magictrade.strategy.reactive import ReactiveStrategy
-from magictrade.utils import get_account_history, get_percentage_change
+from magictrade.utils import get_account_history, get_percentage_change, get_allocation
 from tests.data import quotes, human_quotes_1, reactive_quotes, oa_options_1, exp_dates
 
 
@@ -412,8 +412,8 @@ class TestOAStrategy:
     def test_get_allocations(self):
         pmb = PaperMoneyBroker(account_id='test', balance=1_000_000)
         oab = OptionAlphaTradingStrategy(pmb)
-        assert oab._get_allocation(3) == 30_000
-        assert oab._get_allocation(4.5) == 45_000
+        assert get_allocation(oab.broker, 3) == 30_000
+        assert get_allocation(oab.broker, 4.5) == 45_000
 
     def test_get_target_date(self):
         pmb = PaperMoneyBroker(account_id='test', balance=1_000_000, date=datetime.strptime('2019-03-31', '%Y-%m-%d'))
@@ -561,7 +561,7 @@ class TestOAStrategy:
         storage.lpush(legs, id_2)
         storage.hmset(leg1, {'test': 'leg11'})
         storage.hmset(leg2, {'test': 'leg22'})
-        oab._delete_position(test_id)
+        oab.delete_position(test_id)
         assert not storage.exists(leg1,
                                   leg2,
                                   data,
@@ -584,7 +584,7 @@ class TestOAStrategy:
         assert len(legs) == 2
         assert oo["legs"][0]["id"] in legs
         assert oo["legs"][1]["id"] in legs
-        oab._delete_position(oid)
+        oab.delete_position(oid)
 
     def test_maintenance_no_action(self):
         name = 'testmaint-' + str(uuid.uuid4())

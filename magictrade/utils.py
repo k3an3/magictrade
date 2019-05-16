@@ -109,3 +109,7 @@ def get_version():
 
 if __name__ == "__main__":
     plot_cli()
+
+
+def get_allocation(broker, allocation: int):
+    return broker.balance * allocation / 100
