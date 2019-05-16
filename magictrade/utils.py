@@ -107,9 +107,16 @@ def get_version():
             return 'v?'
 
 
-if __name__ == "__main__":
-    plot_cli()
-
-
 def get_allocation(broker, allocation: int):
     return broker.balance * allocation / 100
+
+
+def send_trade(queue_name: str, args: Dict) -> str:
+    identifier = "{}-{}".format(args['symbol'].upper(), datetime.now().strftime("%Y%m%d%H%M%S"))
+    storage.hmset("{}:{}".format(queue_name, identifier), args)
+    storage.lpush(queue_name, identifier)
+    return identifier
+
+
+if __name__ == "__main__":
+    plot_cli()

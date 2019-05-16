@@ -1,8 +1,7 @@
-#!/usr/bin/env python3
 import argparse
-from datetime import datetime
 
 from magictrade import storage
+from magictrade.utils import send_trade
 
 default_queue_name = 'oatrading-queue'
 
@@ -12,16 +11,13 @@ def handle_trade(args):
         print("Can't use timeline with days_out. Aborting.")
         raise SystemExit
 
-    identifier = "{}-{}".format(args.symbol, datetime.now().strftime("%Y%m%d%H%M%S"))
     queue_name = args.queue_name
     args = vars(args)
     args.pop('func')
     args.pop('cmd')
     args.pop('queue_name')
-    storage.hmset("{}:{}".format(queue_name, identifier), args)
-    storage.lpush(queue_name, identifier)
-
-    print("Placed trade {} with status:\n{}".format(identifier, args))
+    identifier = send_trade(queue_name, args)
+    print("Placed trade {} with data:\n{}".format(identifier, args))
 
 
 def handle_check(args):
@@ -48,8 +44,6 @@ def cli():
     trade_parser.add_argument('symbol', help="Symbol to trade. e.g. \"SPY\"")
     trade_parser.add_argument('-d', '--direction', default='neutral', dest='direction',
                               choices=('bullish', 'bearish', 'neutral'), help='Type of trade to make')
-    # trade_parser.add_argument('-q', '--quantity', type=int, default=1, dest='quantity', help='Number of contracts
-    # to trade')
     trade_parser.add_argument('-i', '--iv-rank', type=int, default=50, dest='iv_rank',
                               help="Current IV "
                                    "ranking/percentile "
