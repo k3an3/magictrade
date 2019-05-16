@@ -71,7 +71,7 @@ def main_loop():
                     strategy.make_trade(**trade)
                 except Exception as e:
                     logging.error("Error while making trade '{}': {}".format(trade, e))
-                    storage.set("{}:fail:{}".format(queue_name, identifier))
+                    storage.set("{}:status:{}".format(queue_name, identifier), 'fail')
                     try:
                         import sentry_sdk
                         sentry_sdk.capture_exception(e)
@@ -79,7 +79,7 @@ def main_loop():
                         pass
                 else:
                     logging.info("Completed transaction: " + str(trade))
-                    storage.set("{}:success:{}".format(queue_name, identifier))
+                    storage.set("{}:status:{}".format(queue_name, identifier), 'placed')
             if next_run:
                 next_run -= 1
         else:
