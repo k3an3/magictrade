@@ -27,14 +27,21 @@ def handle_check(args):
     print("Returned status: '{}'".format(status))
 
 
+def handle_list(args):
+    for identifier in storage.lrange(args.queue_name, 0, -1):
+        print(identifier, ":", storage.hgetall("{}:{}".format(args.queue_name, identifier)))
+
+
 def cli():
     parser = argparse.ArgumentParser(description='Talk to magictrade daemon.',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     subparsers = parser.add_subparsers(help='Valid subcommands:', dest='cmd', required=True)
+    list_parser = subparsers.add_parser('list', aliases=['l'], help='List pending trades.')
     trade_parser = subparsers.add_parser('trade', aliases=['t'], help='Place a trade')
-    trade_parser.set_defaults(func=handle_trade)
     check_parser = subparsers.add_parser('check', aliases=['c'], help='Check status of a trade')
     check_parser.set_defaults(func=handle_check)
+    trade_parser.set_defaults(func=handle_trade)
+    list_parser.set_defaults(func=handle_list)
     check_parser.add_argument('identifier', help='Trade identifier returned by this tool when placing a trade')
     trade_parser.add_argument('symbol', help="Symbol to trade. e.g. \"SPY\"")
     trade_parser.add_argument('-d', '--direction', required=True, dest='direction',
