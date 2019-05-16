@@ -20,10 +20,10 @@ class RobinhoodBroker(Broker):
             with open(token_file) as f:
                 j = json.load(f)
                 kwargs = {'access_token': j.get('access_token'),
-                        'refresh_token': j.get('refresh_token')}
+                          'refresh_token': j.get('refresh_token')}
         else:
             kwargs = {'username': username, 'password': password,
-                    'mfa_code': mfa_code}
+                      'mfa_code': mfa_code}
         # Necessary to build kwargs this way because Client init is funky
         self.client = Client(**kwargs)
         self.client.authenticate()

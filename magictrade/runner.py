@@ -2,6 +2,7 @@
 import logging
 import os
 import random
+from argparse import ArgumentParser
 from typing import Dict
 
 from time import sleep
@@ -11,6 +12,11 @@ from magictrade.strategy.optionalpha import OptionAlphaTradingStrategy
 
 from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.utils import market_is_open, get_version
+
+parser = ArgumentParser()
+parser.add_argument('-k', '--oauth-keyfile', dest='keyfile', help='Path to keyfile containing access and refresh '
+                                                                  'tokens.')
+args = parser.parse_args()
 
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
 broker = PaperMoneyBroker(balance=20_000, account_id="livetest",

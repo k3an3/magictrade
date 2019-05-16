@@ -16,7 +16,8 @@ class PaperMoneyBroker(Broker):
     def __init__(self, balance: int = 1_000_000, data: Dict = {}, account_id: str = None,
                  date: str = None, data_files: List[Tuple[str, str]] = [],
                  options_data: Dict = [], exp_dates: Dict = {}, username: str = None,
-                 password: str = None, mfa_code: str = None, robinhood: bool = False):
+                 password: str = None, mfa_code: str = None, token_file=None,
+                 robinhood: bool = False):
         self._balance = balance
         self.stocks = {}
         self.options = {}
@@ -33,7 +34,7 @@ class PaperMoneyBroker(Broker):
                         date, price = line.split(',')
                         d[date] = float(price)
         if robinhood:
-            self.rb = RobinhoodBroker(username, password, mfa_code)
+            self.rb = RobinhoodBroker(username, password, mfa_code, token_file)
             self._account_id = self.rb.account_id
         else:
             self._account_id = account_id
