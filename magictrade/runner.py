@@ -32,6 +32,21 @@ def normalize_trade(trade: Dict) -> Dict:
 
 
 def main():
+    logging.info("Magictrade daemon {} starting with queue name '{}'.".format(get_version(), queue_name))
+    try:
+        import sentry_sdk
+
+        logging.info("Sentry support enabled")
+        sentry_sdk.init("https://251af7f144544ad893c4cb87dfddf7fa@sentry.io/1458727")
+    except ImportError:
+        pass
+    logging.info("Authenticated with account " + broker.account_id)
+    try:
+        main_loop()
+    except KeyboardInterrupt:
+        logging.info("Got SIGINT, Exiting...")
+
+def main_loop():
     next_run = 0
     while True:
         if market_is_open():
@@ -51,8 +66,9 @@ def main():
                     logging.error("Error while making trade '{}': {}".format(trade, e))
                     storage.set("{}:fail:{}".format(queue_name, identifier))
                     try:
+                        import sentry_sdk
                         sentry_sdk.capture_exception(e)
-                    except NameError:
+                    except ImportError:
                         pass
                 else:
                     logging.info("Completed transaction: " + str(trade))
@@ -66,16 +82,4 @@ def main():
 
 
 if __name__ == '__main__':
-    logging.info("Magictrade daemon {} starting with queue name '{}'.".format(get_version(), queue_name))
-    try:
-        import sentry_sdk
-
-        logging.info("Sentry support enabled")
-        sentry_sdk.init("https://251af7f144544ad893c4cb87dfddf7fa@sentry.io/1458727")
-    except ImportError:
-        pass
-    logging.info("Authenticated with account " + broker.account_id)
-    try:
-        main()
-    except KeyboardInterrupt:
-        logging.info("Got SIGINT, Exiting...")
+    main()

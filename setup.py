@@ -14,10 +14,16 @@ setup(
         'pytest',
         'redis',
         'scipy',
-        'fast_arrow', 'requests'
+        'fast_arrow',
+        'requests'
     ],
     dependency_links=[
-        'https://github.com/KloudTrader/paperbroker#egg=paperbroker',
         'https://github.com/k3an3/fast_arrow#egg=fast_arrow'
     ],
+    entry_points={
+        'console_scripts': [
+            'magictrade-daemon=magictrade.runner:main',
+            'magictrade-cli=magictrade.cli:main'
+        ]
+    }
 )
