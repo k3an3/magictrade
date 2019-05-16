@@ -46,6 +46,7 @@ def main():
     except KeyboardInterrupt:
         logging.info("Got SIGINT, Exiting...")
 
+
 def main_loop():
     next_run = 0
     while True:

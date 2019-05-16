@@ -23,7 +23,7 @@ setup(
     entry_points={
         'console_scripts': [
             'magictrade-daemon=magictrade.runner:main',
-            'magictrade-cli=magictrade.cli:main'
+            'magictrade-cli=magictrade.cli:cli'
         ]
     }
 )
