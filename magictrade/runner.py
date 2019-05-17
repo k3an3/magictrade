@@ -22,6 +22,9 @@ args = parser.parse_args()
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
 if 'username' in os.environ:
     logging.info("Attempting credentials from envars...")
+else:
+    logging.info("Using stored credentials...")
+
 broker = PaperMoneyBroker(balance=20_000, account_id="livetest",
                           username=os.environ.pop('username', None),
                           password=os.environ.pop('password', None),
@@ -62,9 +65,9 @@ def main_loop():
     first_trade = True
 
     while True:
-        if True or market_is_open():
+        if market_is_open():
             if first_trade:
-                #sleep(60)
+                sleep(60)
                 first_trade = False
             if not next_maintenance:
                 logging.info("Running maintenance...")
