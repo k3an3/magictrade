@@ -61,6 +61,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
                 distance = abs(option['strike_price'] - short_leg['strike_price'])
                 if distance >= width:
                     return option
+        raise TradeException("No suitable strike price for long leg")
 
     def iron_butterfly(self, config: Dict, options: List, **kwargs):
         quote = kwargs['quote']

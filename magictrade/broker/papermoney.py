@@ -41,7 +41,7 @@ class PaperMoneyBroker(Broker):
 
     @property
     def buying_power(self) -> float:
-        pass
+        return self.rb.buying_power
 
     def options_positions(self) -> List:
         pass

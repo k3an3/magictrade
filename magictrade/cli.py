@@ -35,7 +35,8 @@ def cli():
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     subparsers = parser.add_subparsers(help='Valid subcommands:', dest='cmd', required=True)
     list_parser = subparsers.add_parser('list', aliases=['l'], help='List pending trades.')
-    trade_parser = subparsers.add_parser('trade', aliases=['t'], help='Place a trade')
+    trade_parser = subparsers.add_parser('trade', aliases=['t'], help='Place a trade',
+                                         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     check_parser = subparsers.add_parser('check', aliases=['c'], help='Check status of a trade')
     check_parser.set_defaults(func=handle_check)
     trade_parser.set_defaults(func=handle_trade)

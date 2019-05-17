@@ -20,11 +20,13 @@ parser.add_argument('-a', '--allocation', type=int, default=40, dest='allocation
 args = parser.parse_args()
 
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
+if 'username' in os.environ:
+    logging.info("Attempting credentials from envars...")
 broker = PaperMoneyBroker(balance=20_000, account_id="livetest",
                           username=os.environ.pop('username', None),
                           password=os.environ.pop('password', None),
                           mfa_code=os.environ.pop('mfa_code', None),
-                          robinhood=True)
+                          robinhood=True, token_file=args.keyfile)
 strategy = OptionAlphaTradingStrategy(broker)
 queue_name = 'oatrading-queue'
 rand_sleep = 3600, 7200
@@ -60,9 +62,9 @@ def main_loop():
     first_trade = True
 
     while True:
-        if market_is_open():
+        if True or market_is_open():
             if first_trade:
-                sleep(60)
+                #sleep(60)
                 first_trade = False
             if not next_maintenance:
                 logging.info("Running maintenance...")
