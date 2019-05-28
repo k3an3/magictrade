@@ -15,6 +15,9 @@ from magictrade.utils import market_is_open, get_version, get_allocation
 parser = ArgumentParser()
 parser.add_argument('-k', '--oauth-keyfile', dest='keyfile', help='Path to keyfile containing access and refresh '
                                                                   'tokens.')
+parser.add_argument('-d', '--debug', action='store_true', dest='debug',
+                    help='Simulate trades even if market is closed. '
+                         'Exceptions are re-raised.')
 parser.add_argument('-a', '--allocation', type=int, default=40, dest='allocation',
                     help='Percent of account to trade with.')
 args = parser.parse_args()
@@ -25,7 +28,7 @@ if 'username' in os.environ:
 else:
     logging.info("Using stored credentials...")
 
-broker = PaperMoneyBroker(balance=20_000, account_id="livetest",
+broker = PaperMoneyBroker(balance=15_000, account_id="livetest",
                           username=os.environ.pop('username', None),
                           password=os.environ.pop('password', None),
                           mfa_code=os.environ.pop('mfa_code', None),
@@ -59,14 +62,25 @@ def main():
         logging.info("Got SIGINT, Exiting...")
 
 
+def handle_error(e: Exception):
+    try:
+        if args.debug:
+            raise e
+        import sentry_sdk
+        sentry_sdk.capture_exception(e)
+    except ImportError:
+        pass
+
+
 def main_loop():
     next_maintenance = 0
     next_balance_check = 0
     first_trade = True
 
     while True:
-        if market_is_open():
-            if first_trade:
+        if args.debug or market_is_open():
+            if not args.debug and first_trade:
+                logging.info("Sleeping to make sure market is open...")
                 sleep(60)
                 first_trade = False
             if not next_maintenance:
@@ -74,21 +88,25 @@ def main_loop():
                 try:
                     results = strategy.maintenance()
                 except Exception as e:
-                    logging.error("Error while performing maintenance:: {}".format(e))
-                    try:
-                        import sentry_sdk
-                        sentry_sdk.capture_exception(e)
-                    except ImportError:
-                        pass
+                    logging.error("Error while performing maintenance: {}".format(e))
+                    handle_error(e)
                 else:
                     logging.info("Completed {} tasks.".format(len(results)))
                 next_maintenance = random.randint(*rand_sleep)
                 logging.info("Next check in {}s".format(next_maintenance))
-            if not next_balance_check and broker.buying_power < broker.balance * (100 - args.allocation) / 100:
-                next_balance_check = random.randint(*rand_sleep)
-                logging.info("Not enough buying power. Sleeping {}s.".format(next_balance_check))
             elif not next_balance_check:
                 while storage.llen(queue_name) > 0:
+                    try:
+                        buying_power = broker.buying_power
+                        balance = broker.balance
+                    except Exception as e:
+                        logging.error("Error while getting balances: {}".format(e))
+                        handle_error(e)
+                    if buying_power < balance * (100 - args.allocation) / 100:
+                        next_balance_check = random.randint(*rand_sleep)
+                        logging.info("Not enough buying power, {}/{}. Sleeping {}s.".format(
+                            buying_power, balance, next_balance_check))
+                        break
                     identifier = storage.rpop(queue_name)
                     trade = storage.hgetall("{}:{}".format(queue_name, identifier))
                     logging.info("Ingested trade: " + str(trade))
@@ -98,11 +116,7 @@ def main_loop():
                     except Exception as e:
                         logging.error("Error while making trade '{}': {}".format(trade, e))
                         storage.set("{}:status:{}".format(queue_name, identifier), 'fail')
-                        try:
-                            import sentry_sdk
-                            sentry_sdk.capture_exception(e)
-                        except ImportError:
-                            pass
+                        handle_error(e)
                     else:
                         logging.info("Completed transaction: " + str(trade))
                         storage.set("{}:status:{}".format(queue_name, identifier), 'placed')

@@ -208,7 +208,8 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         target_date = self._get_target_date(config, options, timeline)
 
         options = self.broker.filter_options(options, [target_date])
-        options = self.broker.get_options_data(options)
+        # Get data, but not all options will return data. Filter them out.
+        options = [o for o in self.broker.get_options_data(options) if o.get('mark_price')]
 
         legs = method(config, options, quote=q, direction=direction, width=spread_width)
 
