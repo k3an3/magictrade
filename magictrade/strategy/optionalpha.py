@@ -133,7 +133,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
                 price += leg_price
             elif action == 'buy':
                 price -= leg_price
-        return price * 100
+        return price
 
     @staticmethod
     def _get_quantity(allocation: float, spread_width: float):
@@ -176,6 +176,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
 
     def make_trade(self, symbol: str, direction: str, iv_rank: int = 50, allocation: int = 3, timeline: int = 50,
                    spread_width: int = 3, days_out: int = 0):
+        symbol = symbol.upper()
         q = self.broker.get_quote(symbol)
 
         if direction not in valid_directions:
@@ -215,6 +216,8 @@ class OptionAlphaTradingStrategy(TradingStrategy):
 
         price = self._get_price(legs)
         quantity = self._get_quantity(allocation, spread_width)
+        if not quantity:
+            raise TradeException("Trade quantity equals 0.")
         option_order = self.broker.options_transact(legs, symbol, 'credit', price,
                                                     quantity, 'open')
         storage.lpush(self.get_name() + ":positions", option_order["id"])
@@ -228,6 +231,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         for leg in option_order["legs"]:
             storage.lpush("{}:{}:legs".format(self.get_name(), option_order["id"]),
                           leg["id"])
+            leg.pop('executions', None)
             storage.hmset("{}:leg:{}".format(self.get_name(), leg["id"]), leg)
         storage.set("{}:raw:{}".format(self.get_name(), option_order["id"]), str(legs))
         self.log("{} [{}]: Opened {} in {} for direction {} with quantity {} and price {}.".format(
@@ -237,5 +241,5 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             symbol,
             direction,
             quantity,
-            round(price, 2)))
+            round(price * 100, 2)))
         return strategy, legs, quantity, quantity * price, option_order

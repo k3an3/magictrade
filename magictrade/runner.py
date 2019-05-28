@@ -7,12 +7,13 @@ from typing import Dict
 from time import sleep
 
 from magictrade import storage
+from magictrade.broker.robinhood import RobinhoodBroker
 from magictrade.strategy.optionalpha import OptionAlphaTradingStrategy
 
 from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.utils import market_is_open, get_version, get_allocation
 
-parser = ArgumentParser()
+parser = ArgumentParser(description="Daemon to make automated trades.")
 parser.add_argument('-k', '--oauth-keyfile', dest='keyfile', help='Path to keyfile containing access and refresh '
                                                                   'tokens.')
 parser.add_argument('-d', '--debug', action='store_true', dest='debug',
@@ -20,19 +21,39 @@ parser.add_argument('-d', '--debug', action='store_true', dest='debug',
                          'Exceptions are re-raised.')
 parser.add_argument('-a', '--allocation', type=int, default=40, dest='allocation',
                     help='Percent of account to trade with.')
+parser.add_argument('-u', '--username', dest='username', help='Username for broker account. May also specify with '
+                                                              'environment variable.')
+parser.add_argument('-p', '--password', dest='password', help='Password for broker account. May also specify with '
+                                                              'environment variable.')
+parser.add_argument('-m', '--mfa-code', dest='mfa', help='MFA code for broker account. May also specify with '
+                                                         'environment variable.')
+parser.add_argument('broker', choices=('papermoney', 'robinhood',), help='Broker to use.')
 args = parser.parse_args()
 
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
 if 'username' in os.environ:
     logging.info("Attempting credentials from envars...")
+elif args.username:
+    logging.info("Attempting credentials from args...")
 else:
     logging.info("Using stored credentials...")
 
-broker = PaperMoneyBroker(balance=15_000, account_id="livetest",
-                          username=os.environ.pop('username', None),
-                          password=os.environ.pop('password', None),
-                          mfa_code=os.environ.pop('mfa_code', None),
-                          robinhood=True, token_file=args.keyfile)
+username = os.environ.pop('username', None) or args.username
+password = os.environ.pop('password', None) or args.password
+mfa_code = os.environ.pop('mfa_code', None) or args.mfa
+
+if args.broker == 'papermoney':
+    broker = PaperMoneyBroker(balance=15_000, account_id="livetest",
+                              username=username,
+                              password=password,
+                              mfa_code=mfa_code,
+                              robinhood=True, token_file=args.keyfile)
+elif args.broker == 'robinhood':
+    broker = RobinhoodBroker(username=username, password=password,
+                             mfa_code=mfa_code, token_file=args.keyfile)
+else:
+    logging.warn("No valid broker provided. Exiting...")
+    raise SystemExit
 strategy = OptionAlphaTradingStrategy(broker)
 queue_name = 'oatrading-queue'
 rand_sleep = 3600, 7200
@@ -75,7 +96,7 @@ def handle_error(e: Exception):
 def main_loop():
     next_maintenance = 0
     next_balance_check = 0
-    first_trade = True
+    first_trade = False
 
     while True:
         if args.debug or market_is_open():

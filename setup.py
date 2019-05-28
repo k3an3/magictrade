@@ -18,7 +18,7 @@ setup(
         'requests'
     ],
     dependency_links=[
-        'https://github.com/k3an3/fast_arrow#egg=fast_arrow'
+        'https://github.com/k3an3/fast_arrow@dev#egg=fast_arrow'
     ],
     entry_points={
         'console_scripts': [
