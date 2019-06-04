@@ -44,7 +44,11 @@ class PaperMoneyBroker(Broker):
         return self.rb.buying_power
 
     def options_positions(self) -> List:
-        pass
+        if not self.options:
+            try:
+                return self.rb.options_positions()
+            except AttributeError:
+                pass
 
     def options_positions_data(self, options: List) -> List:
         if self.options_data:
@@ -126,13 +130,13 @@ class PaperMoneyBroker(Broker):
         self._balance -= price * (-1 if effect == 'close' else 1)
         new_legs = []
         for leg in legs:
-            if len(leg) == 3:
-                leg, action, effect = leg
+            if len(leg) == 2:
+                leg, action = leg
             else:
                 action = leg['side']
             new_legs.append({
                 'side': action,
-                'option': leg['url'],
+                'option': leg.get('url') or leg.get('instrument'),
                 'position_effect': effect,
                 'ratio_quantity': '1',
                 'id': str(uuid.uuid4()),

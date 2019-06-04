@@ -73,8 +73,8 @@ class OptionAlphaTradingStrategy(TradingStrategy):
                 closest_put = option
         call_wing = self._find_option_with_probability(calls, config['probability'])
         put_wing = self._find_option_with_probability(puts, config['probability'])
-        return (closest_call, 'sell', 'open'), (closest_put, 'sell', 'open'), \
-               (call_wing, 'buy', 'open'), (put_wing, 'buy', 'open')
+        return (closest_call, 'sell'), (closest_put, 'sell'), \
+               (call_wing, 'buy'), (put_wing, 'buy')
 
     def iron_condor(self, config: Dict, options: List, **kwargs):
         width = kwargs['width']
@@ -94,7 +94,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         options = self._filter_option_type(options, o_type)
         short_leg = self._find_option_with_probability(options, config['probability'])
         long_leg = self._get_long_leg(options, short_leg, o_type, width)
-        return (short_leg, 'sell', 'open'), (long_leg, 'buy', 'open')
+        return (short_leg, 'sell'), (long_leg, 'buy')
 
     def _get_target_date(self, config: Dict, options: List, timeline: int = 0, days_out: int = 0):
         if not days_out:
@@ -123,7 +123,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
     def _get_price(legs: List):
         price = 0
         for leg in legs:
-            if len(leg) == 3:
+            if len(leg) == 2:
                 action = leg[1]
                 leg_price = leg[0]['mark_price']
             else:
@@ -140,7 +140,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         return int(allocation / (spread_width * 100))
 
     def log(self, msg: str):
-        storage.lpush(self.get_name() + ":log", msg)
+        storage.lpush(self.get_name() + ":log", "{} {}".format(datetime.now().timestamp(), msg))
 
     def delete_position(self, order_id: str):
         storage.lrem("{}:positions".format(self.get_name()), 0, order_id)
@@ -149,15 +149,33 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         storage.delete("{}:{}:legs".format(self.get_name(), order_id))
         storage.delete("{}:{}".format(self.get_name(), order_id))
 
+    @staticmethod
+    def check_positions(legs: List, options: Dict):
+        for leg in legs:
+            if not leg['option'] in options:
+                return leg
+
     def maintenance(self):
-        positions = storage.lrange(self.get_name() + ":positions", 0, -1)
         orders = []
+
+        positions = storage.lrange(self.get_name() + ":positions", 0, -1)
+        account_positions = self.broker.options_positions()
+        if not account_positions:
+            return orders
+
+        owned_options = {option['option']: option for option in account_positions}
         for position in positions:
             data = storage.hgetall("{}:{}".format(self.get_name(), position))
             leg_ids = storage.lrange("{}:{}:legs".format(self.get_name(), position), 0, -1)
             legs = []
             for leg in leg_ids:
                 legs.append(storage.hgetall("{}:leg:{}".format(self.get_name(), leg)))
+            # Make sure we still own all legs, else abandon management of this position.
+            if self.check_positions(legs, owned_options):
+                self.delete_position(position)
+                self.log("Orphaned position {}-{},{} due to missing leg.".format(data['symbol'], data['strategy'],
+                                                                                 position))
+                continue
             legs = self.broker.options_positions_data(legs)
             value = self._get_price(legs)
             change = get_percentage_change(float(data['price']), value)
@@ -234,8 +252,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             leg.pop('executions', None)
             storage.hmset("{}:leg:{}".format(self.get_name(), leg["id"]), leg)
         storage.set("{}:raw:{}".format(self.get_name(), option_order["id"]), str(legs))
-        self.log("{} [{}]: Opened {} in {} for direction {} with quantity {} and price {}.".format(
-            datetime.now().timestamp(),
+        self.log("[{}]: Opened {} in {} for direction {} with quantity {} and price {}.".format(
             option_order["id"],
             strategy,
             symbol,

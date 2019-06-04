@@ -2,16 +2,14 @@ import logging
 import os
 import random
 from argparse import ArgumentParser
+from time import sleep
 from typing import Dict
 
-from time import sleep
-
 from magictrade import storage
+from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.broker.robinhood import RobinhoodBroker
 from magictrade.strategy.optionalpha import OptionAlphaTradingStrategy
-
-from magictrade.broker.papermoney import PaperMoneyBroker
-from magictrade.utils import market_is_open, get_version, get_allocation
+from magictrade.utils import market_is_open, get_version
 
 parser = ArgumentParser(description="Daemon to make automated trades.")
 parser.add_argument('-k', '--oauth-keyfile', dest='keyfile', help='Path to keyfile containing access and refresh '

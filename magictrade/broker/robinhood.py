@@ -88,10 +88,14 @@ class RobinhoodBroker(Broker):
             raise InvalidOptionError()
 
         new_legs = []
-        for leg, action, effect in legs:
+        for leg in legs:
+            if len(leg) == 2:
+                leg, action = leg
+            else:
+                action = leg['side']
             new_legs.append({
                 'side': action,
-                'option': leg['url'],
+                'option': leg.get('url') or leg.get('instrument'),
                 'position_effect': effect,
                 'ratio_quantity': '1'
             })

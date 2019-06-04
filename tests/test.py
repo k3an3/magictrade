@@ -390,10 +390,10 @@ class TestOAStrategy:
         assert wings[1][0]['strike_price'] == 39.5
         assert wings[2][0]['strike_price'] == 42.0
         assert wings[3][0]['strike_price'] == 36.5
-        assert wings[0][1:] == ('sell', 'open')
-        assert wings[1][1:] == ('sell', 'open')
-        assert wings[2][1:] == ('buy', 'open')
-        assert wings[3][1:] == ('buy', 'open')
+        assert wings[0][1] == 'sell'
+        assert wings[1][1] == 'sell'
+        assert wings[2][1] == 'buy'
+        assert wings[3][1] == 'buy'
 
     def test_iron_butterfly_1(self):
         pmb = PaperMoneyBroker(account_id='test', )
@@ -404,10 +404,10 @@ class TestOAStrategy:
         assert wings[1][0]['strike_price'] == 39.5
         assert wings[2][0]['strike_price'] == 40.5
         assert wings[3][0]['strike_price'] == 38.0
-        assert wings[0][1:] == ('sell', 'open')
-        assert wings[1][1:] == ('sell', 'open')
-        assert wings[2][1:] == ('buy', 'open')
-        assert wings[3][1:] == ('buy', 'open')
+        assert wings[0][1] == 'sell'
+        assert wings[1][1] == 'sell'
+        assert wings[2][1] == 'buy'
+        assert wings[3][1] == 'buy'
 
     def test_get_allocations(self):
         pmb = PaperMoneyBroker(account_id='test', balance=1_000_000)
@@ -439,40 +439,40 @@ class TestOAStrategy:
         assert wings[1][0]['strike_price'] == 43.0
         assert wings[2][0]['strike_price'] == 36.5
         assert wings[3][0]['strike_price'] == 35.5
-        assert wings[0][1:] == ('sell', 'open')
-        assert wings[1][1:] == ('buy', 'open')
-        assert wings[2][1:] == ('sell', 'open')
-        assert wings[3][1:] == ('buy', 'open')
+        assert wings[0][1] == 'sell'
+        assert wings[1][1] == 'buy'
+        assert wings[2][1] == 'sell'
+        assert wings[3][1] == 'buy'
 
     def test_credit_spread(self):
         pmb = PaperMoneyBroker(account_id='test', )
         oab = OptionAlphaTradingStrategy(pmb)
         legs = oab.credit_spread(strategies['credit_spread'], oa_options_1, direction='bullish', width=3)
         assert legs[0][0]['strike_price'] == 38.5
-        assert legs[0][1:] == ('sell', 'open')
         assert legs[1][0]['strike_price'] == 35.5
-        assert legs[1][1:] == ('buy', 'open')
+        assert legs[0][1] == 'sell'
+        assert legs[1][1] == 'buy'
 
     def test_credit_spread_1(self):
         pmb = PaperMoneyBroker(account_id='test', )
         oab = OptionAlphaTradingStrategy(pmb)
         legs = oab.credit_spread(strategies['credit_spread'], oa_options_1, direction='bearish', width=4.5)
         assert legs[0][0]['strike_price'] == 40.0
-        assert legs[0][1:] == ('sell', 'open')
         assert legs[1][0]['strike_price'] == 44.5
-        assert legs[1][1:] == ('buy', 'open')
+        assert legs[0][1] == 'sell'
+        assert legs[1][1] == 'buy'
 
     def test_get_price_simple(self):
         pmb = PaperMoneyBroker(account_id='test', )
         oab = OptionAlphaTradingStrategy(pmb)
         legs = oab.credit_spread(strategies['credit_spread'], oa_options_1, direction='bearish', width=4.5)
-        assert oab._get_price(legs) == 0.61 * 100
+        assert oab._get_price(legs) == 0.61
 
     def test_get_price_complex(self):
         pmb = PaperMoneyBroker(account_id='test', )
         oab = OptionAlphaTradingStrategy(pmb)
         wings = oab.iron_condor(strategies['iron_condor'], oa_options_1, width=1)
-        assert oab._get_price(wings) == 0.155 * 100
+        assert oab._get_price(wings) == 0.155
 
     def test_make_trade_low_iv(self):
         pmb = PaperMoneyBroker(account_id='test', data=quotes)
@@ -515,9 +515,9 @@ class TestOAStrategy:
         assert strategy == 'iron_condor'
         assert oab._get_price(legs) <= pmb.balance * 0.03
         assert legs[0][0]["strike_price"] == 42.0
-        assert oab._get_price(legs) == 31.0
+        assert oab._get_price(legs) == 0.31
         assert q == 100
-        assert p == 3_100
+        assert p == 31.0
 
     def test_make_trade_neutral_high_iv(self):
         pmb = PaperMoneyBroker(account_id='test', date=date, data=quotes, options_data=oa_options_1,
@@ -528,7 +528,7 @@ class TestOAStrategy:
         assert oab._get_price(legs) <= pmb.balance * 0.03
         assert legs[0][0]["strike_price"] == 38.5
         assert q == 100
-        assert round(p) == 1_1050
+        assert round(p, 2) == 110.5
 
     def test_make_trade_bearish(self):
         pmb = PaperMoneyBroker(account_id='test', date=date, data=quotes, options_data=oa_options_1,
@@ -539,7 +539,7 @@ class TestOAStrategy:
         assert oab._get_price(legs) <= pmb.balance * 0.03
         assert legs[0][0]["strike_price"] == 40.0
         assert q == 100
-        assert round(p) == 5_550
+        assert round(p, 2) == 55.5
 
     def test_delete_position(self):
         name = 'oatrading-testdel'

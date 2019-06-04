@@ -99,7 +99,7 @@ def get_version():
         try:
             ver = 'v' + subprocess.run(['git', 'describe', '--tags', 'HEAD'],
                                        capture_output=True).stdout.decode('UTF-8')
-            if not ver:
+            if ver == 'v':
                 return 'dev-' + subprocess.run(['git', 'rev-parse', 'HEAD'], capture_output=True).stdout.decode(
                     'UTF-8')[:7]
             return ver
