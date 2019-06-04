@@ -14,6 +14,9 @@ from magictrade.utils import market_is_open, get_version
 parser = ArgumentParser(description="Daemon to make automated trades.")
 parser.add_argument('-k', '--oauth-keyfile', dest='keyfile', help='Path to keyfile containing access and refresh '
                                                                   'tokens.')
+parser.add_argument('-x', '--authenticate-only', action='store_true', dest='authonly', help='Authenticate and exit. '
+                                                                                            'Useful for automatically '
+                                                                                            'updating expired tokens.')
 parser.add_argument('-d', '--debug', action='store_true', dest='debug',
                     help='Simulate trades even if market is closed. '
                          'Exceptions are re-raised.')
@@ -51,6 +54,9 @@ elif args.broker == 'robinhood':
                              mfa_code=mfa_code, token_file=args.keyfile)
 else:
     logging.warn("No valid broker provided. Exiting...")
+    raise SystemExit
+if args.authonly:
+    logging.info("Authentication success. Exiting.")
     raise SystemExit
 strategy = OptionAlphaTradingStrategy(broker)
 queue_name = 'oatrading-queue'
