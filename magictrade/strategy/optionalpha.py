@@ -182,7 +182,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             if -1 * change >= strategies[data['strategy']]['target']:
                 option_order = self.broker.options_transact(legs, data['symbol'],
                                                             'debit', value,
-                                                            data['quantity'],
+                                                            int(data['quantity']),
                                                             'close'
                                                             )
                 self.delete_position(position)
