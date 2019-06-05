@@ -28,7 +28,7 @@ class RobinhoodBroker(Broker):
         self.client = Client(**kwargs)
         self.client.authenticate()
         self._account_id = Account.all(self.client)[0]['account_number']
-        with open(token_filename, "w") as f:
+        with open(token_file, "w") as f:
             json.dump({'access_token': self.client.access_token,
                        'refresh_token': self.client.refresh_token}, f)
 
