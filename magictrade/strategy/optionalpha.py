@@ -155,6 +155,14 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             if not leg['option'] in options:
                 return leg
 
+    @staticmethod
+    def invert_action(legs: List):
+        for leg in legs:
+            if leg['side'] == 'buy':
+                leg['side'] = 'sell'
+            else:
+                leg['side'] = 'buy'
+
     def maintenance(self):
         orders = []
 
@@ -180,6 +188,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             value = self._get_price(legs)
             change = get_percentage_change(float(data['price']), value)
             if -1 * change >= strategies[data['strategy']]['target']:
+                self.invert_action(legs)
                 option_order = self.broker.options_transact(legs, data['symbol'],
                                                             'debit', value,
                                                             int(data['quantity']),
