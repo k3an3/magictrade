@@ -5,6 +5,8 @@ from argparse import ArgumentParser
 from time import sleep
 from typing import Dict
 
+from requests import HTTPError
+
 from magictrade import storage
 from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.broker.robinhood import RobinhoodBroker
@@ -90,6 +92,9 @@ def main():
 def handle_error(e: Exception):
     try:
         if args.debug:
+            if isinstance(e, HTTPError):
+                with open("http_debug.log", "a") as f:
+                    f.write(str(e.response.text) + "\n")
             raise e
         import sentry_sdk
         sentry_sdk.capture_exception(e)

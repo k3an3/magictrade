@@ -181,14 +181,18 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             # Make sure we still own all legs, else abandon management of this position.
             if self.check_positions(legs, owned_options):
                 self.delete_position(position)
-                self.log("Orphaned position {}-{},{} due to missing leg.".format(data['symbol'], data['strategy'],
-                                                                                 position))
+                self.log("[{}]: Orphaned position {}-{} due to missing leg.".format(position, data['symbol'],
+                                                                                    data['strategy'], ))
                 continue
             legs = self.broker.options_positions_data(legs)
             value = self._get_price(legs)
             change = get_percentage_change(float(data['price']), value)
             if -1 * change >= strategies[data['strategy']]['target']:
                 self.invert_action(legs)
+                self.log("[{}]: Closing {}-{} due to change of {}%.".format(position,
+                                                                            data['symbol'],
+                                                                            data['strategy'],
+                                                                            change))
                 option_order = self.broker.options_transact(legs, data['symbol'],
                                                             'debit', value,
                                                             int(data['quantity']),
@@ -196,9 +200,11 @@ class OptionAlphaTradingStrategy(TradingStrategy):
                                                             )
                 self.delete_position(position)
                 orders.append(option_order)
-                self.log("Closed {} with quantity {} and price {}.".format(data['strategy'],
-                                                                           data['quantity'],
-                                                                           value))
+                self.log("[{}]: Closed {}-{} with quantity {} and price {}.".format(position,
+                                                                                    data['symbol'],
+                                                                                    data['strategy'],
+                                                                                    data['quantity'],
+                                                                                    value))
         return orders
 
     def make_trade(self, symbol: str, direction: str, iv_rank: int = 50, allocation: int = 3, timeline: int = 50,

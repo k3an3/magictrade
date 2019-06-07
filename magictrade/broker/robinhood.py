@@ -97,7 +97,7 @@ class RobinhoodBroker(Broker):
                 'side': action,
                 'option': leg.get('url') or leg.get('instrument'),
                 'position_effect': effect,
-                'ratio_quantity': '1'
+                'ratio_quantity': str(int(leg.get('ratio_quantity', 1)))
             })
 
         oo = OptionOrder.submit(self.client, direction, new_legs,
