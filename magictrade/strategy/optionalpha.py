@@ -196,7 +196,8 @@ class OptionAlphaTradingStrategy(TradingStrategy):
                 option_order = self.broker.options_transact(legs, data['symbol'],
                                                             'debit', value,
                                                             int(data['quantity']),
-                                                            'close'
+                                                            'close',
+                                                            time_in_force="gtc",
                                                             )
                 self.delete_position(position)
                 orders.append(option_order)

@@ -82,7 +82,7 @@ class RobinhoodBroker(Broker):
         return self._normalize_options_data(Option.mergein_marketdata_list(self.client, options))
 
     def options_transact(self, legs: List[Dict], symbol: str, direction: str, price: float,
-                         quantity: int, effect: str = 'open') -> Tuple[Any, Any]:
+                         quantity: int, effect: str = 'open', time_in_force: str = 'gfd') -> Tuple[Any, Any]:
         if effect not in ('open', 'close') \
                 or direction not in ('credit', 'debit'):
             raise InvalidOptionError()
@@ -101,7 +101,7 @@ class RobinhoodBroker(Broker):
             })
 
         oo = OptionOrder.submit(self.client, direction, new_legs,
-                                str(abs(round(price, 2))), quantity, "gfd", "immediate", "limit")
+                                str(abs(round(price, 2))), quantity, time_in_force, "immediate", "limit")
         return oo
 
     def buy(self, symbol: str, quantity: int) -> Tuple[str, Any]:
