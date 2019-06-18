@@ -261,6 +261,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
                           'price': price,
                           'quantity': quantity,
                           'symbol': symbol,
+                          'time': datetime.now().isoformat()
                       })
         for leg in option_order["legs"]:
             storage.lpush("{}:{}:legs".format(self.get_name(), option_order["id"]),

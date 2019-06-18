@@ -2,10 +2,10 @@ import logging
 import os
 import random
 from argparse import ArgumentParser
-from time import sleep
 from typing import Dict
 
 from requests import HTTPError
+from time import sleep
 
 from magictrade import storage
 from magictrade.broker.papermoney import PaperMoneyBroker
@@ -40,6 +40,9 @@ elif args.username:
     logging.info("Attempting credentials from args...")
 else:
     logging.info("Using stored credentials...")
+    if not os.path.exists(args.keyfile):
+        logging.error("Can't find keyfile. Aborting.")
+        raise SystemExit
 
 username = os.environ.pop('username', None) or args.username
 password = os.environ.pop('password', None) or args.password
@@ -66,11 +69,19 @@ rand_sleep = 3600, 7200
 
 
 def normalize_trade(trade: Dict) -> Dict:
-    trade['iv_rank'] = int(trade.get('iv_rank', 51))
-    trade['allocation'] = float(trade['allocation'])
-    trade['timeline'] = int(trade['timeline'])
-    trade['days_out'] = int(trade.get('days_out', 0))
-    trade['spread_width'] = float(trade['spread_width'])
+    funcs = {
+        'iv_rank': int,
+        'allocation': float,
+        'timeline': int,
+        'days_out': int,
+        'spread_width': float,
+    }
+    # Copy to list so dict isn't modified during iteration
+    for key, value in list(trade.items()):
+        if value and key in funcs:
+            trade[key] = funcs[key](value)
+        elif not value:
+            del trade[key]
 
 
 def main():
