@@ -66,10 +66,10 @@ rand_sleep = 3600, 7200
 
 
 def normalize_trade(trade: Dict) -> Dict:
-    trade['iv_rank'] = int(trade['iv_rank'])
+    trade['iv_rank'] = int(trade.get('iv_rank', 51))
     trade['allocation'] = float(trade['allocation'])
     trade['timeline'] = int(trade['timeline'])
-    trade['days_out'] = int(trade['days_out'])
+    trade['days_out'] = int(trade.get('days_out', 0))
     trade['spread_width'] = float(trade['spread_width'])
 
 
@@ -111,7 +111,7 @@ def main_loop():
         if args.debug or market_is_open():
             if not args.debug and first_trade:
                 logging.info("Sleeping to make sure market is open...")
-                sleep(random.randint(30, 60))
+                sleep(random.randint(21, 72))
                 first_trade = False
             if not next_maintenance:
                 logging.info("Running maintenance...")
@@ -145,7 +145,8 @@ def main_loop():
                         strategy.make_trade(**trade)
                     except Exception as e:
                         logging.error("Error while making trade '{}': {}".format(trade, e))
-                        storage.set("{}:status:{}".format(queue_name, identifier), 'fail')
+                        storage.lpush(queue_name + "-failed", identifier)
+                        storage.set("{}:status:{}".format(queue_name, identifier), str(e))
                         handle_error(e)
                     else:
                         logging.info("Completed transaction: " + str(trade))
