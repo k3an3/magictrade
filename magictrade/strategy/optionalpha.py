@@ -197,10 +197,12 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             change = get_percentage_change(float(data['price']), value)
             if -1 * change >= strategies[data['strategy']]['target']:
                 self.invert_action(legs)
-                self.log("[{}]: Closing {}-{} due to change of {}%.".format(position,
-                                                                            data['symbol'],
-                                                                            data['strategy'],
-                                                                            change))
+                self.log("[{}]: Closing {}-{} due to change of {}%. Was {}, now {}.".format(position,
+                                                                                            data['symbol'],
+                                                                                            data['strategy'],
+                                                                                            change,
+                                                                                            data['price'],
+                                                                                            value))
                 option_order = self.broker.options_transact(legs, data['symbol'],
                                                             'debit', value,
                                                             int(data['quantity']),
