@@ -93,7 +93,15 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             o_type = 'call'
         options = self._filter_option_type(options, o_type)
         short_leg = self._find_option_with_probability(options, config['probability'])
-        long_leg = self._get_long_leg(options, short_leg, o_type, width)
+        long_leg = None
+        while not long_leg and width > 0:
+            try:
+                long_leg = self._get_long_leg(options, short_leg, o_type, width)
+            except TradeException:
+                width -= 1
+        if not long_leg:
+            raise TradeException("Failed to find a suitable long leg for the trade.")
+
         return (short_leg, 'sell'), (long_leg, 'buy')
 
     def _get_target_date(self, config: Dict, options: List, timeline: int = 0, days_out: int = 0):
