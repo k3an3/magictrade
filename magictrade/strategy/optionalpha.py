@@ -61,7 +61,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
                 distance = abs(option['strike_price'] - short_leg['strike_price'])
                 if distance >= width:
                     return option
-        raise TradeException("No suitable strike price for long leg")
+        raise TradeException("No suitable strike price for long leg.")
 
     def iron_butterfly(self, config: Dict, options: List, **kwargs):
         quote = kwargs['quote']
@@ -92,7 +92,11 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         else:
             o_type = 'call'
         options = self._filter_option_type(options, o_type)
+        if not options:
+            raise TradeException("No options found.")
         short_leg = self._find_option_with_probability(options, config['probability'])
+        if not short_leg:
+            raise TradeException("Failed to find a suitable short leg for the trade with probability in range.")
         long_leg = None
         while not long_leg and width > 0:
             try:
@@ -100,7 +104,8 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             except TradeException:
                 width -= 1
         if not long_leg:
-            raise TradeException("Failed to find a suitable long leg for the trade.")
+            raise TradeException(f"Failed to find a suitable long leg for the trade. Strike target "
+                                 f"{short_leg['strike_price']} and expiration {short_leg['expiration_date']}")
 
         return (short_leg, 'sell'), (long_leg, 'buy')
 
@@ -128,7 +133,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         return target_date
 
     @staticmethod
-    def _get_price(legs: List):
+    def _get_price(legs: List) -> float:
         price = 0
         for leg in legs:
             if len(leg) == 2:
@@ -144,13 +149,13 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         return price
 
     @staticmethod
-    def _get_quantity(allocation: float, spread_width: float):
+    def _get_quantity(allocation: float, spread_width: float) -> int:
         return int(allocation / (spread_width * 100))
 
-    def log(self, msg: str):
+    def log(self, msg: str) -> None:
         storage.lpush(self.get_name() + ":log", "{} {}".format(datetime.now().timestamp(), msg))
 
-    def delete_position(self, order_id: str):
+    def delete_position(self, order_id: str) -> None:
         storage.lrem("{}:positions".format(self.get_name()), 0, order_id)
         for leg in storage.lrange("{}:{}:legs".format(self.get_name(), order_id), 0, -1):
             storage.delete("{}:leg:{}".format(self.get_name(), leg))
@@ -158,20 +163,20 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         storage.delete("{}:{}".format(self.get_name(), order_id))
 
     @staticmethod
-    def check_positions(legs: List, options: Dict):
+    def check_positions(legs: List, options: Dict) -> Dict:
         for leg in legs:
             if not leg['option'] in options:
                 return leg
 
     @staticmethod
-    def invert_action(legs: List):
+    def invert_action(legs: List) -> None:
         for leg in legs:
             if leg['side'] == 'buy':
                 leg['side'] = 'sell'
             else:
                 leg['side'] = 'buy'
 
-    def maintenance(self):
+    def maintenance(self) -> List:
         orders = []
 
         positions = storage.lrange(self.get_name() + ":positions", 0, -1)
@@ -182,6 +187,10 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         owned_options = {option['option']: option for option in account_positions}
         for position in positions:
             data = storage.hgetall("{}:{}".format(self.get_name(), position))
+            time_placed = datetime.fromtimestamp(data['time'])
+            # Temporary fix: the trade might not have filled yet
+            if time_placed.date() == datetime.today().date():
+                continue
             leg_ids = storage.lrange("{}:{}:legs".format(self.get_name(), position), 0, -1)
             legs = []
             for leg in leg_ids:
@@ -195,7 +204,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             legs = self.broker.options_positions_data(legs)
             value = self._get_price(legs)
             change = get_percentage_change(float(data['price']), value)
-            if -1 * change >= strategies[data['strategy']]['target']:
+            if value and -1 * change >= strategies[data['strategy']]['target']:
                 self.invert_action(legs)
                 self.log("[{}]: Closing {}-{} due to change of {}%. Was {}, now {}.".format(position,
                                                                                             data['symbol'],
@@ -271,7 +280,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
                           'price': price,
                           'quantity': quantity,
                           'symbol': symbol,
-                          'time': datetime.now().isoformat()
+                          'time': datetime.now().timestamp()
                       })
         for leg in option_order["legs"]:
             storage.lpush("{}:{}:legs".format(self.get_name(), option_order["id"]),

@@ -124,7 +124,7 @@ def main_loop():
         if args.debug or market_is_open():
             if not args.debug and first_trade:
                 logging.info("Sleeping to make sure market is open...")
-                sleep(random.randint(21, 72))
+                sleep(random.randint(58, 1200))
                 first_trade = False
             if not next_maintenance:
                 logging.info("Running maintenance...")
