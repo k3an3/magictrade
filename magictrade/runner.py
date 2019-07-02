@@ -1,11 +1,12 @@
+import datetime
 import logging
 import os
 import random
 from argparse import ArgumentParser
-from time import sleep
 from typing import Dict
 
 from requests import HTTPError
+from time import sleep
 
 from magictrade import storage
 from magictrade.broker.papermoney import PaperMoneyBroker
@@ -118,9 +119,13 @@ def handle_error(e: Exception):
 def main_loop():
     next_maintenance = 0
     next_balance_check = 0
+    next_heartbeat = 0
     first_trade = False
 
     while True:
+        if not next_heartbeat:
+            storage.put(queue_name + ":heartbeat", datetime.datetime.now().timestamp())
+            next_heartbeat = 60
         if args.debug or market_is_open():
             if not args.debug and first_trade:
                 logging.info("Sleeping to make sure market is open...")
@@ -173,6 +178,7 @@ def main_loop():
                 next_maintenance = 0
             first_trade = True
         sleep(1)
+        next_heartbeat -= 1
 
 
 if __name__ == '__main__':
