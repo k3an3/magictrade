@@ -124,7 +124,7 @@ def main_loop():
 
     while True:
         if not next_heartbeat:
-            storage.put(queue_name + ":heartbeat", datetime.datetime.now().timestamp())
+            storage.set(queue_name + ":heartbeat", datetime.datetime.now().timestamp())
             next_heartbeat = 60
         if args.debug or market_is_open():
             if not args.debug and first_trade:
