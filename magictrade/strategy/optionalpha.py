@@ -188,7 +188,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         for position in positions:
             data = storage.hgetall("{}:{}".format(self.get_name(), position))
             # Temporary fix: the trade might not have filled yet
-            time_placed = datetime.fromtimestamp(int(data['time']))
+            time_placed = datetime.fromtimestamp(float(data['time']))
             if time_placed.date() == datetime.today().date():
                 continue
             leg_ids = storage.lrange("{}:{}:legs".format(self.get_name(), position), 0, -1)
