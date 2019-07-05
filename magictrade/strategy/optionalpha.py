@@ -190,7 +190,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             # Temporary fix: the trade might not have filled yet
             try:
                 time_placed = datetime.fromtimestamp(float(data['time']))
-            except ValueError:
+            except (KeyError, ValueError):
                 time_placed = datetime.fromtimestamp(0)
             if time_placed.date() == datetime.today().date():
                 continue
