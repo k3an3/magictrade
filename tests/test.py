@@ -13,7 +13,6 @@ from magictrade.strategy.reactive import ReactiveStrategy
 from magictrade.utils import get_account_history, get_percentage_change, get_allocation
 from tests.data import quotes, human_quotes_1, reactive_quotes, oa_options_1, exp_dates
 
-
 date = datetime.strptime("2019-03-31", "%Y-%m-%d")
 
 
@@ -625,6 +624,9 @@ class TestOAStrategy:
                              'ratio_quantity': 1,
                              })
         oab = OptionAlphaTradingStrategy(pmb)
+        pmb.options = [
+            {'option': 'https://api.robinhood.com/options/instruments/388082d5-b1d9-404e-8aad-c92f40ee9ddb/'},
+            {'option': 'https://api.robinhood.com/options/instruments/9d870f5d-bd44-4750-8ff6-7aee58249b9f/'}]
         orders = oab.maintenance()
         assert len(orders) == 1
         assert len(orders[0]['legs']) == 2

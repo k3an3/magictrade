@@ -32,6 +32,10 @@ class TradeException(Exception):
     pass
 
 
+class NoValidLegException(TradeException):
+    pass
+
+
 class OptionAlphaTradingStrategy(TradingStrategy):
     name = 'oatrading'
 
@@ -96,7 +100,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             raise TradeException("No options found.")
         short_leg = self._find_option_with_probability(options, config['probability'])
         if not short_leg:
-            raise TradeException("Failed to find a suitable short leg for the trade with probability in range.")
+            raise NoValidLegException("Failed to find a suitable short leg for the trade with probability in range.")
         long_leg = None
         while not long_leg and width > 0:
             try:
@@ -104,12 +108,13 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             except TradeException:
                 width -= 1
         if not long_leg:
-            raise TradeException(f"Failed to find a suitable long leg for the trade. Strike target "
-                                 f"{short_leg['strike_price']} and expiration {short_leg['expiration_date']}")
+            raise NoValidLegException(f"Failed to find a suitable long leg for the trade. Short leg strike at "
+                                      f"{short_leg['strike_price']} and expiration {short_leg['expiration_date']}.")
 
         return (short_leg, 'sell'), (long_leg, 'buy')
 
-    def _get_target_date(self, config: Dict, options: List, timeline: int = 0, days_out: int = 0):
+    def _get_target_date(self, config: Dict, options: List, timeline: int = 0, days_out: int = 0,
+                         blacklist_dates: set = set()):
         if not days_out:
             timeline_range = config['timeline'][1] - config['timeline'][0]
             timeline = config['timeline'][0] + timeline_range * timeline / 100
@@ -125,9 +130,9 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         while not target_date:
             td1 = (self.broker.date + timedelta(days=timeline + offset)).strftime("%Y-%m-%d")
             td2 = (self.broker.date + timedelta(days=timeline - offset)).strftime("%Y-%m-%d")
-            if td1 in dates:
+            if td1 in dates and td1 not in blacklist_dates:
                 target_date = td1
-            elif td2 in dates:
+            elif td2 in dates and td2 not in blacklist_dates:
                 target_date = td2
             offset += 1
         return target_date
@@ -207,6 +212,9 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             legs = self.broker.options_positions_data(legs)
             value = self._get_price(legs)
             change = get_percentage_change(float(data['price']), value)
+            data['last_price'] = value
+            data['last_change'] = change * -1
+            storage.hmset("{}:{}".format(self.get_name(), position), data)
             if value and -1 * change >= strategies[data['strategy']]['target']:
                 self.invert_action(legs)
                 self.log("[{}]: Closing {}-{} due to change of {}%. Was {}, now {}.".format(position,
@@ -262,13 +270,26 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         allocation = get_allocation(self.broker, allocation)
         options = self.broker.get_options(symbol)
 
-        target_date = self._get_target_date(config, options, timeline)
+        blacklist_dates = set()
 
-        options = self.broker.filter_options(options, [target_date])
-        # Get data, but not all options will return data. Filter them out.
-        options = [o for o in self.broker.get_options_data(options) if o.get('mark_price')]
+        while timeline > 0 or days_out > 0:
+            target_date = self._get_target_date(config, options, timeline, days_out, blacklist_dates)
+            blacklist_dates.add(target_date)
 
-        legs = method(config, options, quote=q, direction=direction, width=spread_width)
+            options_on_date = self.broker.filter_options(options, [target_date])
+            # Get data, but not all options will return data. Filter them out.
+            options_on_date = [o for o in self.broker.get_options_data(options_on_date) if o.get('mark_price')]
+
+            try:
+                legs = method(config, options_on_date, quote=q, direction=direction, width=spread_width)
+                break
+            except NoValidLegException:
+                if days_out:
+                    days_out -= 5
+                else:
+                    timeline -= 10
+        else:
+            raise TradeException("Could not find a valid expiration date with suitable strikes.")
 
         price = self._get_price(legs)
         quantity = self._get_quantity(allocation, spread_width)
@@ -277,13 +298,15 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         option_order = self.broker.options_transact(legs, symbol, 'credit', price,
                                                     quantity, 'open')
         storage.lpush(self.get_name() + ":positions", option_order["id"])
+        storage.lpush(self.get_name() + ":all_positions", option_order["id"])
         storage.hmset("{}:{}".format(self.get_name(), option_order["id"]),
                       {
                           'strategy': strategy,
                           'price': price,
                           'quantity': quantity,
                           'symbol': symbol,
-                          'time': datetime.now().timestamp()
+                          'time': datetime.now().timestamp(),
+                          'expires': target_date,
                       })
         for leg in option_order["legs"]:
             storage.lpush("{}:{}:legs".format(self.get_name(), option_order["id"]),

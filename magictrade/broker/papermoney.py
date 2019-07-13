@@ -49,6 +49,7 @@ class PaperMoneyBroker(Broker):
                 return self.rb.options_positions()
             except AttributeError:
                 pass
+        return self.options
 
     def options_positions_data(self, options: List) -> List:
         if self.options_data:
