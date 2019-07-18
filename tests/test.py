@@ -631,3 +631,10 @@ class TestOAStrategy:
         assert len(orders) == 1
         assert len(orders[0]['legs']) == 2
         assert not storage.lrange(name + ":positions", 0, -1)
+
+    def test_trade_insufficient_balance(self):
+        pmb = PaperMoneyBroker(account_id='test-balance', balance=50.0, date=date, data=quotes, options_data=oa_options_1,
+                               exp_dates=exp_dates)
+        oab = OptionAlphaTradingStrategy(pmb)
+        with pytest.raises(TradeException):
+            strategy, legs, q, p, _ = oab.make_trade('MU', 'bearish', high_iv)

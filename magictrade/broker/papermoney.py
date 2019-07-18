@@ -17,7 +17,7 @@ class PaperMoneyBroker(Broker):
                  date: str = None, data_files: List[Tuple[str, str]] = [],
                  options_data: Dict = [], exp_dates: Dict = {}, username: str = None,
                  password: str = None, mfa_code: str = None, token_file=None,
-                 robinhood: bool = False):
+                 robinhood: bool = False, buying_power: float = 0.0):
         self._balance = balance
         self.stocks = {}
         self.options = {}
@@ -25,6 +25,7 @@ class PaperMoneyBroker(Broker):
         self.data = data
         self.options_data = options_data
         self.exp_dates = exp_dates
+        self._buying_power = buying_power
         if not data:
             for df in data_files:
                 data[df[0]] = {'history': {}}
@@ -41,7 +42,7 @@ class PaperMoneyBroker(Broker):
 
     @property
     def buying_power(self) -> float:
-        return self.rb.buying_power
+        return self._buying_power or self.rb.buying_power
 
     def options_positions(self) -> List:
         if not self.options:

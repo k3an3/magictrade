@@ -142,7 +142,8 @@ def main_loop():
                     logging.info("Completed {} tasks.".format(len(results)))
                 next_maintenance = random.randint(*rand_sleep)
                 logging.info("Next check in {}s".format(next_maintenance))
-            elif not next_balance_check:
+            elif not next_balance_check or storage.get(queue_name + ":new_allocation"):
+                storage.delete(queue_name + ":new_allocation")
                 while storage.llen(queue_name) > 0:
                     try:
                         buying_power = broker.buying_power
@@ -150,11 +151,14 @@ def main_loop():
                     except Exception as e:
                         logging.error("Error while getting balances: {}".format(e))
                         handle_error(e)
-                    if buying_power < balance * (100 - args.allocation) / 100:
+                    current_allocation = int(storage.get(queue_name + ":allocation") or 0) or args.allocation
+                    if buying_power < balance * (100 - current_allocation) / 100:
+                        storage.set(queue_name + ":current_usage", f"{buying_power}/{balance}")
                         next_balance_check = random.randint(*rand_sleep)
                         logging.info("Not enough buying power, {}/{}. Sleeping {}s.".format(
                             buying_power, balance, next_balance_check))
                         break
+                    storage.delete(queue_name + ":current_usage")
                     identifier = storage.rpop(queue_name)
                     trade = storage.hgetall("{}:{}".format(queue_name, identifier))
                     logging.info("Ingested trade: " + str(trade))

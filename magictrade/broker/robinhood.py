@@ -68,7 +68,8 @@ class RobinhoodBroker(Broker):
 
     @property
     def buying_power(self) -> float:
-        return float(Account.all(self.client)[0]["buying_power"])
+        # would be "buying_power", but that doesn't take into account collateral.
+        return float(Account.all(self.client)[0]["cash_available_for_withdrawal"])
 
     def get_options(self, symbol: str) -> List:
         stock = Stock.fetch(self.client, symbol)
