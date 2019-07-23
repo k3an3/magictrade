@@ -3,9 +3,8 @@ import os
 from datetime import datetime
 from typing import Tuple, Any, List, Dict
 
-from fast_arrow import Client, Stock, OptionChain, Option, OptionOrder, OptionPosition, StockMarketdata
+from fast_arrow import Client, Stock, OptionChain, Option, OptionOrder, OptionPosition, StockMarketdata, Portfolio
 from fast_arrow.resources.account import Account
-
 from magictrade import Broker
 from magictrade.broker import InvalidOptionError
 
@@ -31,6 +30,7 @@ class RobinhoodBroker(Broker):
         with open(token_file, "w") as f:
             json.dump({'access_token': self.client.access_token,
                        'refresh_token': self.client.refresh_token}, f)
+        self.portfolio = None
 
     @property
     def date(self) -> str:
@@ -47,8 +47,12 @@ class RobinhoodBroker(Broker):
         raise NotImplementedError()
 
     @property
-    def balance(self) -> float:
-        return float(Account.all(self.client)[0]["cash"])
+    def balance(self, update: bool = True) -> float:
+        return float(Portfolio.fetch(self.client, self.account_id)["equity"])
+
+    @property
+    def buying_power(self) -> float:
+        return float(Account.all(self.client)[0]["buying_power"])
 
     def options_positions(self) -> List:
         return OptionPosition.all(self.client, nonzero=True)
@@ -65,11 +69,6 @@ class RobinhoodBroker(Broker):
 
     def options_positions_data(self, options: List) -> List:
         return self._normalize_options_data(OptionPosition.mergein_marketdata_list(self.client, options))
-
-    @property
-    def buying_power(self) -> float:
-        # would be "buying_power", but that doesn't take into account collateral.
-        return float(Account.all(self.client)[0]["cash_available_for_withdrawal"])
 
     def get_options(self, symbol: str) -> List:
         stock = Stock.fetch(self.client, symbol)
