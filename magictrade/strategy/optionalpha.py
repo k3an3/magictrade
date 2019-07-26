@@ -217,7 +217,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             storage.hmset("{}:{}".format(self.get_name(), position), data)
             if value and -1 * change >= strategies[data['strategy']]['target']:
                 self.invert_action(legs)
-                self.log("[{}]: Closing {}-{} due to change of {}%. Was {}, now {}.".format(position,
+                self.log("[{}]: Closing {}-{} due to change of {:.2f}%. Was {:.2f}, now {:.2f}.".format(position,
                                                                                             data['symbol'],
                                                                                             data['strategy'],
                                                                                             change,
