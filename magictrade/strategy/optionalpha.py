@@ -218,11 +218,13 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             if value and -1 * change >= strategies[data['strategy']]['target']:
                 self.invert_action(legs)
                 self.log("[{}]: Closing {}-{} due to change of {:.2f}%. Was {:.2f}, now {:.2f}.".format(position,
-                                                                                            data['symbol'],
-                                                                                            data['strategy'],
-                                                                                            change,
-                                                                                            data['price'],
-                                                                                            value))
+                                                                                                        data['symbol'],
+                                                                                                        data[
+                                                                                                            'strategy'],
+                                                                                                        change,
+                                                                                                        float(data[
+                                                                                                                  'price']),
+                                                                                                        value))
                 option_order = self.broker.options_transact(legs, data['symbol'],
                                                             'debit', value,
                                                             int(data['quantity']),
@@ -231,11 +233,11 @@ class OptionAlphaTradingStrategy(TradingStrategy):
                                                             )
                 self.delete_position(position)
                 orders.append(option_order)
-                self.log("[{}]: Closed {}-{} with quantity {} and price {}.".format(position,
-                                                                                    data['symbol'],
-                                                                                    data['strategy'],
-                                                                                    data['quantity'],
-                                                                                    value))
+                self.log("[{}]: Closed {}-{} with quantity {} and price {:.2f}.".format(position,
+                                                                                        data['symbol'],
+                                                                                        data['strategy'],
+                                                                                        data['quantity'],
+                                                                                        value))
         return orders
 
     def make_trade(self, symbol: str, direction: str, iv_rank: int = 50, allocation: int = 3, timeline: int = 50,
