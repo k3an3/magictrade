@@ -75,6 +75,18 @@ class Broker(ABC):
     def sell(self, symbol: str, quantity: int) -> Tuple[str, Any]:
         pass
 
+    @abstractmethod
+    def cancel_order(self, ref_id: str):
+        pass
+
+    @abstractmethod
+    def replace_order(self, order: str):
+        pass
+
+    @abstractmethod
+    def get_order(self, order: str):
+        pass
+
     def log_balance(self):
         from magictrade import storage
         value = self.get_value()

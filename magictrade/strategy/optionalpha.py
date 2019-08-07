@@ -160,12 +160,13 @@ class OptionAlphaTradingStrategy(TradingStrategy):
     def log(self, msg: str) -> None:
         storage.lpush(self.get_name() + ":log", "{} {}".format(datetime.now().timestamp(), msg))
 
-    def delete_position(self, order_id: str) -> None:
-        storage.lrem("{}:positions".format(self.get_name()), 0, order_id)
-        for leg in storage.lrange("{}:{}:legs".format(self.get_name(), order_id), 0, -1):
+    def delete_position(self, trade_id: str) -> None:
+        storage.lrem("{}:positions".format(self.get_name()), 0, trade_id)
+        for leg in storage.lrange("{}:{}:legs".format(self.get_name(), trade_id), 0, -1):
             storage.delete("{}:leg:{}".format(self.get_name(), leg))
-        storage.delete("{}:{}:legs".format(self.get_name(), order_id))
-        storage.delete("{}:{}".format(self.get_name(), order_id))
+        storage.delete("{}:{}:legs".format(self.get_name(), trade_id))
+        # consider not deleting this one for archival purposes
+        storage.delete("{}:{}".format(self.get_name(), trade_id))
 
     @staticmethod
     def check_positions(legs: List, options: Dict) -> Dict:
@@ -216,6 +217,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             data['last_change'] = change * -1
             storage.hmset("{}:{}".format(self.get_name(), position), data)
             if value and -1 * change >= strategies[data['strategy']]['target']:
+                # legs that were originally bought now need to be sold
                 self.invert_action(legs)
                 self.log("[{}]: Closing {}-{} due to change of {:.2f}%. Was {:.2f}, now {:.2f}.".format(position,
                                                                                                         data['symbol'],
@@ -301,14 +303,15 @@ class OptionAlphaTradingStrategy(TradingStrategy):
                                                     quantity, 'open')
         storage.lpush(self.get_name() + ":positions", option_order["id"])
         storage.lpush(self.get_name() + ":all_positions", option_order["id"])
+        order_data_to_save = {**option_order}
+        order_data_to_save.pop('legs')
         storage.hmset("{}:{}".format(self.get_name(), option_order["id"]),
                       {
                           'strategy': strategy,
-                          'price': price,
-                          'quantity': quantity,
                           'symbol': symbol,
                           'time': datetime.now().timestamp(),
                           'expires': target_date,
+                          **order_data_to_save,
                       })
         for leg in option_order["legs"]:
             storage.lpush("{}:{}:legs".format(self.get_name(), option_order["id"]),

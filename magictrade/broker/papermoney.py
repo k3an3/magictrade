@@ -169,3 +169,12 @@ class PaperMoneyBroker(Broker):
             del self.stocks[symbol]
             position = None
         return 'success', position
+
+    def cancel_order(self, ref_id: str):
+        raise NotImplementedError
+
+    def replace_order(self, order: str):
+        raise NotImplementedError
+
+    def get_order(self, order: str):
+        raise NotImplementedError

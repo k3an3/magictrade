@@ -109,3 +109,12 @@ class RobinhoodBroker(Broker):
 
     def sell(self, symbol: str, quantity: int) -> Tuple[str, Any]:
         raise NotImplementedError()
+
+    def cancel_order(self, ref_id: str):
+        return OptionOrder.cancel(self.client, ref_id)
+
+    def replace_order(self, order: Dict):
+        return OptionOrder.replace(self.client, order, order['price'])
+
+    def get_order(self, ref_id: str):
+        return OptionOrder.get(self.client, ref_id)
