@@ -13,7 +13,7 @@ class TradingStrategy(ABC):
         return "{}-{}".format(self.name, self.broker.account_id)
 
     @abstractmethod
-    def make_trade(self, symbol: str):
+    def make_trade(self, symbol: str, *args, **kwargs):
         pass
 
     def log(self, msg: str) -> None:
@@ -59,12 +59,32 @@ class TradingStrategy(ABC):
                 continue
             yield position, data, legs
 
+    def save_order(self, option_order: Dict, legs: List, order_data: Dict = {}, **kwargs):
+        storage.lpush(self.get_name() + ":positions", option_order["id"])
+        storage.lpush(self.get_name() + ":all_positions", option_order["id"])
+        storage.hmset("{}:{}".format(self.get_name(), option_order["id"]),
+                      {
+                          'time': datetime.now().timestamp(),
+                          **kwargs,
+                          **order_data,
+                      })
+        for leg in option_order["legs"]:
+            storage.lpush("{}:{}:legs".format(self.get_name(), option_order["id"]),
+                          leg["id"])
+            leg.pop('executions', None)
+            storage.hmset("{}:leg:{}".format(self.get_name(), leg["id"]), leg)
+        storage.set("{}:raw:{}".format(self.get_name(), option_order["id"]), str(legs))
+
 
 def filter_option_type(options: List, o_type: str):
     return [o for o in options if o["type"] == o_type]
 
 
 class TradeException(Exception):
+    pass
+
+
+class TradeConfigException(TradeException):
     pass
 
 

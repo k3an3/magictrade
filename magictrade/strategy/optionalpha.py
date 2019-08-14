@@ -2,7 +2,8 @@ from datetime import timedelta, datetime
 from typing import List, Dict
 
 from magictrade import Broker, storage
-from magictrade.strategy import TradingStrategy, NoValidLegException, TradeException, filter_option_type
+from magictrade.strategy import TradingStrategy, NoValidLegException, TradeException, filter_option_type, \
+    TradeConfigException
 from magictrade.utils import get_percentage_change, get_allocation
 
 strategies = {
@@ -170,11 +171,9 @@ class OptionAlphaTradingStrategy(TradingStrategy):
                                                                                                         float(data[
                                                                                                                   'price']),
                                                                                                         value))
-                option_order = self.broker.options_transact(legs, data['symbol'],
-                                                            'debit', value,
+                option_order = self.broker.options_transact(legs, 'debit', value,
                                                             int(data['quantity']),
-                                                            'close',
-                                                            time_in_force="gtc",
+                                                            'close', time_in_force="gtc",
                                                             )
                 self.delete_position(position)
                 orders.append(option_order)
@@ -187,20 +186,17 @@ class OptionAlphaTradingStrategy(TradingStrategy):
 
     def make_trade(self, symbol: str, direction: str, iv_rank: int = 50, allocation: int = 3, timeline: int = 50,
                    spread_width: int = 3, days_out: int = 0):
-        symbol = symbol.upper()
-        q = self.broker.get_quote(symbol)
-
         if direction not in valid_directions:
-            raise TradeException("Invalid direction. Must be in " + str(valid_directions))
+            raise TradeConfigException("Invalid direction. Must be in " + str(valid_directions))
 
         if not 0 <= iv_rank <= 100:
-            raise TradeException("Invalid iv_rank.")
+            raise TradeConfigException("Invalid iv_rank.")
 
         if not 0 < allocation < 20:
-            raise TradeException("Invalid allocation amount or crazy.")
+            raise TradeConfigException("Invalid allocation amount or crazy.")
 
         if not iv_rank >= 50:
-            raise TradeException("iv_rank too low.")
+            raise TradeConfigException("iv_rank too low.")
         elif direction == 'neutral':
             if iv_rank >= high_iv:
                 method = self.iron_butterfly
@@ -214,7 +210,10 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         config = strategies[strategy]
 
         symbol = symbol.upper()
-        allocation = get_allocation(self.broker, allocation)
+        quote = self.broker.get_quote(symbol)
+        if not quote:
+            raise TradeException("Error getting quote for " + symbol)
+
         options = self.broker.get_options(symbol)
 
         blacklist_dates = set()
@@ -228,7 +227,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             options_on_date = [o for o in self.broker.get_options_data(options_on_date) if o.get('mark_price')]
 
             try:
-                legs = method(config, options_on_date, quote=q, direction=direction, width=spread_width)
+                legs = method(config, options_on_date, quote=quote, direction=direction, width=spread_width)
                 break
             except NoValidLegException:
                 if days_out:
@@ -239,28 +238,14 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             raise TradeException("Could not find a valid expiration date with suitable strikes.")
 
         price = self._get_price(legs)
+        allocation = get_allocation(self.broker, allocation)
         quantity = self._get_quantity(allocation, spread_width)
         if not quantity:
             raise TradeException("Trade quantity equals 0.")
-        option_order = self.broker.options_transact(legs, symbol, 'credit', price,
+        option_order = self.broker.options_transact(legs, 'credit', price,
                                                     quantity, 'open')
-        storage.lpush(self.get_name() + ":positions", option_order["id"])
-        storage.lpush(self.get_name() + ":all_positions", option_order["id"])
-        storage.hmset("{}:{}".format(self.get_name(), option_order["id"]),
-                      {
-                          'strategy': strategy,
-                          'price': price,
-                          'quantity': quantity,
-                          'symbol': symbol,
-                          'time': datetime.now().timestamp(),
-                          'expires': target_date,
-                      })
-        for leg in option_order["legs"]:
-            storage.lpush("{}:{}:legs".format(self.get_name(), option_order["id"]),
-                          leg["id"])
-            leg.pop('executions', None)
-            storage.hmset("{}:leg:{}".format(self.get_name(), leg["id"]), leg)
-        storage.set("{}:raw:{}".format(self.get_name(), option_order["id"]), str(legs))
+        self.save_order(option_order, legs, {}, strategy=strategy, price=price,
+                        quantity=quantity, expires=target_date, symbol=symbol)
         self.log("[{}]: Opened {} in {} for direction {} with quantity {} and price {}.".format(
             option_order["id"],
             strategy,

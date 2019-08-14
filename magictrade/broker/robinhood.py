@@ -81,7 +81,7 @@ class RobinhoodBroker(Broker):
     def get_options_data(self, options: List) -> List:
         return self._normalize_options_data(Option.mergein_marketdata_list(self.client, options))
 
-    def options_transact(self, legs: List[Dict], symbol: str, direction: str, price: float,
+    def options_transact(self, legs: List[Dict], direction: str, price: float,
                          quantity: int, effect: str = 'open', time_in_force: str = 'gfd') -> Tuple[Any, Any]:
         if effect not in ('open', 'close') \
                 or direction not in ('credit', 'debit'):

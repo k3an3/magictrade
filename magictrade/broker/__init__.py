@@ -63,8 +63,7 @@ class Broker(ABC):
         pass
 
     @abstractmethod
-    def options_transact(self, symbol: str, expiration: str, strike: float, quantity: int,
-                         option_type: str, action: str) -> Tuple[Any, Any]:
+    def options_transact(self, legs: List, direction: str, price: float, quantity: int, effect: str) -> Tuple[Any, Any]:
         pass
 
     @abstractmethod

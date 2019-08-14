@@ -121,7 +121,7 @@ class PaperMoneyBroker(Broker):
         return '{}:{}:{}{}'.format(symbol, expiration, strike,
                                    'c' if option_type == 'call' else 'p')
 
-    def options_transact(self, legs: List[Dict], symbol: str, direction: str, price: float,
+    def options_transact(self, legs: List[Dict], direction: str, price: float,
                          quantity: int, effect: str = 'open', time_in_force: str = "gfd") -> Tuple[Any, Any]:
         if effect not in ('open', 'close') \
                 or direction not in ('credit', 'debit'):
