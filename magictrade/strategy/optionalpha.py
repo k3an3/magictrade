@@ -2,7 +2,7 @@ from datetime import timedelta, datetime
 from typing import List, Dict
 
 from magictrade import Broker, storage
-from magictrade.strategy import TradingStrategy
+from magictrade.strategy import TradingStrategy, NoValidLegException, TradeException, filter_option_type
 from magictrade.utils import get_percentage_change, get_allocation
 
 strategies = {
@@ -28,22 +28,11 @@ total_allocation = 40
 valid_directions = ('neutral', 'bullish', 'bearish')
 
 
-class TradeException(Exception):
-    pass
-
-
-class NoValidLegException(TradeException):
-    pass
-
-
 class OptionAlphaTradingStrategy(TradingStrategy):
     name = 'oatrading'
 
     def __init__(self, broker: Broker):
         self.broker = broker
-
-    def get_name(self):
-        return "{}-{}".format(self.name, self.broker.account_id)
 
     @staticmethod
     def _find_option_with_probability(options: List, probability: int, ttype: str = 'short'):
@@ -52,10 +41,6 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         for option in sorted(options, key=lambda o: o[key]):
             if option[key] * 100 >= probability:
                 return option
-
-    @staticmethod
-    def _filter_option_type(options: List, o_type: str):
-        return [o for o in options if o["type"] == o_type]
 
     @staticmethod
     def _get_long_leg(options: List, short_leg: Dict, o_type: str, width: int):
@@ -69,8 +54,8 @@ class OptionAlphaTradingStrategy(TradingStrategy):
 
     def iron_butterfly(self, config: Dict, options: List, **kwargs):
         quote = kwargs['quote']
-        calls = self._filter_option_type(options, 'call')
-        puts = self._filter_option_type(options, 'put')
+        calls = filter_option_type(options, 'call')
+        puts = filter_option_type(options, 'put')
         closest_call = min(calls, key=lambda x: abs(x['strike_price'] - quote))
         for option in puts:
             if option['strike_price'] == closest_call['strike_price']:
@@ -82,9 +67,9 @@ class OptionAlphaTradingStrategy(TradingStrategy):
 
     def iron_condor(self, config: Dict, options: List, **kwargs):
         width = kwargs['width']
-        call_wing = self.credit_spread(config, self._filter_option_type(options, 'call'), direction='bearish',
+        call_wing = self.credit_spread(config, filter_option_type(options, 'call'), direction='bearish',
                                        width=width)
-        put_wing = self.credit_spread(config, self._filter_option_type(options, 'put'), direction='bullish',
+        put_wing = self.credit_spread(config, filter_option_type(options, 'put'), direction='bullish',
                                       width=width)
         return call_wing[0], call_wing[1], put_wing[0], put_wing[1]
 
@@ -95,7 +80,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             o_type = 'put'
         else:
             o_type = 'call'
-        options = self._filter_option_type(options, o_type)
+        options = filter_option_type(options, o_type)
         if not options:
             raise TradeException("No options found.")
         short_leg = self._find_option_with_probability(options, config['probability'])
@@ -157,22 +142,6 @@ class OptionAlphaTradingStrategy(TradingStrategy):
     def _get_quantity(allocation: float, spread_width: float) -> int:
         return int(allocation / (spread_width * 100))
 
-    def log(self, msg: str) -> None:
-        storage.lpush(self.get_name() + ":log", "{} {}".format(datetime.now().timestamp(), msg))
-
-    def delete_position(self, order_id: str) -> None:
-        storage.lrem("{}:positions".format(self.get_name()), 0, order_id)
-        for leg in storage.lrange("{}:{}:legs".format(self.get_name(), order_id), 0, -1):
-            storage.delete("{}:leg:{}".format(self.get_name(), leg))
-        storage.delete("{}:{}:legs".format(self.get_name(), order_id))
-        storage.delete("{}:{}".format(self.get_name(), order_id))
-
-    @staticmethod
-    def check_positions(legs: List, options: Dict) -> Dict:
-        for leg in legs:
-            if not leg['option'] in options:
-                return leg
-
     @staticmethod
     def invert_action(legs: List) -> None:
         for leg in legs:
@@ -184,31 +153,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
     def maintenance(self) -> List:
         orders = []
 
-        positions = storage.lrange(self.get_name() + ":positions", 0, -1)
-        account_positions = self.broker.options_positions()
-        if not account_positions:
-            return orders
-
-        owned_options = {option['option']: option for option in account_positions}
-        for position in positions:
-            data = storage.hgetall("{}:{}".format(self.get_name(), position))
-            # Temporary fix: the trade might not have filled yet
-            try:
-                time_placed = datetime.fromtimestamp(float(data['time']))
-            except (KeyError, ValueError):
-                time_placed = datetime.fromtimestamp(0)
-            if time_placed.date() == datetime.today().date():
-                continue
-            leg_ids = storage.lrange("{}:{}:legs".format(self.get_name(), position), 0, -1)
-            legs = []
-            for leg in leg_ids:
-                legs.append(storage.hgetall("{}:leg:{}".format(self.get_name(), leg)))
-            # Make sure we still own all legs, else abandon management of this position.
-            if self.check_positions(legs, owned_options):
-                self.delete_position(position)
-                self.log("[{}]: Orphaned position {}-{} due to missing leg.".format(position, data['symbol'],
-                                                                                    data['strategy'], ))
-                continue
+        for position, data, legs in self.get_current_positions():
             legs = self.broker.options_positions_data(legs)
             value = self._get_price(legs)
             change = get_percentage_change(float(data['price']), value)
@@ -309,6 +254,12 @@ class OptionAlphaTradingStrategy(TradingStrategy):
                           'symbol': symbol,
                           'time': datetime.now().timestamp(),
                           'expires': target_date,
+<<<<<<< Updated upstream
+=======
+                          'quantity': quantity,
+                          'price': price,
+                          **order_data_to_save,
+>>>>>>> Stashed changes
                       })
         for leg in option_order["legs"]:
             storage.lpush("{}:{}:legs".format(self.get_name(), option_order["id"]),

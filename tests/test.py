@@ -6,12 +6,13 @@ import pytest
 from magictrade import storage
 from magictrade.broker import InsufficientFundsError, NonexistentAssetError
 from magictrade.broker.papermoney import PaperMoneyBroker
+from magictrade.strategy import filter_option_type
 from magictrade.strategy.buyandhold import BuyandHoldStrategy
 from magictrade.strategy.human import HumanTradingStrategy, DEFAULT_CONFIG
 from magictrade.strategy.optionalpha import OptionAlphaTradingStrategy, strategies, TradeException, high_iv
 from magictrade.strategy.reactive import ReactiveStrategy
 from magictrade.utils import get_account_history, get_percentage_change, get_allocation
-from tests.data import quotes, human_quotes_1, reactive_quotes, oa_options_1, exp_dates
+from data import quotes, human_quotes_1, reactive_quotes, oa_options_1, exp_dates
 
 date = datetime.strptime("2019-03-31", "%Y-%m-%d")
 
@@ -312,43 +313,43 @@ class TestOAStrategy:
     def test_filter_option_type_call(self):
         pmb = PaperMoneyBroker(account_id='test', )
         oab = OptionAlphaTradingStrategy(pmb)
-        for option in oab._filter_option_type(oa_options_1, 'call'):
+        for option in filter_option_type(oa_options_1, 'call'):
             assert option['type'] == 'call'
 
     def test_filter_option_type_put(self):
         pmb = PaperMoneyBroker(account_id='test', )
         oab = OptionAlphaTradingStrategy(pmb)
-        for option in oab._filter_option_type(oa_options_1, 'put'):
+        for option in filter_option_type(oa_options_1, 'put'):
             assert option['type'] == 'put'
 
     def test_find_probability_call_short(self):
         pmb = PaperMoneyBroker(account_id='test', )
         oab = OptionAlphaTradingStrategy(pmb)
-        calls = oab._filter_option_type(oa_options_1, 'call')
+        calls = filter_option_type(oa_options_1, 'call')
         assert oab._find_option_with_probability(calls, 70, 'short')['id'] == '9d870f5d-bd44-4750-8ff6-7aee58249b9f'
 
     def test_find_probability_call_long(self):
         pmb = PaperMoneyBroker(account_id='test', )
         oab = OptionAlphaTradingStrategy(pmb)
-        calls = oab._filter_option_type(oa_options_1, 'call')
+        calls = filter_option_type(oa_options_1, 'call')
         assert oab._find_option_with_probability(calls, 48, 'long')['id'] == '03facad1-959d-4674-85d5-79d50ff75ea6'
 
     def test_find_probability_put_short(self):
         pmb = PaperMoneyBroker(account_id='test', )
         oab = OptionAlphaTradingStrategy(pmb)
-        puts = oab._filter_option_type(oa_options_1, 'put')
+        puts = filter_option_type(oa_options_1, 'put')
         assert oab._find_option_with_probability(puts, 72, 'short')['id'] == 'f3acdb4d-82da-417b-ad13-5255613745bd'
 
     def test_find_probability_put_long(self):
         pmb = PaperMoneyBroker(account_id='test', )
         oab = OptionAlphaTradingStrategy(pmb)
-        puts = oab._filter_option_type(oa_options_1, 'put')
+        puts = filter_option_type(oa_options_1, 'put')
         assert oab._find_option_with_probability(puts, 27, 'long')['id'] == 'f3acdb4d-82da-417b-ad13-5255613745bd'
 
     def test_get_long_leg_put(self):
         pmb = PaperMoneyBroker(account_id='test', )
         oab = OptionAlphaTradingStrategy(pmb)
-        puts = oab._filter_option_type(oa_options_1, 'put')
+        puts = filter_option_type(oa_options_1, 'put')
         for option in puts:
             if option['strike_price'] == 38.5:
                 short_leg = option
@@ -357,7 +358,7 @@ class TestOAStrategy:
     def test_get_long_leg_put_1(self):
         pmb = PaperMoneyBroker(account_id='test', )
         oab = OptionAlphaTradingStrategy(pmb)
-        puts = oab._filter_option_type(oa_options_1, 'put')
+        puts = filter_option_type(oa_options_1, 'put')
         for option in puts:
             if option['strike_price'] == 38.5:
                 short_leg = option
@@ -366,7 +367,7 @@ class TestOAStrategy:
     def test_get_long_leg_call(self):
         pmb = PaperMoneyBroker(account_id='test', )
         oab = OptionAlphaTradingStrategy(pmb)
-        puts = oab._filter_option_type(oa_options_1, 'call')
+        puts = filter_option_type(oa_options_1, 'call')
         for option in puts:
             if option['strike_price'] == 38.0:
                 short_leg = option
@@ -375,7 +376,7 @@ class TestOAStrategy:
     def test_get_long_leg_call_1(self):
         pmb = PaperMoneyBroker(account_id='test', )
         oab = OptionAlphaTradingStrategy(pmb)
-        puts = oab._filter_option_type(oa_options_1, 'call')
+        puts = filter_option_type(oa_options_1, 'call')
         for option in puts:
             if option['strike_price'] == 38.0:
                 short_leg = option
