@@ -254,12 +254,6 @@ class OptionAlphaTradingStrategy(TradingStrategy):
                           'symbol': symbol,
                           'time': datetime.now().timestamp(),
                           'expires': target_date,
-<<<<<<< Updated upstream
-=======
-                          'quantity': quantity,
-                          'price': price,
-                          **order_data_to_save,
->>>>>>> Stashed changes
                       })
         for leg in option_order["legs"]:
             storage.lpush("{}:{}:legs".format(self.get_name(), option_order["id"]),
