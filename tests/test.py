@@ -511,35 +511,35 @@ class TestOAStrategy:
         pmb = PaperMoneyBroker(account_id='test', date=date, data=quotes, options_data=oa_options_1,
                                exp_dates=exp_dates)
         oab = OptionAlphaTradingStrategy(pmb)
-        strategy, legs, q, p, _ = oab.make_trade('MU', 'neutral', 52)
-        assert strategy == 'iron_condor'
-        assert oab._get_price(legs) <= pmb.balance * 0.03
-        assert legs[0][0]["strike_price"] == 42.0
-        assert oab._get_price(legs) == 0.31
-        assert q == 100
-        assert p == 31.0
+        result = oab.make_trade('MU', 'neutral', 52)
+        assert result['strategy'] == 'iron_condor'
+        assert oab._get_price(result['legs']) <= pmb.balance * 0.03
+        assert result['legs'][0][0]["strike_price"] == 42.0
+        assert oab._get_price(result['legs']) == 0.31
+        assert result['quantity'] == 100
+        assert result['price'] == 31.0
 
     def test_make_trade_neutral_high_iv(self):
         pmb = PaperMoneyBroker(account_id='test', date=date, data=quotes, options_data=oa_options_1,
                                exp_dates=exp_dates)
         oab = OptionAlphaTradingStrategy(pmb)
-        strategy, legs, q, p, _ = oab.make_trade('MU', 'neutral', high_iv)
-        assert strategy == 'iron_butterfly'
-        assert oab._get_price(legs) <= pmb.balance * 0.03
-        assert legs[0][0]["strike_price"] == 38.5
-        assert q == 100
-        assert round(p, 2) == 110.5
+        result = oab.make_trade('MU', 'neutral', high_iv)
+        assert result['strategy'] == 'iron_butterfly'
+        assert oab._get_price(result['legs']) <= pmb.balance * 0.03
+        assert result['legs'][0][0]["strike_price"] == 38.5
+        assert result['quantity'] == 100
+        assert round(result['price'], 2) == 110.5
 
     def test_make_trade_bearish(self):
         pmb = PaperMoneyBroker(account_id='test', date=date, data=quotes, options_data=oa_options_1,
                                exp_dates=exp_dates)
         oab = OptionAlphaTradingStrategy(pmb)
-        strategy, legs, q, p, _ = oab.make_trade('MU', 'bearish', high_iv)
-        assert strategy == 'credit_spread'
-        assert oab._get_price(legs) <= pmb.balance * 0.03
-        assert legs[0][0]["strike_price"] == 40.0
-        assert q == 100
-        assert round(p, 2) == 55.5
+        result = oab.make_trade('MU', 'bearish', high_iv)
+        assert result['strategy'] == 'credit_spread'
+        assert oab._get_price(result['legs']) <= pmb.balance * 0.03
+        assert result['legs'][0][0]["strike_price"] == 40.0
+        assert result['quantity'] == 100
+        assert round(result['price'], 2) == 55.5
 
     def test_delete_position(self):
         name = 'oatrading-testdel'
@@ -573,17 +573,17 @@ class TestOAStrategy:
         pmb = PaperMoneyBroker(account_id='teststor', date=date, data=quotes, options_data=oa_options_1,
                                exp_dates=exp_dates)
         oab = OptionAlphaTradingStrategy(pmb)
-        _, _, quantity, price, oo = oab.make_trade('MU', 'bearish', high_iv)
-        oid = oo["id"]
+        result = oab.make_trade('MU', 'bearish', high_iv)
+        oid = result['order']["id"]
         assert oid == storage.lrange(name + ":positions", 0, -1)[0]
         data = storage.hgetall("{}:{}".format(name, oid))
         assert data['strategy'] == 'credit_spread'
-        assert int(data['quantity']) == quantity
-        assert float(data['price']) == price / quantity
+        assert int(data['quantity']) == result['quantity']
+        assert float(data['price']) == result['price'] / result['quantity']
         legs = storage.lrange("{}:{}:legs".format(name, oid), 0, -1)
         assert len(legs) == 2
-        assert oo["legs"][0]["id"] in legs
-        assert oo["legs"][1]["id"] in legs
+        assert result['order']["legs"][0]["id"] in legs
+        assert result['order']["legs"][1]["id"] in legs
         oab.delete_position(oid)
 
     def test_maintenance_no_action(self):

@@ -74,3 +74,4 @@ class LongOptionTradingStrategy(TradingStrategy):
             symbol,
             quantity,
             round(price * 100, 2)))
+        return {'status': placed}

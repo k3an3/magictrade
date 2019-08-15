@@ -31,6 +31,8 @@ parser.add_argument('-p', '--password', dest='password', help='Password for brok
                                                               'environment variable.')
 parser.add_argument('-m', '--mfa-code', dest='mfa', help='MFA code for broker account. May also specify with '
                                                          'environment variable.')
+parser.add_argument('-s', '--market-open-delay', type=int, default=600, help='Max time in seconds to sleep after '
+                                                                             'market opens.')
 parser.add_argument('broker', choices=('papermoney', 'robinhood',), help='Broker to use.')
 args = parser.parse_args()
 
@@ -116,6 +118,11 @@ def handle_error(e: Exception):
         pass
 
 
+def handle_results(result: Dict, identifier: str, trade: Dict):
+    storage.set("{}:status:{}".format(queue_name, identifier), result.get('status', 'unknown'))
+    # check if status is deferred, add a counter back to the original trade that the main loop will check and decrement
+
+
 def main_loop():
     next_maintenance = 0
     next_balance_check = 0
@@ -126,10 +133,10 @@ def main_loop():
         if not next_heartbeat:
             storage.set(queue_name + ":heartbeat", datetime.datetime.now().timestamp())
             next_heartbeat = 60
-        if args.debug or market_is_open():
+        if market_is_open() or args.debug:
             if not args.debug and first_trade:
                 logging.info("Sleeping to make sure market is open...")
-                sleep(random.randint(58, 1200))
+                sleep(random.randint(min(58, args.market_open_delay), args.market_open_delay))
                 first_trade = False
             if not next_maintenance:
                 logging.info("Running maintenance...")
@@ -163,8 +170,10 @@ def main_loop():
                     trade = storage.hgetall("{}:{}".format(queue_name, identifier))
                     logging.info("Ingested trade: " + str(trade))
                     normalize_trade(trade)
+
+                    result = {}
                     try:
-                        strategy.make_trade(**trade)
+                        result = strategy.make_trade(**trade)
                     except Exception as e:
                         logging.error("Error while making trade '{}': {}".format(trade, e))
                         storage.lpush(queue_name + "-failed", identifier)
@@ -172,7 +181,7 @@ def main_loop():
                         handle_error(e)
                     else:
                         logging.info("Completed transaction: " + str(trade))
-                        storage.set("{}:status:{}".format(queue_name, identifier), 'placed')
+                        handle_results(result, identifier, trade)
                 if next_maintenance:
                     next_maintenance -= 1
                 if next_balance_check:

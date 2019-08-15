@@ -253,4 +253,5 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             direction,
             quantity,
             round(price * 100, 2)))
-        return strategy, legs, quantity, quantity * price, option_order
+        return {'status': 'placed', 'strategy': strategy, 'legs': legs, 'quantity': quantity,
+                'price': quantity * price, 'order': option_order}
