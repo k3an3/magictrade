@@ -5,86 +5,17 @@ import random
 from argparse import ArgumentParser
 from typing import Dict
 
-from requests import HTTPError
 from time import sleep
 
 from magictrade import storage
 from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.broker.robinhood import RobinhoodBroker
+from magictrade.queue import TradeQueue
 from magictrade.strategy.optionalpha import OptionAlphaTradingStrategy
-from magictrade.utils import market_is_open, get_version
+from magictrade.utils import market_is_open, get_version, normalize_trade, handle_error, reset_queue
 
-parser = ArgumentParser(description="Daemon to make automated trades.")
-parser.add_argument('-k', '--oauth-keyfile', dest='keyfile', help='Path to keyfile containing access and refresh '
-                                                                  'tokens.')
-parser.add_argument('-x', '--authenticate-only', action='store_true', dest='authonly', help='Authenticate and exit. '
-                                                                                            'Useful for automatically '
-                                                                                            'updating expired tokens.')
-parser.add_argument('-d', '--debug', action='store_true', dest='debug',
-                    help='Simulate trades even if market is closed. '
-                         'Exceptions are re-raised.')
-parser.add_argument('-a', '--allocation', type=int, default=40, dest='allocation',
-                    help='Percent of account to trade with.')
-parser.add_argument('-u', '--username', dest='username', help='Username for broker account. May also specify with '
-                                                              'environment variable.')
-parser.add_argument('-p', '--password', dest='password', help='Password for broker account. May also specify with '
-                                                              'environment variable.')
-parser.add_argument('-m', '--mfa-code', dest='mfa', help='MFA code for broker account. May also specify with '
-                                                         'environment variable.')
-parser.add_argument('-s', '--market-open-delay', type=int, default=600, help='Max time in seconds to sleep after '
-                                                                             'market opens.')
-parser.add_argument('broker', choices=('papermoney', 'robinhood',), help='Broker to use.')
-args = parser.parse_args()
-
-logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
-if 'username' in os.environ:
-    logging.info("Attempting credentials from envars...")
-elif args.username:
-    logging.info("Attempting credentials from args...")
-else:
-    logging.info("Using stored credentials...")
-    if not os.path.exists(args.keyfile):
-        logging.error("Can't find keyfile. Aborting.")
-        raise SystemExit
-
-username = os.environ.pop('username', None) or args.username
-password = os.environ.pop('password', None) or args.password
-mfa_code = os.environ.pop('mfa_code', None) or args.mfa
-
-if args.broker == 'papermoney':
-    broker = PaperMoneyBroker(balance=15_000, account_id="livetest",
-                              username=username,
-                              password=password,
-                              mfa_code=mfa_code,
-                              robinhood=True, token_file=args.keyfile)
-elif args.broker == 'robinhood':
-    broker = RobinhoodBroker(username=username, password=password,
-                             mfa_code=mfa_code, token_file=args.keyfile)
-else:
-    logging.warn("No valid broker provided. Exiting...")
-    raise SystemExit
-if args.authonly:
-    logging.info("Authentication success. Exiting.")
-    raise SystemExit
-strategy = OptionAlphaTradingStrategy(broker)
-queue_name = 'oatrading-queue'
-rand_sleep = 3600, 7200
-
-
-def normalize_trade(trade: Dict) -> Dict:
-    funcs = {
-        'iv_rank': int,
-        'allocation': float,
-        'timeline': int,
-        'days_out': int,
-        'spread_width': float,
-    }
-    # Copy to list so dict isn't modified during iteration
-    for key, value in list(trade.items()):
-        if value and key in funcs:
-            trade[key] = funcs[key](value)
-        elif not value:
-            del trade[key]
+RAND_SLEEP = 1800, 6400
+DEFAULT_TIMEOUT = 1800
 
 
 def main():
@@ -103,24 +34,66 @@ def main():
         logging.info("Got SIGINT, Exiting...")
 
 
-def handle_error(e: Exception):
-    try:
-        if isinstance(e, HTTPError):
-            with open("http_debug.log", "a") as f:
-                text = str(e.response.text)
-                logging.error(text)
-                f.write(text + "\n")
-        if args.debug:
-            raise e
-        import sentry_sdk
-        sentry_sdk.capture_exception(e)
-    except ImportError:
-        pass
-
-
 def handle_results(result: Dict, identifier: str, trade: Dict):
     storage.set("{}:status:{}".format(queue_name, identifier), result.get('status', 'unknown'))
     # check if status is deferred, add a counter back to the original trade that the main loop will check and decrement
+    if result.get('status') == 'deferred':
+        trade['timeout'] = DEFAULT_TIMEOUT
+        trade_queue.add(identifier, trade)
+
+
+def run_maintenance() -> None:
+    logging.info("Running maintenance...")
+    try:
+        results = strategy.maintenance()
+    except Exception as e:
+        logging.error("Error while performing maintenance: {}".format(e))
+        handle_error(e)
+    else:
+        logging.info("Completed {} tasks.".format(len(results)))
+
+
+def check_balance() -> int:
+    try:
+        buying_power = broker.buying_power
+        balance = broker.balance
+    except Exception as e:
+        logging.error("Error while getting balances: {}".format(e))
+        handle_error(e)
+    current_allocation = trade_queue.get_allocation() or args.allocation
+    if buying_power < balance * (100 - current_allocation) / 100:
+        trade_queue.set_current_usage(buying_power, balance)
+        next_balance_check = random.randint(*RAND_SLEEP)
+        logging.info("Not enough buying power, {}/{}. Sleeping {}s.".format(
+            buying_power, balance, next_balance_check))
+        return next_balance_check
+
+
+def make_trade(trade: Dict, identifier: str) -> Dict:
+    try:
+        return strategy.make_trade(**trade)
+    except Exception as e:
+        logging.error("Error while making trade '{}': {}".format(trade, e))
+        trade_queue.add_failed(identifier, str(e))
+        handle_error(e)
+
+
+def get_next_trade():
+    while True:
+        identifier, trade = trade_queue.pop()
+        if 'timeout' in trade and int(trade['timeout']):
+            trade['timeout'] = int(trade['timeout']) - 1
+            trade_queue.stage_trade(identifier, trade)
+            trade_queue.set_data(identifier, trade)
+        elif 'target_date' in trade and datetime.datetime.fromtimestamp(
+                float(trade['target_date'])) > datetime.datetime.now():
+            trade_queue.stage_trade(identifier)
+        else:
+            break
+
+    logging.info("Ingested trade: " + str(trade))
+    normalize_trade(trade)
+    return identifier, trade
 
 
 def main_loop():
@@ -139,49 +112,23 @@ def main_loop():
                 sleep(random.randint(min(58, args.market_open_delay), args.market_open_delay))
                 first_trade = False
             if not next_maintenance:
-                logging.info("Running maintenance...")
-                try:
-                    results = strategy.maintenance()
-                except Exception as e:
-                    logging.error("Error while performing maintenance: {}".format(e))
-                    handle_error(e)
-                else:
-                    logging.info("Completed {} tasks.".format(len(results)))
-                next_maintenance = random.randint(*rand_sleep)
+                run_maintenance()
+                next_maintenance = random.randint(*RAND_SLEEP)
                 logging.info("Next check in {}s".format(next_maintenance))
             elif not next_balance_check or storage.get(queue_name + ":new_allocation"):
                 storage.delete(queue_name + ":new_allocation")
-                while storage.llen(queue_name) > 0:
-                    try:
-                        buying_power = broker.buying_power
-                        balance = broker.balance
-                    except Exception as e:
-                        logging.error("Error while getting balances: {}".format(e))
-                        handle_error(e)
-                    current_allocation = int(storage.get(queue_name + ":allocation") or 0) or args.allocation
-                    if buying_power < balance * (100 - current_allocation) / 100:
-                        storage.set(queue_name + ":current_usage", f"{buying_power}/{balance}")
-                        next_balance_check = random.randint(*rand_sleep)
-                        logging.info("Not enough buying power, {}/{}. Sleeping {}s.".format(
-                            buying_power, balance, next_balance_check))
+                while storage.llen(queue_name):
+                    next_balance_check = check_balance()
+                    if next_balance_check:
                         break
                     storage.delete(queue_name + ":current_usage")
-                    identifier = storage.rpop(queue_name)
-                    trade = storage.hgetall("{}:{}".format(queue_name, identifier))
-                    logging.info("Ingested trade: " + str(trade))
-                    normalize_trade(trade)
 
-                    result = {}
-                    try:
-                        result = strategy.make_trade(**trade)
-                    except Exception as e:
-                        logging.error("Error while making trade '{}': {}".format(trade, e))
-                        storage.lpush(queue_name + "-failed", identifier)
-                        storage.set("{}:status:{}".format(queue_name, identifier), str(e))
-                        handle_error(e)
-                    else:
+                    identifier, trade = get_next_trade(storage.llen(queue_name))
+                    result = make_trade(trade, identifier)
+                    if result:
                         logging.info("Completed transaction: " + str(trade))
                         handle_results(result, identifier, trade)
+                reset_queue()
                 if next_maintenance:
                     next_maintenance -= 1
                 if next_balance_check:
@@ -195,4 +142,61 @@ def main_loop():
 
 
 if __name__ == '__main__':
+    parser = ArgumentParser(description="Daemon to make automated trades.")
+    parser.add_argument('-k', '--oauth-keyfile', dest='keyfile', help='Path to keyfile containing access and refresh '
+                                                                      'tokens.')
+    parser.add_argument('-x', '--authenticate-only', action='store_true', dest='authonly',
+                        help='Authenticate and exit. '
+                             'Useful for automatically '
+                             'updating expired tokens.')
+    parser.add_argument('-d', '--debug', action='store_true', dest='debug',
+                        help='Simulate trades even if market is closed. '
+                             'Exceptions are re-raised.')
+    parser.add_argument('-a', '--allocation', type=int, default=40, dest='allocation',
+                        help='Percent of account to trade with.')
+    parser.add_argument('-u', '--username', dest='username', help='Username for broker account. May also specify with '
+                                                                  'environment variable.')
+    parser.add_argument('-p', '--password', dest='password', help='Password for broker account. May also specify with '
+                                                                  'environment variable.')
+    parser.add_argument('-m', '--mfa-code', dest='mfa', help='MFA code for broker account. May also specify with '
+                                                             'environment variable.')
+    parser.add_argument('-s', '--market-open-delay', type=int, default=600, help='Max time in seconds to sleep after '
+                                                                                 'market opens.')
+    parser.add_argument('broker', choices=('papermoney', 'robinhood',), help='Broker to use.')
+    args = parser.parse_args()
+
+    logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
+    if 'username' in os.environ:
+        logging.info("Attempting credentials from envars...")
+    elif args.username:
+        logging.info("Attempting credentials from args...")
+    else:
+        logging.info("Using stored credentials...")
+        if not os.path.exists(args.keyfile):
+            logging.error("Can't find keyfile. Aborting.")
+            raise SystemExit
+
+    username = os.environ.pop('username', None) or args.username
+    password = os.environ.pop('password', None) or args.password
+    mfa_code = os.environ.pop('mfa_code', None) or args.mfa
+
+    if args.broker == 'papermoney':
+        broker = PaperMoneyBroker(balance=15_000, account_id="livetest",
+                                  username=username,
+                                  password=password,
+                                  mfa_code=mfa_code,
+                                  robinhood=True, token_file=args.keyfile)
+    elif args.broker == 'robinhood':
+        broker = RobinhoodBroker(username=username, password=password,
+                                 mfa_code=mfa_code, token_file=args.keyfile)
+    else:
+        logging.warn("No valid broker provided. Exiting...")
+        raise SystemExit
+    if args.authonly:
+        logging.info("Authentication success. Exiting.")
+        raise SystemExit
+    # Add logic for multiple strategies
+    strategy = OptionAlphaTradingStrategy(broker)
+    queue_name = 'oatrading-queue'
+    trade_queue = TradeQueue(queue_name)
     main()

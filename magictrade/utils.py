@@ -1,6 +1,9 @@
+import logging
+
 import argparse
 import subprocess
 from datetime import datetime, time
+from requests import HTTPError
 from typing import List, Tuple, Dict
 
 import matplotlib.pyplot as plt
@@ -9,6 +12,7 @@ from matplotlib import rcParamsDefault, rcParams, pyplot
 from pytz import timezone
 
 from magictrade import storage
+from magictrade.runner import args, queue_name
 
 
 def plot_cli():
@@ -120,3 +124,39 @@ def send_trade(queue_name: str, args: Dict) -> str:
 
 if __name__ == "__main__":
     plot_cli()
+
+
+def normalize_trade(trade: Dict) -> Dict:
+    funcs = {
+        'iv_rank': int,
+        'allocation': float,
+        'timeline': int,
+        'days_out': int,
+        'spread_width': float,
+    }
+    # Copy to list so dict isn't modified during iteration
+    for key, value in list(trade.items()):
+        if value and key in funcs:
+            trade[key] = funcs[key](value)
+        elif not value:
+            del trade[key]
+
+
+def handle_error(e: Exception):
+    try:
+        if isinstance(e, HTTPError):
+            with open("http_debug.log", "a") as f:
+                text = str(e.response.text)
+                logging.error(text)
+                f.write(text + "\n")
+        if args.debug:
+            raise e
+        import sentry_sdk
+        sentry_sdk.capture_exception(e)
+    except ImportError:
+        pass
+
+
+def reset_queue():
+    for trade in storage.lrange(queue_name + '-tmp', 0, -1):
+        storage.lpush(queue_name, trade)
