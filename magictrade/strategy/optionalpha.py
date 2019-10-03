@@ -143,6 +143,23 @@ class OptionAlphaTradingStrategy(TradingStrategy):
     def _get_quantity(allocation: float, spread_width: float) -> int:
         return int(allocation / (spread_width * 100))
 
+    def log(self, msg: str) -> None:
+        storage.lpush(self.get_name() + ":log", "{} {}".format(datetime.now().timestamp(), msg))
+
+    def delete_position(self, trade_id: str) -> None:
+        storage.lrem("{}:positions".format(self.get_name()), 0, trade_id)
+        for leg in storage.lrange("{}:{}:legs".format(self.get_name(), trade_id), 0, -1):
+            storage.delete("{}:leg:{}".format(self.get_name(), leg))
+        storage.delete("{}:{}:legs".format(self.get_name(), trade_id))
+        # consider not deleting this one for archival purposes
+        storage.delete("{}:{}".format(self.get_name(), trade_id))
+
+    @staticmethod
+    def check_positions(legs: List, options: Dict) -> Dict:
+        for leg in legs:
+            if not leg['option'] in options:
+                return leg
+
     @staticmethod
     def invert_action(legs: List) -> None:
         for leg in legs:
@@ -162,6 +179,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             data['last_change'] = change * -1
             storage.hmset("{}:{}".format(self.get_name(), position), data)
             if value and -1 * change >= strategies[data['strategy']]['target']:
+                # legs that were originally bought now need to be sold
                 self.invert_action(legs)
                 self.log("[{}]: Closing {}-{} due to change of {:.2f}%. Was {:.2f}, now {:.2f}.".format(position,
                                                                                                         data['symbol'],
@@ -244,6 +262,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             raise TradeException("Trade quantity equals 0.")
         option_order = self.broker.options_transact(legs, 'credit', price,
                                                     quantity, 'open')
+
         self.save_order(option_order, legs, {}, strategy=strategy, price=price,
                         quantity=quantity, expires=target_date, symbol=symbol)
         self.log("[{}]: Opened {} in {} for direction {} with quantity {} and price {}.".format(
