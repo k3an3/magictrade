@@ -1,5 +1,4 @@
 import datetime
-
 from typing import Dict
 
 from magictrade import storage
@@ -60,3 +59,7 @@ class TradeQueue:
 
     def heartbeat(self):
         storage.set(self.queue_name + ":heartbeat", datetime.datetime.now().timestamp())
+
+    def staged_to_queue(self):
+        while self._stage:
+            storage.lpush(self.queue_name, self._stage.pop())

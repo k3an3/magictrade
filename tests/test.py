@@ -18,6 +18,13 @@ from magictrade.utils import get_account_history, get_percentage_change, get_all
 date = datetime.strptime("2019-03-31", "%Y-%m-%d")
 
 
+class TestRunner:
+    def test_handle_results(self):
+        pass
+
+    def test_handle_results_deferred(self):
+        pass
+
 class TestPaperMoney:
     def test_date(self):
         pmb = PaperMoneyBroker(account_id='test', date='1234')

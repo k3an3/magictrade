@@ -11,6 +11,7 @@ from pytz import timezone
 from requests import HTTPError
 
 from magictrade import storage
+from magictrade.queue import TradeQueue
 
 
 def plot_cli():
@@ -113,10 +114,14 @@ def get_allocation(broker, allocation: int):
     return broker.balance * allocation / 100
 
 
+def generate_identifier(symbol: str) -> str:
+    return "{}-{}".format(symbol.upper(), datetime.now().strftime("%Y%m%d%H%M%S"))
+
+
 def send_trade(queue_name: str, args: Dict) -> str:
-    identifier = "{}-{}".format(args['symbol'].upper(), datetime.now().strftime("%Y%m%d%H%M%S"))
-    storage.hmset("{}:{}".format(queue_name, identifier), args)
-    storage.lpush(queue_name, identifier)
+    identifier = generate_identifier(args['symbol'])
+    tq = TradeQueue(queue_name)
+    tq.add(identifier, args)
     return identifier
 
 
@@ -153,9 +158,3 @@ def handle_error(e: Exception, debug: bool = False):
         sentry_sdk.capture_exception(e)
     except ImportError:
         pass
-
-
-def reset_queue():
-    from magictrade.runner import queue_name
-    for trade in storage.lrange(queue_name + '-tmp', 0, -1):
-        storage.lpush(queue_name, trade)

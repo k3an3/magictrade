@@ -11,7 +11,7 @@ from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.broker.robinhood import RobinhoodBroker
 from magictrade.queue import TradeQueue
 from magictrade.strategy.optionalpha import OptionAlphaTradingStrategy
-from magictrade.utils import market_is_open, get_version, normalize_trade, handle_error, reset_queue
+from magictrade.utils import market_is_open, get_version, normalize_trade, handle_error
 
 RAND_SLEEP = 1800, 6400
 DEFAULT_TIMEOUT = 1800
@@ -116,18 +116,18 @@ def main_loop():
                 logging.info("Next check in {}s".format(next_maintenance))
             elif not next_balance_check or storage.get(queue_name + ":new_allocation"):
                 storage.delete(queue_name + ":new_allocation")
-                while storage.llen(queue_name):
+                while len(trade_queue):
                     next_balance_check = check_balance()
                     if next_balance_check:
                         break
                     storage.delete(queue_name + ":current_usage")
 
-                    identifier, trade = get_next_trade(storage.llen(queue_name))
+                    identifier, trade = get_next_trade(len(trade_queue))
                     result = make_trade(trade, identifier)
                     if result:
                         logging.info("Completed transaction: " + str(trade))
                         handle_results(result, identifier, trade)
-                reset_queue()
+                trade_queue.staged_to_queue()
                 if next_maintenance:
                     next_maintenance -= 1
                 if next_balance_check:
