@@ -1,18 +1,16 @@
-import logging
-
 import argparse
+import logging
 import subprocess
 from datetime import datetime, time
-from requests import HTTPError
 from typing import List, Tuple, Dict
 
 import matplotlib.pyplot as plt
 import pkg_resources
 from matplotlib import rcParamsDefault, rcParams, pyplot
 from pytz import timezone
+from requests import HTTPError
 
 from magictrade import storage
-from magictrade.runner import args, queue_name
 
 
 def plot_cli():
@@ -142,14 +140,14 @@ def normalize_trade(trade: Dict) -> Dict:
             del trade[key]
 
 
-def handle_error(e: Exception):
+def handle_error(e: Exception, debug: bool = False):
     try:
         if isinstance(e, HTTPError):
             with open("http_debug.log", "a") as f:
                 text = str(e.response.text)
                 logging.error(text)
                 f.write(text + "\n")
-        if args.debug:
+        if debug:
             raise e
         import sentry_sdk
         sentry_sdk.capture_exception(e)
@@ -158,5 +156,6 @@ def handle_error(e: Exception):
 
 
 def reset_queue():
+    from magictrade.runner import queue_name
     for trade in storage.lrange(queue_name + '-tmp', 0, -1):
         storage.lpush(queue_name, trade)

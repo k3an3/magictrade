@@ -62,8 +62,10 @@ class PaperMoneyBroker(Broker):
             return options
         return self.rb.options_positions_data(options)
 
-    def get_options(self, symbol: str) -> List:
-        if self.options_data:
+    def get_options(self, symbol: str, actually_work: bool = False) -> List:
+        if actually_work:
+            return self.options_data[symbol]
+        elif self.options_data:
             return self.options_data
         return self.rb.get_options(symbol)
 
@@ -75,6 +77,11 @@ class PaperMoneyBroker(Broker):
     def filter_options(self, options: List, exp_dates: List):
         if not self.options_data:
             return self.rb.filter_options(options, exp_dates)
+        else:
+            results = []
+            for date in exp_dates:
+                results.extend([option for option in options if option['expiration_date'] == date])
+            return results
 
     def get_value(self) -> float:
         value = self.balance
@@ -102,7 +109,10 @@ class PaperMoneyBroker(Broker):
                 except Exception:
                     date = self._date
                 return self.data[symbol]['history'][date]
-            return self.data[symbol]['price']
+            try:
+                return self.data[symbol]['price']
+            except KeyError:
+                return 0
         else:
             data = requests.get('https://www.alphavantage.co/query', params={'function': 'GLOBAL_QUOTE',
                                                                              'symbol': symbol,

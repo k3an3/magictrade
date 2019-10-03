@@ -2,10 +2,9 @@ import datetime
 import logging
 import os
 import random
-from argparse import ArgumentParser
-from typing import Dict
-
+from argparse import ArgumentParser, Namespace
 from time import sleep
+from typing import Dict
 
 from magictrade import storage
 from magictrade.broker.papermoney import PaperMoneyBroker
@@ -48,7 +47,7 @@ def run_maintenance() -> None:
         results = strategy.maintenance()
     except Exception as e:
         logging.error("Error while performing maintenance: {}".format(e))
-        handle_error(e)
+        handle_error(e, args.debug)
     else:
         logging.info("Completed {} tasks.".format(len(results)))
 
@@ -59,7 +58,7 @@ def check_balance() -> int:
         balance = broker.balance
     except Exception as e:
         logging.error("Error while getting balances: {}".format(e))
-        handle_error(e)
+        handle_error(e, args.debug)
     current_allocation = trade_queue.get_allocation() or args.allocation
     if buying_power < balance * (100 - current_allocation) / 100:
         trade_queue.set_current_usage(buying_power, balance)
@@ -75,7 +74,7 @@ def make_trade(trade: Dict, identifier: str) -> Dict:
     except Exception as e:
         logging.error("Error while making trade '{}': {}".format(trade, e))
         trade_queue.add_failed(identifier, str(e))
-        handle_error(e)
+        handle_error(e, args.debug)
 
 
 def get_next_trade():
@@ -141,7 +140,7 @@ def main_loop():
         next_heartbeat -= 1
 
 
-if __name__ == '__main__':
+def parse_args() -> Namespace:
     parser = ArgumentParser(description="Daemon to make automated trades.")
     parser.add_argument('-k', '--oauth-keyfile', dest='keyfile', help='Path to keyfile containing access and refresh '
                                                                       'tokens.')
@@ -163,7 +162,11 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--market-open-delay', type=int, default=600, help='Max time in seconds to sleep after '
                                                                                  'market opens.')
     parser.add_argument('broker', choices=('papermoney', 'robinhood',), help='Broker to use.')
-    args = parser.parse_args()
+    return parser.parse_args()
+
+
+if __name__ == '__main__':
+    args = parse_args()
 
     logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
     if 'username' in os.environ:
