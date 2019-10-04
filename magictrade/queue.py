@@ -36,9 +36,15 @@ class TradeQueue:
         storage.lpush(self.queue_name, identifier)
         self.set_data(identifier, trade)
 
+    def set_status(self, identifier: str, status: str):
+        storage.set("{}:status:{}".format(self.queue_name, identifier), status)
+
+    def get_status(self, identifier: str) -> str:
+        return storage.get("{}:status:{}".format(self.queue_name, identifier))
+
     def add_failed(self, identifier: str, error: str):
         storage.lpush(self.queue_name + "-failed", identifier)
-        storage.set("{}:status:{}".format(self.queue_name, identifier), error)
+        self.set_status(identifier, error)
 
     def stage_trade(self, identifier: str):
         self._stage.append(identifier)
@@ -51,11 +57,19 @@ class TradeQueue:
     def get_data(self, identifier: str):
         return storage.hgetall(self._data_name(identifier))
 
-    def get_allocation(self):
-        return int(storage.get(self.queue_name + ":allocation")) or 0
+    def get_allocation(self, new: bool = False) -> int:
+        return int(storage.get("{}:{}allocation".format(self.queue_name, "new_" if new else ""))) or 0
+
+    def pop_new_allocation(self) -> int:
+        new_allocation = self.get_allocation(new=True)
+        storage.delete(self.queue_name + ":new_allocation")
+        return new_allocation
 
     def set_current_usage(self, buying_power: float, balance: float):
         storage.set(self.queue_name + ":current_usage", f"{buying_power}/{balance}")
+
+    def delete_current_usage(self):
+        storage.delete(self.queue_name + ":current_usage")
 
     def heartbeat(self):
         storage.set(self.queue_name + ":heartbeat", datetime.datetime.now().timestamp())

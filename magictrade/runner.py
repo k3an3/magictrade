@@ -3,10 +3,10 @@ import logging
 import os
 import random
 from argparse import ArgumentParser, Namespace
-from time import sleep
 from typing import Dict
 
-from magictrade import storage
+from time import sleep
+
 from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.broker.robinhood import RobinhoodBroker
 from magictrade.queue import TradeQueue
@@ -34,7 +34,7 @@ def main():
 
 
 def handle_results(result: Dict, identifier: str, trade: Dict):
-    storage.set("{}:status:{}".format(queue_name, identifier), result.get('status', 'unknown'))
+    trade_queue.set_status(identifier, result.get('status', 'unknown'))
     # check if status is deferred, add a counter back to the original trade that the main loop will check and decrement
     if result.get('status') == 'deferred':
         trade['timeout'] = DEFAULT_TIMEOUT
@@ -103,7 +103,7 @@ def main_loop():
 
     while True:
         if not next_heartbeat:
-            storage.set(queue_name + ":heartbeat", datetime.datetime.now().timestamp())
+            trade_queue.heartbeat()
             next_heartbeat = 60
         if market_is_open() or args.debug:
             if not args.debug and first_trade:
@@ -114,13 +114,12 @@ def main_loop():
                 run_maintenance()
                 next_maintenance = random.randint(*RAND_SLEEP)
                 logging.info("Next check in {}s".format(next_maintenance))
-            elif not next_balance_check or storage.get(queue_name + ":new_allocation"):
-                storage.delete(queue_name + ":new_allocation")
+            elif not next_balance_check or trade_queue.pop_new_allocation():
                 while len(trade_queue):
                     next_balance_check = check_balance()
                     if next_balance_check:
                         break
-                    storage.delete(queue_name + ":current_usage")
+                    trade_queue.delete_current_usage()
 
                     identifier, trade = get_next_trade(len(trade_queue))
                     result = make_trade(trade, identifier)

@@ -1,33 +1,32 @@
 import argparse
 
-from magictrade import storage
+from magictrade.queue import TradeQueue
 from magictrade.utils import send_trade
 
 default_queue_name = 'oatrading-queue'
 
 
-def handle_trade(args):
+def handle_trade(args: argparse.Namespace, trade_queue: TradeQueue):
     if args.days_out and args.timeline:
         print("Can't use timeline with days_out. Aborting.")
         raise SystemExit
 
-    queue_name = args.queue_name
     args = vars(args)
     args.pop('func')
     args.pop('cmd')
     args.pop('queue_name')
-    identifier = send_trade(queue_name, args)
+    identifier = send_trade(trade_queue, args)
     print("Placed trade {} with data:\n{}".format(identifier, args))
 
 
-def handle_check(args):
-    status = storage.get("{}:status:{}".format(args.queue_name, args.identifier))
+def handle_check(args: argparse.Namespace, trade_queue: TradeQueue):
+    status = trade_queue.get_status(args.identifier)
     print("Returned status: '{}'".format(status))
 
 
-def handle_list(args):
-    for identifier in storage.lrange(args.queue_name, 0, -1):
-        print(identifier, ":", storage.hgetall("{}:{}".format(args.queue_name, identifier)))
+def handle_list(args: argparse.Namespace, trade_queue: TradeQueue):
+    for identifier in trade_queue:
+        print(identifier, ":", trade_queue.get_data(identifier))
 
 
 def cli():
@@ -67,7 +66,8 @@ def cli():
                              'daemon is reading from')
 
     args = parser.parse_args()
-    args.func(args)
+    trade_queue = TradeQueue(args.queue_name)
+    args.func(args, trade_queue)
 
 
 if __name__ == "__main__":
