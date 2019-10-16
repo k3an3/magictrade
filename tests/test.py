@@ -7,7 +7,7 @@ from data import quotes, human_quotes_1, reactive_quotes, test_options_1, exp_da
 from magictrade import storage
 from magictrade.broker import InsufficientFundsError, NonexistentAssetError
 from magictrade.broker.papermoney import PaperMoneyBroker
-from magictrade.strategy import filter_option_type, TradeConfigException
+from magictrade.strategy import filter_option_type, TradeConfigException, TradeDateException
 from magictrade.strategy.buyandhold import BuyandHoldStrategy
 from magictrade.strategy.human import HumanTradingStrategy, DEFAULT_CONFIG
 from magictrade.strategy.longoption import LongOptionTradingStrategy
@@ -24,6 +24,7 @@ class TestRunner:
 
     def test_handle_results_deferred(self):
         pass
+
 
 class TestPaperMoney:
     def test_date(self):
@@ -651,12 +652,6 @@ class TestOAStrategy:
 
 
 class TestLongOption:
-    def test_find_option(self):
-        pmb = PaperMoneyBroker()
-        lots = LongOptionTradingStrategy(pmb)
-        option = lots.find_option(test_options_1, 35.00)
-        assert option['id'] == 'd9ae1f75-2aa5-4cea-9c97-f14da4f9dd1d'
-
     def test_config_validation(self):
         pmb = PaperMoneyBroker()
         lots = LongOptionTradingStrategy(pmb)
@@ -687,6 +682,11 @@ class TestLongOption:
         # Double allocation
         with pytest.raises(TradeConfigException):
             lots.make_trade('TST', 'put', 1, '2019-10-02', 1, 1)
+        # Invalid days out
+        with pytest.raises(TradeConfigException):
+            lots.make_trade('TST', 'put', 1, '2019-10-02', 1, days_out=-1)
+        with pytest.raises(TradeConfigException):
+            lots.make_trade('TST', 'put', 1, '2019-10-02', 1, days_out=10000)
 
     def test_trade_validation(self):
         pmb = PaperMoneyBroker(data=quotes, options_data={'ignored': None})
@@ -712,3 +712,88 @@ class TestLongOption:
         # Quantity equals zero with insufficient allocation
         with pytest.raises(TradeException):
             lots.make_trade('MU', 'put', 31, '2019-04-05', 0.0001)
+
+    def test_find_option(self):
+        pmb = PaperMoneyBroker()
+        lots = LongOptionTradingStrategy(pmb)
+        option = lots.find_option(test_options_1, 35.00)
+        assert option['id'] == 'd9ae1f75-2aa5-4cea-9c97-f14da4f9dd1d'
+
+    def test_get_option(self):
+        pmb = PaperMoneyBroker(data=quotes, options_data=test_options_1)
+        lots = LongOptionTradingStrategy(pmb)
+        option = lots.get_option('MU', 'put', '2019-04-05', 35)
+        assert option['id'] == 'd9ae1f75-2aa5-4cea-9c97-f14da4f9dd1d'
+        option = lots.get_option('MU', 'call', '2019-04-05', 44)
+        assert option['id'] == 'b389f415-bd3e-4eb7-9e8d-90baf8881053'
+
+    def test_trade(self):
+        pmb = PaperMoneyBroker(data=quotes, options_data=test_options_1)
+        lots = LongOptionTradingStrategy(pmb)
+        trade = lots.make_trade('MU', 'call', 42.5, '2019-04-05', allocation_dollars=400)
+        assert trade == {'status': 'placed', 'quantity': 1, 'price': 327.50}
+
+    def test_trade_days_out(self):
+        pmb = PaperMoneyBroker(date=datetime.strptime('2019-03-29', '%Y-%m-%d'),
+                               data=quotes, options_data=test_options_1)
+        lots = LongOptionTradingStrategy(pmb)
+        trade = lots.make_trade('MU', 'call', 42.5, days_out=7, allocation_dollars=400)
+        assert trade == {'status': 'placed', 'quantity': 1, 'price': 327.50}
+
+    def test_trade_days_fuzzy(self):
+        pmb = PaperMoneyBroker(date=datetime.strptime('2019-03-29', '%Y-%m-%d'),
+                               data=quotes, options_data=test_options_1)
+        lots = LongOptionTradingStrategy(pmb)
+        trade = lots.make_trade('MU', 'call', 42.5, days_out=9, allocation_dollars=400)
+        assert trade == {'status': 'placed', 'quantity': 1, 'price': 327.50}
+
+    def test_trade_days_fuzzy_too_far(self):
+        pmb = PaperMoneyBroker(date=datetime.strptime('2019-03-29', '%Y-%m-%d'),
+                               data=quotes, options_data=test_options_1)
+        lots = LongOptionTradingStrategy(pmb)
+        with pytest.raises(TradeDateException):
+            lots.make_trade('MU', 'call', 42.5, days_out=50, allocation_dollars=400)
+
+    def test_criteria_valid_price(self):
+        pmb = PaperMoneyBroker()
+        lots = LongOptionTradingStrategy(pmb)
+        assert lots.evaluate_criteria(criteria=[
+            {
+                'variable': 'price',
+                'eval': lambda x: x < 40.00
+            }
+        ], quote=38.64)
+
+    def test_criteria_invalid_price(self):
+        pmb = PaperMoneyBroker()
+        lots = LongOptionTradingStrategy(pmb)
+        assert not lots.evaluate_criteria(criteria=[
+            {
+                'variable': 'price',
+                'eval': lambda x: x < 40.00
+            }
+        ], quote=40.01)
+
+    def test_make_trade_criteria(self):
+        pmb = PaperMoneyBroker(data=quotes, options_data=test_options_1)
+        lots = LongOptionTradingStrategy(pmb)
+        trade = lots.make_trade('MU', 'call', 42.5, '2019-04-05', allocation_dollars=700,
+                                criteria=[
+                                    {
+                                        'variable': 'price',
+                                        'eval': lambda x: x < 39.21,
+                                    }
+                                ])
+        assert trade == {'status': 'placed', 'quantity': 2, 'price': 327.50}
+
+    def test_make_trade_criteria_defer(self):
+        pmb = PaperMoneyBroker(data=quotes, options_data=test_options_1)
+        lots = LongOptionTradingStrategy(pmb)
+        trade = lots.make_trade('MU', 'call', 42.5, '2019-04-05', allocation_dollars=700,
+                                criteria=[
+                                    {
+                                        'variable': 'price',
+                                        'eval': lambda x: x > 39.21,
+                                    }
+                                ])
+        assert trade == {'status': 'deferred'}

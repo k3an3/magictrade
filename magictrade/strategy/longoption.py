@@ -2,8 +2,9 @@ import re
 from typing import List, Dict
 
 from magictrade import Broker
-from magictrade.strategy import TradingStrategy, TradeException, TradeConfigException
-from magictrade.utils import get_allocation
+from magictrade.strategy import TradingStrategy, TradeException, TradeConfigException, filter_option_type, \
+    TradeDateException
+from magictrade.utils import get_allocation, get_offset_date
 
 strategies = {
 }
@@ -26,8 +27,23 @@ class LongOptionTradingStrategy(TradingStrategy):
     def find_option(options: List, strike_price: float) -> Dict:
         return next(option for option in options if float(option['strike_price']) == strike_price)
 
-    def make_trade(self, symbol: str, option_type: str, strike_price: float, expiration_date: str,
-                   allocation_percent: int = 0, allocation_dollars: int = 0, criteria: Dict = {}):
+    def get_option(self, symbol: str, option_type: str, expiration_date: str, strike_price: float) -> Dict:
+        options = filter_option_type(self.broker.get_options(symbol), option_type)
+        options = self.broker.filter_options_by_date(options, [expiration_date])
+        if not options:
+            raise TradeDateException(
+                f"No options for {symbol} found with the provided expiration date '{expiration_date}'.")
+        # Get data, but not all options will return data. Filter them out.
+        options = [o for o in self.broker.get_options_data(options) if o.get('mark_price')]
+
+        try:
+            return self.find_option(options, strike_price)
+        except StopIteration:
+            raise TradeException(f"Could not find option with strike price {strike_price}")
+
+    @staticmethod
+    def validate_trade(option_type: str, allocation_dollars: int, allocation_percent: float,
+                       expiration_date: str, days_out: int, strike_price: float) -> None:
         if option_type not in option_types:
             raise TradeConfigException("Option type must be one of 'call' or 'put'.")
 
@@ -37,8 +53,11 @@ class LongOptionTradingStrategy(TradingStrategy):
         if allocation_percent and not 0 < allocation_percent <= 100:
             raise TradeConfigException("Allocation percent must be > 0 and <= 100.")
 
-        if not re.search(DATE_REGEX, expiration_date):
+        if expiration_date and not re.search(DATE_REGEX, expiration_date):
             raise TradeConfigException("Expiration date format must be YYYY-MM-DD.")
+
+        if not 0 <= days_out < 1000:
+            raise TradeConfigException("Days out value is not valid.")
 
         if not strike_price > 0:
             raise TradeConfigException("Invalid strike price.")
@@ -46,30 +65,60 @@ class LongOptionTradingStrategy(TradingStrategy):
         if allocation_percent and allocation_dollars:
             raise TradeConfigException("Cannot supply both percentage and value for allocation.")
 
+    @staticmethod
+    def evaluate_criteria(criteria, **kwargs) -> bool:
+        eval_result = None
+        for criterion in criteria:
+            args = []
+            if criterion['variable'] == 'price':
+                args.append(kwargs['quote'])
+            result = criterion['eval'](*args)
+            if not eval_result:
+                eval_result = result
+            elif criterion.get('operation', 'and') == 'and':
+                eval_result &= result
+            elif criterion.get('operation', 'and') == 'or':
+                eval_result |= result
+        return eval_result
+
+    def make_trade(self, symbol: str, option_type: str, strike_price: float, expiration_date: str = "",
+                   allocation_percent: int = 0, allocation_dollars: int = 0, days_out: int = 0, criteria: List = []):
+        self.validate_trade(option_type, allocation_dollars, allocation_percent, expiration_date, days_out,
+                            strike_price)
         symbol = symbol.upper()
         quote = self.broker.get_quote(symbol)
         if not quote:
             raise TradeException("Error getting quote for " + symbol)
 
-        options = self.broker.get_options(symbol)
-        options = self.broker.filter_options(options, [expiration_date])
-        if not options:
-            raise TradeException(
-                f"No options for {symbol} found with the provided expiration date '{expiration_date}'.")
-        # Get data, but not all options will return data. Filter them out.
-        options = [o for o in self.broker.get_options_data(options) if o.get('mark_price')]
+        if criteria and not self.evaluate_criteria(criteria, quote=quote):
+            return {'status': 'deferred'}
 
-        try:
-            option = self.find_option(options, strike_price)
-        except StopIteration:
-            raise TradeException(f"Could not find option with strike price {strike_price}")
-
+        if days_out:
+            option = None
+            offset = 0
+            while not option:
+                td1 = get_offset_date(self.broker, days_out + offset)
+                td2 = get_offset_date(self.broker, days_out - offset)
+                for date in (td1, td2):
+                    try:
+                        option = self.get_option(symbol, option_type, date, strike_price)
+                        break
+                    except TradeDateException:
+                        pass
+                offset += 1
+                if offset > 5:
+                    raise TradeDateException("Couldn't find a valid expiration date in range.")
+        else:
+            option = self.get_option(symbol, option_type, expiration_date, strike_price)
         allocation = get_allocation(self.broker, allocation_percent) if allocation_percent else allocation_dollars
         price = option['mark_price']
-        quantity = int(allocation / price)
+        quantity = int(allocation / (price * 100))
+
         if not quantity:
             raise TradeException("Trade quantity equals 0.")
 
+        # Broker determines "side" from the legs
+        option["side"] = "buy"
         option_order = self.broker.options_transact([option], 'debit', price, quantity, 'open')
         self.save_order(option_order, [option], price=price, quantity=quantity, expires=expiration_date)
 

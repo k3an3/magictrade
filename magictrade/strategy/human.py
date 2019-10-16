@@ -1,7 +1,10 @@
 from math import floor
 from typing import Dict
 
-from scipy.stats import linregress
+try:
+    from scipy.stats import linregress
+except ImportError:
+    pass
 
 from magictrade import Broker, storage, Position
 from magictrade.strategy import TradingStrategy

@@ -1,17 +1,20 @@
 import argparse
 import logging
 import subprocess
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from typing import List, Tuple, Dict
 
-import matplotlib.pyplot as plt
-import pkg_resources
-from matplotlib import rcParamsDefault, rcParams, pyplot
+try:
+    import matplotlib.pyplot as plt
+    from matplotlib import rcParamsDefault, rcParams, pyplot
+except ImportError:
+    pass
 from pytz import timezone
+import pkg_resources
 from requests import HTTPError
 
-from magictrade import storage
-from magictrade.queue import TradeQueue
+from magictrade import storage, Broker
+from magictrade.trade_queue import TradeQueue
 
 
 def plot_cli():
@@ -158,3 +161,7 @@ def handle_error(e: Exception, debug: bool = False):
         sentry_sdk.capture_exception(e)
     except ImportError:
         pass
+
+
+def get_offset_date(broker: Broker, days: int) -> str:
+    return (broker.date + timedelta(days=days)).strftime("%Y-%m-%d")

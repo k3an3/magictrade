@@ -146,14 +146,6 @@ class OptionAlphaTradingStrategy(TradingStrategy):
     def log(self, msg: str) -> None:
         storage.lpush(self.get_name() + ":log", "{} {}".format(datetime.now().timestamp(), msg))
 
-    def delete_position(self, trade_id: str) -> None:
-        storage.lrem("{}:positions".format(self.get_name()), 0, trade_id)
-        for leg in storage.lrange("{}:{}:legs".format(self.get_name(), trade_id), 0, -1):
-            storage.delete("{}:leg:{}".format(self.get_name(), leg))
-        storage.delete("{}:{}:legs".format(self.get_name(), trade_id))
-        # consider not deleting this one for archival purposes
-        storage.delete("{}:{}".format(self.get_name(), trade_id))
-
     @staticmethod
     def check_positions(legs: List, options: Dict) -> Dict:
         for leg in legs:
@@ -240,7 +232,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             target_date = self._get_target_date(config, options, timeline, days_out, blacklist_dates)
             blacklist_dates.add(target_date)
 
-            options_on_date = self.broker.filter_options(options, [target_date])
+            options_on_date = self.broker.filter_options_by_date(options, [target_date])
             # Get data, but not all options will return data. Filter them out.
             options_on_date = [o for o in self.broker.get_options_data(options_on_date) if o.get('mark_price')]
 

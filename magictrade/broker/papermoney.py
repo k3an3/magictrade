@@ -74,9 +74,9 @@ class PaperMoneyBroker(Broker):
             return self.options_data
         return self.rb.get_options_data(options)
 
-    def filter_options(self, options: List, exp_dates: List):
+    def filter_options_by_date(self, options: List, exp_dates: List):
         if not self.options_data:
-            return self.rb.filter_options(options, exp_dates)
+            return self.rb.filter_options_by_date(options, exp_dates)
         else:
             results = []
             for date in exp_dates:
@@ -90,7 +90,7 @@ class PaperMoneyBroker(Broker):
         return value
 
     @property
-    def date(self) -> str:
+    def date(self) -> datetime:
         return self._date or datetime.now()
 
     @date.setter
@@ -108,7 +108,11 @@ class PaperMoneyBroker(Broker):
                     date = datetime.strftime(self._date, "%Y-%m-%d")
                 except Exception:
                     date = self._date
-                return self.data[symbol]['history'][date]
+                # This is terrible but solves some growing pains :/
+                try:
+                    return self.data[symbol]['history'][date]
+                except KeyError:
+                    pass
             try:
                 return self.data[symbol]['price']
             except KeyError:

@@ -84,6 +84,10 @@ class TradeException(Exception):
     pass
 
 
+class TradeDateException(TradeException):
+    pass
+
+
 class TradeConfigException(TradeException):
     pass
 

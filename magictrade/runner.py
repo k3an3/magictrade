@@ -3,14 +3,13 @@ import logging
 import os
 import random
 from argparse import ArgumentParser, Namespace
-from typing import Dict
-
 from time import sleep
+from typing import Dict
 
 from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.broker.robinhood import RobinhoodBroker
-from magictrade.queue import TradeQueue
 from magictrade.strategy.optionalpha import OptionAlphaTradingStrategy
+from magictrade.trade_queue import TradeQueue
 from magictrade.utils import market_is_open, get_version, normalize_trade, handle_error
 
 RAND_SLEEP = 1800, 6400
@@ -197,7 +196,7 @@ if __name__ == '__main__':
     if args.authonly:
         logging.info("Authentication success. Exiting.")
         raise SystemExit
-    # Add logic for multiple strategies
+    # TODO: Add logic for multiple strategies
     strategy = OptionAlphaTradingStrategy(broker)
     queue_name = 'oatrading-queue'
     trade_queue = TradeQueue(queue_name)

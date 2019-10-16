@@ -1,6 +1,6 @@
 import argparse
 
-from magictrade.queue import TradeQueue
+from magictrade.trade_queue import TradeQueue
 from magictrade.utils import send_trade
 
 default_queue_name = 'oatrading-queue'

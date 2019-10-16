@@ -5,6 +5,7 @@ from typing import Tuple, Any, List, Dict
 
 from fast_arrow import Client, Stock, OptionChain, Option, OptionOrder, OptionPosition, StockMarketdata, Portfolio
 from fast_arrow.resources.account import Account
+
 from magictrade import Broker
 from magictrade.broker import InvalidOptionError
 
@@ -75,7 +76,7 @@ class RobinhoodBroker(Broker):
 
         return OptionChain.fetch(self.client, stock["id"], symbol)
 
-    def filter_options(self, options: List, exp_dates: List):
+    def filter_options_by_date(self, options: List, exp_dates: List):
         return Option.in_chain(self.client, options["id"], expiration_dates=exp_dates)
 
     def get_options_data(self, options: List) -> List:
