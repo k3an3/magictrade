@@ -1,6 +1,9 @@
+import json
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import List, Dict
+
+from py_expression_eval import Parser
 
 from magictrade import Broker, storage
 
@@ -59,7 +62,10 @@ class TradingStrategy(ABC):
                 continue
             yield position, data, legs
 
-    def save_order(self, option_order: Dict, legs: List, order_data: Dict = {}, **kwargs):
+    def save_order(self, option_order: Dict, legs: List, order_data: Dict = {},
+                   close_criteria: Dict = {}, **kwargs):
+        if close_criteria:
+            kwargs['close_criteria'] = json.dumps(close_criteria)
         storage.lpush(self.get_name() + ":positions", option_order["id"])
         storage.lpush(self.get_name() + ":all_positions", option_order["id"])
         storage.hmset("{}:{}".format(self.get_name(), option_order["id"]),
@@ -75,12 +81,35 @@ class TradingStrategy(ABC):
             storage.hmset("{}:leg:{}".format(self.get_name(), leg["id"]), leg)
         storage.set("{}:raw:{}".format(self.get_name(), option_order["id"]), str(legs))
 
+    @staticmethod
+    def evaluate_criteria(criteria, **kwargs) -> bool:
+        parser = Parser()
+        eval_result = None
+        for criterion in criteria:
+            try:
+                result = parser.parse(criterion['expr']).evaluate(kwargs)
+            except KeyError:
+                raise TradeCriteriaException("No criterion expression provided.")
+            except Exception as e:
+                raise TradeCriteriaException(str(e))
+            if eval_result is None:
+                eval_result = result
+            elif criterion.get('operation', 'and') == 'and':
+                eval_result &= result
+            elif criterion.get('operation', 'and') == 'or':
+                eval_result |= result
+        return eval_result
+
 
 def filter_option_type(options: List, o_type: str):
     return [o for o in options if o["type"] == o_type]
 
 
 class TradeException(Exception):
+    pass
+
+
+class TradeCriteriaException(TradeException):
     pass
 
 

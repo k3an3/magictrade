@@ -7,7 +7,7 @@ from data import quotes, human_quotes_1, reactive_quotes, test_options_1, exp_da
 from magictrade import storage
 from magictrade.broker import InsufficientFundsError, NonexistentAssetError
 from magictrade.broker.papermoney import PaperMoneyBroker
-from magictrade.strategy import filter_option_type, TradeConfigException, TradeDateException
+from magictrade.strategy import filter_option_type, TradeConfigException, TradeDateException, TradeCriteriaException
 from magictrade.strategy.buyandhold import BuyandHoldStrategy
 from magictrade.strategy.human import HumanTradingStrategy, DEFAULT_CONFIG
 from magictrade.strategy.longoption import LongOptionTradingStrategy
@@ -754,34 +754,13 @@ class TestLongOption:
         with pytest.raises(TradeDateException):
             lots.make_trade('MU', 'call', 42.5, days_out=50, allocation_dollars=400)
 
-    def test_criteria_valid_price(self):
-        pmb = PaperMoneyBroker()
-        lots = LongOptionTradingStrategy(pmb)
-        assert lots.evaluate_criteria(criteria=[
-            {
-                'variable': 'price',
-                'eval': lambda x: x < 40.00
-            }
-        ], quote=38.64)
-
-    def test_criteria_invalid_price(self):
-        pmb = PaperMoneyBroker()
-        lots = LongOptionTradingStrategy(pmb)
-        assert not lots.evaluate_criteria(criteria=[
-            {
-                'variable': 'price',
-                'eval': lambda x: x < 40.00
-            }
-        ], quote=40.01)
-
-    def test_make_trade_criteria(self):
+    def test_make_trade_criteria_valid(self):
         pmb = PaperMoneyBroker(data=quotes, options_data=test_options_1)
         lots = LongOptionTradingStrategy(pmb)
         trade = lots.make_trade('MU', 'call', 42.5, '2019-04-05', allocation_dollars=700,
-                                criteria=[
+                                open_criteria=[
                                     {
-                                        'variable': 'price',
-                                        'eval': lambda x: x < 39.21,
+                                        'expr': 'price < 39.21',
                                     }
                                 ])
         assert trade == {'status': 'placed', 'quantity': 2, 'price': 327.50}
@@ -790,10 +769,202 @@ class TestLongOption:
         pmb = PaperMoneyBroker(data=quotes, options_data=test_options_1)
         lots = LongOptionTradingStrategy(pmb)
         trade = lots.make_trade('MU', 'call', 42.5, '2019-04-05', allocation_dollars=700,
-                                criteria=[
+                                open_criteria=[
                                     {
-                                        'variable': 'price',
-                                        'eval': lambda x: x > 39.21,
+                                        'expr': 'price > 39.21',
                                     }
                                 ])
         assert trade == {'status': 'deferred'}
+
+
+class TestTradingStrategyBase:
+    def test_criteria_missing_args(self):
+        pmb = PaperMoneyBroker()
+        lots = LongOptionTradingStrategy(pmb)
+        with pytest.raises(TradeCriteriaException):
+            lots.evaluate_criteria(criteria=[
+                {
+                    'expr': 'price < 40.00',
+                }
+            ])
+
+    def test_criteria_valid_price(self):
+        pmb = PaperMoneyBroker()
+        lots = LongOptionTradingStrategy(pmb)
+        assert lots.evaluate_criteria(criteria=[
+            {
+                'expr': 'price < 40.00',
+            }
+        ], price=38.64)
+
+    def test_criteria_invalid_price(self):
+        pmb = PaperMoneyBroker()
+        lots = LongOptionTradingStrategy(pmb)
+        assert not lots.evaluate_criteria(criteria=[
+            {
+                'expr': 'price < 40.00',
+            }
+        ], price=40.01)
+
+    def test_criteria_valid_price_and(self):
+        pmb = PaperMoneyBroker()
+        lots = LongOptionTradingStrategy(pmb)
+        assert lots.evaluate_criteria(criteria=[
+            {
+                'expr': 'price < 40.00',
+            },
+            {
+                'expr': 'price > 36.00',
+            }
+        ], price=38.64)
+
+    def test_criteria_valid_price_and_1(self):
+        pmb = PaperMoneyBroker()
+        lots = LongOptionTradingStrategy(pmb)
+        assert lots.evaluate_criteria(criteria=[
+            {
+                'expr': 'price < 45.00',
+            },
+            {
+                'expr': 'price % 2 < 1'
+            },
+            {
+                'expr': 'price == 38.64'
+            }
+        ], price=38.64)
+
+    def test_criteria_invalid_price_and(self):
+        pmb = PaperMoneyBroker()
+        lots = LongOptionTradingStrategy(pmb)
+        assert not lots.evaluate_criteria(criteria=[
+            {
+                'expr': 'price < 40.00'
+            },
+            {
+                'expr': 'price > 39.00'
+            }
+        ], price=38.64)
+
+    def test_criteria_invalid_price_and_1(self):
+        pmb = PaperMoneyBroker()
+        lots = LongOptionTradingStrategy(pmb)
+        assert not lots.evaluate_criteria(criteria=[
+            {
+                'expr': 'price < 40.00'
+            },
+            {
+                'expr': 'price > 39.00'
+            },
+            {
+                'expr': 'price % 2 < 1'
+            },
+        ], price=38.64)
+
+    def test_criteria_valid_price_or_all(self):
+        pmb = PaperMoneyBroker()
+        lots = LongOptionTradingStrategy(pmb)
+        assert lots.evaluate_criteria(criteria=[
+            {
+                'expr': 'price < 40.00'
+            },
+            {
+                'expr': 'price > 38.00',
+                'operation': 'or',
+            },
+        ], price=38.64)
+
+    def test_criteria_valid_price_or(self):
+        pmb = PaperMoneyBroker()
+        lots = LongOptionTradingStrategy(pmb)
+        assert lots.evaluate_criteria(criteria=[
+            {
+                'expr': 'price < 36.00'
+            },
+            {
+                'expr': 'price > 38.00',
+                'operation': 'or',
+            },
+        ], price=38.64)
+
+    def test_criteria_invalid_price_or(self):
+        pmb = PaperMoneyBroker()
+        lots = LongOptionTradingStrategy(pmb)
+        assert not lots.evaluate_criteria(criteria=[
+            {
+                'expr': 'price < 36.00'
+            },
+            {
+                'expr': 'price > 39.00',
+                'operation': 'or',
+            },
+        ], price=38.64)
+
+    def test_criteria_valid_price_complex(self):
+        pmb = PaperMoneyBroker()
+        lots = LongOptionTradingStrategy(pmb)
+        assert lots.evaluate_criteria(criteria=[
+            {
+                'expr': 'price < 36.00'
+            },
+            {
+                'expr': 'price > 39.00',
+                'operation': 'and',
+            },
+            {
+                'expr': 'price % 2 < 1',
+                'operation': 'or',
+            }
+        ], price=38.64)
+
+    def test_criteria_invalid_price_complex(self):
+        pmb = PaperMoneyBroker()
+        lots = LongOptionTradingStrategy(pmb)
+        assert not lots.evaluate_criteria(criteria=[
+            {
+                'expr': 'price < 36.00'
+            },
+            {
+                'expr': 'price > 39.00',
+                'operation': 'and',
+            },
+            {
+                'expr': 'price % 2 >= 1',
+                'operation': 'or',
+            }
+        ], price=38.64)
+
+    def test_criteria_valid_date(self):
+        pmb = PaperMoneyBroker()
+        lots = LongOptionTradingStrategy(pmb)
+        current_time = datetime.strptime('2019-10-20 12:00', '%Y-%m-%d %H:%M')
+        trade_time = datetime.strptime('2019-10-20 09:30', '%Y-%m-%d %H:%M')
+        assert lots.evaluate_criteria(criteria=[
+            {
+                'expr': 'date >= ' + str(trade_time.timestamp())
+            },
+        ], date=current_time.timestamp())
+
+    def test_criteria_invalid_date(self):
+        pmb = PaperMoneyBroker()
+        lots = LongOptionTradingStrategy(pmb)
+        current_time = datetime.strptime('2019-10-20 12:00', '%Y-%m-%d %H:%M')
+        trade_time = datetime.strptime('2019-10-20 15:30', '%Y-%m-%d %H:%M')
+        assert not lots.evaluate_criteria(criteria=[
+            {
+                'expr': 'date >= ' + str(trade_time.timestamp())
+            },
+        ], date=current_time.timestamp())
+
+    def test_criteria_valid_date_price(self):
+        pmb = PaperMoneyBroker()
+        lots = LongOptionTradingStrategy(pmb)
+        current_time = datetime.strptime('2019-10-20 12:00', '%Y-%m-%d %H:%M')
+        trade_time = datetime.strptime('2019-10-20 11:30', '%Y-%m-%d %H:%M')
+        assert lots.evaluate_criteria(criteria=[
+            {
+                'expr': 'date >= ' + str(trade_time.timestamp())
+            },
+            {
+                'expr': 'price < 200'
+            }
+        ], price=100, date=current_time.timestamp())

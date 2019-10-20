@@ -36,7 +36,7 @@ def handle_results(result: Dict, identifier: str, trade: Dict):
     trade_queue.set_status(identifier, result.get('status', 'unknown'))
     # check if status is deferred, add a counter back to the original trade that the main loop will check and decrement
     if result.get('status') == 'deferred':
-        trade['timeout'] = DEFAULT_TIMEOUT
+        trade['timeout'] = result.get('timeout', DEFAULT_TIMEOUT)
         trade_queue.add(identifier, trade)
 
 

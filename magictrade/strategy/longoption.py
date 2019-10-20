@@ -1,3 +1,4 @@
+import datetime
 import re
 from typing import List, Dict
 
@@ -65,32 +66,20 @@ class LongOptionTradingStrategy(TradingStrategy):
         if allocation_percent and allocation_dollars:
             raise TradeConfigException("Cannot supply both percentage and value for allocation.")
 
-    @staticmethod
-    def evaluate_criteria(criteria, **kwargs) -> bool:
-        eval_result = None
-        for criterion in criteria:
-            args = []
-            if criterion['variable'] == 'price':
-                args.append(kwargs['quote'])
-            result = criterion['eval'](*args)
-            if not eval_result:
-                eval_result = result
-            elif criterion.get('operation', 'and') == 'and':
-                eval_result &= result
-            elif criterion.get('operation', 'and') == 'or':
-                eval_result |= result
-        return eval_result
-
     def make_trade(self, symbol: str, option_type: str, strike_price: float, expiration_date: str = "",
-                   allocation_percent: int = 0, allocation_dollars: int = 0, days_out: int = 0, criteria: List = []):
+                   allocation_percent: int = 0, allocation_dollars: int = 0, days_out: int = 0,
+                   open_criteria: List = [], close_criteria: List = []):
         self.validate_trade(option_type, allocation_dollars, allocation_percent, expiration_date, days_out,
                             strike_price)
         symbol = symbol.upper()
         quote = self.broker.get_quote(symbol)
+        date = datetime.datetime.now()
         if not quote:
             raise TradeException("Error getting quote for " + symbol)
 
-        if criteria and not self.evaluate_criteria(criteria, quote=quote):
+        if open_criteria and not self.evaluate_criteria(open_criteria,
+                                                        date=date.timestamp(),
+                                                        price=quote):
             return {'status': 'deferred'}
 
         if days_out:
@@ -120,7 +109,8 @@ class LongOptionTradingStrategy(TradingStrategy):
         # Broker determines "side" from the legs
         option["side"] = "buy"
         option_order = self.broker.options_transact([option], 'debit', price, quantity, 'open')
-        self.save_order(option_order, [option], price=price, quantity=quantity, expires=expiration_date)
+        self.save_order(option_order, [option], close_criteria=close_criteria, price=price, quantity=quantity,
+                        expires=expiration_date)
 
         self.log("[{}]: Bought {} in {} with quantity {} and price {}.".format(
             option_order["id"],

@@ -13,7 +13,8 @@ setup(
         'pytest',
         'redis',
         'fast_arrow',
-        'requests'
+        'requests',
+        'py-expression-eval',
     ],
     dependency_links=[
         'https://github.com/k3an3/fast_arrow@dev#egg=fast_arrow'
