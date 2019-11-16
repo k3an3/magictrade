@@ -10,10 +10,8 @@ setup(
     author_email='keane.m.okelley@gmail.com',
     description='',
     install_requires=[
-        'matplotlib',
         'pytest',
         'redis',
-        'scipy',
         'fast_arrow',
         'requests',
     ],
