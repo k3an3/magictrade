@@ -16,7 +16,6 @@ setup(
         'scipy',
         'fast_arrow',
         'requests',
-        'tdameritrade'
     ],
     dependency_links=[
         'https://github.com/k3an3/fast_arrow@dev#egg=fast_arrow'
