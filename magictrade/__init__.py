@@ -1,10 +1,11 @@
 import datetime
+import os
 
 import redis
 
 from magictrade.broker import Broker
 
-storage = redis.StrictRedis(decode_responses=True)
+storage = redis.StrictRedis(host=os.environ.get("REDIS_HOST", "localhost"), decode_responses=True)
 
 
 class Position:
