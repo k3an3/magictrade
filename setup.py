@@ -14,6 +14,7 @@ setup(
         'redis',
         'fast_arrow',
         'requests',
+        'scipy',
         'fast_arrow @ git+https://github.com/k3an3/fast_arrow@dev#egg=fast_arrow',
         'tdameritrade @ git+https://github.com/k3an3/tdameritrade@add-option-trades#egg=tdameritrade',
     ],
