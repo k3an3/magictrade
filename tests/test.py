@@ -11,7 +11,7 @@ from magictrade.strategy.buyandhold import BuyandHoldStrategy
 from magictrade.strategy.human import HumanTradingStrategy, DEFAULT_CONFIG
 from magictrade.strategy.optionalpha import OptionAlphaTradingStrategy, strategies, TradeException, high_iv
 from magictrade.strategy.reactive import ReactiveStrategy
-from magictrade.utils import get_account_history, get_percentage_change, get_allocation
+from magictrade.utils import get_account_history, get_percentage_change, get_allocation, calculate_percent_otm
 from data import quotes, human_quotes_1, reactive_quotes, oa_options_1, exp_dates
 
 date = datetime.strptime("2019-03-31", "%Y-%m-%d")
@@ -193,6 +193,10 @@ class TestUtils:
         assert get_percentage_change(100, 200) == 100
         assert round(get_percentage_change(100, 100.57), 2) == 0.57
         assert get_percentage_change(100, 50) == -50
+
+    def test_prob_otm(self):
+        assert calculate_percent_otm(311.79, 313, 7.45, 4) == 0.69
+        assert calculate_percent_otm(311.79, 308, 7.30, 4) == 0.95
 
 
 class TestBAHStrategy:

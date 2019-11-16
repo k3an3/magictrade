@@ -1,5 +1,4 @@
 import datetime
-import os
 from typing import Tuple, Any, List, Dict
 
 from tdameritrade import TDClient
@@ -11,15 +10,15 @@ from magictrade.broker import InvalidOptionError
 
 class TDAmeritradeBroker(Broker):
     def __init__(self, client_id: str, account_id: str = None, access_token: str = None, refresh_token: str = None):
-        self.client_id = client_id
-        if not refresh_token:
-            self.refresh_token = os.environ.get('REFRESH_TOKEN')
-        self.client = TDClient(access_token=access_token, accountIds=[account_id])
+        self.client = TDClient(access_token=access_token, accountIds=[account_id], refresh_token=refresh_token,
+                               client_id=client_id)
+        if not access_token:
+            self.refresh()
         self.client.accounts()
         self._account_id = account_id
 
     def refresh(self):
-        self.client._token = refresh_token(self.refresh_token, self.client_id)['access_token']
+        self.client._token = refresh_token(self.client.refresh_token, self.client.client_id)['access_token']
 
     def get_quote(self, symbol: str) -> float:
         return self.client.quote(symbol)[symbol]['lastPrice']
@@ -46,7 +45,7 @@ class TDAmeritradeBroker(Broker):
         return [p for p in self._get_account(positions=True)['positions'] if p['instrument']['asset_type'] == 'OPTION']
 
     def get_options(self, symbol: str) -> List:
-        return self.client.options(symbol)
+        options = self.client.options(symbol)
 
     def filter_options(self, options: List, exp_dates: List) -> List:
         for strike, data in options:

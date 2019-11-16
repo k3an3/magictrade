@@ -1,11 +1,20 @@
 import subprocess
 from datetime import datetime, time
+from math import erf, sqrt, log
 from typing import List, Tuple, Dict
 
 import pkg_resources
 from pytz import timezone
 
 from magictrade import storage
+
+
+def calculate_percent_otm(current_price: float, strike_price: float, iv: float, days_to_exp: int):
+    cnd = lambda x: (1.0 + erf(x / sqrt(2.0))) / 2.0
+    result = cnd(log(strike_price / current_price) / (iv / 100 * sqrt(days_to_exp / 365)))
+    if strike_price < current_price:
+        return round(1 - result, 2)
+    return round(result, 2)
 
 
 def get_account_history(account_id: str) -> Tuple[List[str], List[float]]:
