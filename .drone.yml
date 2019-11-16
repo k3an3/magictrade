@@ -13,9 +13,3 @@ steps:
 services:
 - name: cache
   image: redis
-  
-trigger:
-  event:
-    include:
-    - push
-    - pull_request
