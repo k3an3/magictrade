@@ -9,6 +9,8 @@ steps:
   commands:
   - pip3 install .
   - pytest tests/test.py
+  environment:
+    REDIS_HOST: cache
   
 services:
 - name: cache
