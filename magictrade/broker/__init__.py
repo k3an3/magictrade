@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
 
 from typing import Tuple, Any, List
 
@@ -40,9 +41,8 @@ class Broker(ABC):
         pass
 
     @property
-    @abstractmethod
     def date(self) -> str:
-        pass
+        return datetime.now()
 
     @abstractmethod
     def options_positions(self) -> List:
@@ -59,7 +59,7 @@ class Broker(ABC):
         return options
 
     @abstractmethod
-    def filter_options(self, options: List, exp_dates: List):
+    def filter_options(self, options: List, exp_dates: List) -> List:
         pass
 
     @abstractmethod

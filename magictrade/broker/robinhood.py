@@ -1,10 +1,10 @@
 import json
 import os
-from datetime import datetime
 from typing import Tuple, Any, List, Dict
 
 from fast_arrow import Client, Stock, OptionChain, Option, OptionOrder, OptionPosition, StockMarketdata, Portfolio
 from fast_arrow.resources.account import Account
+
 from magictrade import Broker
 from magictrade.broker import InvalidOptionError
 
@@ -31,10 +31,6 @@ class RobinhoodBroker(Broker):
             json.dump({'access_token': self.client.access_token,
                        'refresh_token': self.client.refresh_token}, f)
         self.portfolio = None
-
-    @property
-    def date(self) -> str:
-        return datetime.now()
 
     def get_quote(self, symbol: str) -> float:
         return float(StockMarketdata.quote_by_symbol(self.client, symbol)['last_trade_price'])
@@ -100,9 +96,8 @@ class RobinhoodBroker(Broker):
                 'ratio_quantity': str(int(leg.get('ratio_quantity', 1)))
             })
 
-        oo = OptionOrder.submit(self.client, direction, new_legs,
-                                str(abs(round(price, 2))), quantity, time_in_force, "immediate", "limit")
-        return oo
+        return OptionOrder.submit(self.client, direction, new_legs,
+                                  str(abs(round(price, 2))), quantity, time_in_force, "immediate", "limit")
 
     def buy(self, symbol: str, quantity: int) -> Tuple[str, Any]:
         raise NotImplementedError()

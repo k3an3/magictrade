@@ -10,15 +10,17 @@ setup(
     author_email='keane.m.okelley@gmail.com',
     description='',
     install_requires=[
-        'matplotlib',
+        # 'matplotlib',
         'pytest',
         'redis',
-        'scipy',
+        #'scipy',
         'fast_arrow',
-        'requests'
+        'requests',
+        'tdameritrade'
     ],
     dependency_links=[
         'https://github.com/k3an3/fast_arrow@dev#egg=fast_arrow'
+        'https://github.com/k3an3/tdameritrade@add-option-trades#egg=tdameritrade'
     ],
     entry_points={
         'console_scripts': [
