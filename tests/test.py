@@ -16,9 +16,8 @@ from magictrade.strategy.human import HumanTradingStrategy, DEFAULT_CONFIG
 from magictrade.strategy.optionalpha import OptionAlphaTradingStrategy, strategies, TradeException, high_iv
 from magictrade.strategy.reactive import ReactiveStrategy
 from magictrade.utils import get_account_history, get_percentage_change, get_allocation, calculate_percent_otm
-from data import quotes, human_quotes_1, reactive_quotes, oa_options_1, exp_dates
+from data import quotes, human_quotes_1, reactive_quotes, oa_options_1, exp_dates, td_account_json
 
-from tests.data import td_account_json
 
 date = datetime.strptime("2019-03-31", "%Y-%m-%d")
 
