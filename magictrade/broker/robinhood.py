@@ -56,11 +56,12 @@ class RobinhoodBroker(Broker):
     @staticmethod
     def _normalize_options_data(options):
         for option in options:
-            for key, value in option.items():
-                try:
-                    option[key] = float(value)
-                except (ValueError, TypeError):
-                    pass
+            if option.get('mark_price'):
+                for key, value in option.items():
+                    try:
+                        option[key] = float(value)
+                    except (ValueError, TypeError):
+                        pass
         return options
 
     def options_positions_data(self, options: List) -> List:
@@ -71,8 +72,11 @@ class RobinhoodBroker(Broker):
 
         return OptionChain.fetch(self.client, stock["id"], symbol)
 
-    def filter_options(self, options: List, exp_dates: List):
-        return Option.in_chain(self.client, options["id"], expiration_dates=exp_dates)
+    def filter_options(self, options: List, exp_dates: List = [], option_type: str = None) -> List:
+        if exp_dates:
+            return Option.in_chain(self.client, options["id"], expiration_dates=exp_dates)
+        elif option_type:
+            return [o for o in options if o["type"] == option_type]
 
     def get_options_data(self, options: List) -> List:
         return self._normalize_options_data(Option.mergein_marketdata_list(self.client, options))

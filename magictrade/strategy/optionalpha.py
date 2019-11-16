@@ -2,7 +2,7 @@ from datetime import timedelta, datetime
 from typing import List, Dict
 
 from magictrade import Broker, storage
-from magictrade.strategy import TradingStrategy, NoValidLegException, TradeException, filter_option_type, \
+from magictrade.strategy import TradingStrategy, NoValidLegException, TradeException, \
     TradeConfigException
 from magictrade.utils import get_percentage_change, get_allocation
 
@@ -55,8 +55,8 @@ class OptionAlphaTradingStrategy(TradingStrategy):
 
     def iron_butterfly(self, config: Dict, options: List, **kwargs):
         quote = kwargs['quote']
-        calls = filter_option_type(options, 'call')
-        puts = filter_option_type(options, 'put')
+        calls = self.broker.filter_options(options, option_type='call')
+        puts = self.broker.filter_options(options, option_type='put')
         closest_call = min(calls, key=lambda x: abs(x['strike_price'] - quote))
         for option in puts:
             if option['strike_price'] == closest_call['strike_price']:
@@ -68,9 +68,9 @@ class OptionAlphaTradingStrategy(TradingStrategy):
 
     def iron_condor(self, config: Dict, options: List, **kwargs):
         width = kwargs['width']
-        call_wing = self.credit_spread(config, filter_option_type(options, 'call'), direction='bearish',
+        call_wing = self.credit_spread(config, self.broker.filter_options(options, option_type='call'), direction='bearish',
                                        width=width)
-        put_wing = self.credit_spread(config, filter_option_type(options, 'put'), direction='bullish',
+        put_wing = self.credit_spread(config, self.broker.filter_options(options, option_type='put'), direction='bullish',
                                       width=width)
         return call_wing[0], call_wing[1], put_wing[0], put_wing[1]
 
@@ -81,7 +81,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             o_type = 'put'
         else:
             o_type = 'call'
-        options = filter_option_type(options, o_type)
+        options = self.broker.filter_options(options, option_type=o_type)
         if not options:
             raise TradeException("No options found.")
         short_leg = self._find_option_with_probability(options, config['probability'])
@@ -223,8 +223,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             blacklist_dates.add(target_date)
 
             options_on_date = self.broker.filter_options(options, [target_date])
-            # Get data, but not all options will return data. Filter them out.
-            options_on_date = [o for o in self.broker.get_options_data(options_on_date) if o.get('mark_price')]
+            options_on_date = [o for o in self.broker.get_options_data(options_on_date)]
 
             try:
                 legs = method(config, options_on_date, quote=quote, direction=direction, width=spread_width)

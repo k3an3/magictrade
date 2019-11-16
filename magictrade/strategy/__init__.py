@@ -76,10 +76,6 @@ class TradingStrategy(ABC):
         storage.set("{}:raw:{}".format(self.get_name(), option_order["id"]), str(legs))
 
 
-def filter_option_type(options: List, o_type: str):
-    return [o for o in options if o["type"] == o_type]
-
-
 class TradeException(Exception):
     pass
 

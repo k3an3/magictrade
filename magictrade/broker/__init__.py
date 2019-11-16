@@ -59,7 +59,7 @@ class Broker(ABC):
         return options
 
     @abstractmethod
-    def filter_options(self, options: List, exp_dates: List) -> List:
+    def filter_options(self, options: List, exp_dates: List, option_type: str = None) -> List:
         pass
 
     @abstractmethod

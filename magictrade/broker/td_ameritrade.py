@@ -44,15 +44,34 @@ class TDAmeritradeBroker(Broker):
     def options_positions(self) -> List:
         return [p for p in self._get_account(positions=True)['positions'] if p['instrument']['asset_type'] == 'OPTION']
 
-    def get_options(self, symbol: str) -> List:
-        options = self.client.options(symbol)
+    @staticmethod
+    def _strip_exp(options: Any) -> Any:
+        if isinstance(options, dict):
+            return {key.split(':')[0]: value for key, value in options.items()}
+        else:
+            return [d.split(':')[0] for d in options]
 
-    def filter_options(self, options: List, exp_dates: List) -> List:
-        for strike, data in options:
-            data = data[0]
-            exp_date = datetime.fromtimestamp(data['expirationDate']).strftime('%Y-%m-%d')
-            if exp_date in exp_dates:
-                yield data
+    def get_options(self, symbol: str) -> Dict:
+        options = self.client.options(symbol)
+        return {
+            'expiration_dates': self._strip_exp(options['callExpDateMap'].keys()),
+            'puts': self._strip_exp(options['putExpDateMap']),
+            'calls': self._strip_exp(options['callExpDateMap'])
+        }
+
+    def filter_options(self, options: Dict, exp_dates: List = [], option_type: str = None) -> List:
+        if exp_dates:
+            puts = {}
+            calls = {}
+            for exp_date in exp_dates:
+                puts.update(options['puts'][exp_date])
+                calls.update(options['calls'][exp_date])
+            return {
+                'put': puts,
+                'call': calls,
+            }
+        elif option_type:
+            return [option[0] for option in options[option_type.lower()].values()]
 
     def options_transact(self, legs: List[Dict], direction: str, price: float,
                          quantity: int, effect: str = 'open', time_in_force: str = 'gfd') -> Tuple[Any, Any]:
