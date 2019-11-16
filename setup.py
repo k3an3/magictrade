@@ -14,10 +14,8 @@ setup(
         'redis',
         'fast_arrow',
         'requests',
-    ],
-    dependency_links=[
-        'https://github.com/k3an3/fast_arrow@dev#egg=fast_arrow'
-        'https://github.com/k3an3/tdameritrade@add-option-trades#egg=tdameritrade'
+        'fast_arrow @ git+https://github.com/k3an3/fast_arrow@dev#egg=fast_arrow',
+        'tdameritrade @ git+https://github.com/k3an3/tdameritrade@add-option-trades#egg=tdameritrade',
     ],
     entry_points={
         'console_scripts': [
