@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Tuple, Any, List
+from typing import Tuple, Any, List, Dict
 
 from magictrade.broker.registry import brokers
 
@@ -20,6 +20,40 @@ class NonexistentAssetError(Exception):
 
 class InvalidOptionError(Exception):
     pass
+
+
+class Option(ABC):
+    def __init__(self, option_data: Dict):
+        self.data = option_data
+
+    def __getattr__(self, item):
+        if item == 'get':
+            return self.data.get
+
+    @property
+    @abstractmethod
+    def id(self):
+        pass
+
+    @property
+    @abstractmethod
+    def option_type(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def probability_otm(self) -> float:
+        pass
+
+    @property
+    @abstractmethod
+    def strike_price(self) -> float:
+        pass
+
+    @property
+    @abstractmethod
+    def mark_price(self) -> float:
+        pass
 
 
 class Broker(ABC):
@@ -65,7 +99,7 @@ class Broker(ABC):
         return options
 
     @abstractmethod
-    def filter_options(self, options: List, exp_dates: List, option_type: str = None) -> List:
+    def filter_options(self, options: List, exp_dates: List, option_type: str = None) -> List[Option]:
         pass
 
     @abstractmethod

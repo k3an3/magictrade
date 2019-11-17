@@ -7,6 +7,7 @@ from fast_arrow.resources.account import Account
 
 from magictrade import Broker
 from magictrade.broker import InvalidOptionError
+from magictrade.broker import Option as OptionBase
 from magictrade.broker.registry import register_broker
 
 token_filename = '.oauth2-token'
@@ -15,6 +16,27 @@ token_filename = '.oauth2-token'
 @register_broker
 class RobinhoodBroker(Broker):
     name = 'robinhood'
+
+    class RHOption(OptionBase):
+        @property
+        def id(self):
+            return self.data['id']
+
+        @property
+        def option_type(self) -> str:
+            return self.data['type']
+
+        @property
+        def probability_otm(self) -> float:
+            return self.data['chance_of_profit_short'] or 0.0
+
+        @property
+        def strike_price(self) -> float:
+            return self.data['strike_price']
+
+        @property
+        def mark_price(self) -> float:
+            return self.data['mark_price']
 
     def __init__(self, username: str = None, password: str = None, mfa_code: str = None,
                  token_file: str = None):

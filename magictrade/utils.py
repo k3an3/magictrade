@@ -12,6 +12,13 @@ from pytz import timezone
 from magictrade import storage
 
 
+def safe_abs(x, /):
+    try:
+        return abs(x)
+    except TypeError:
+        return 0
+
+
 def import_modules(base_path: str, parent_module: str) -> None:
     for x in glob(join(dirname(base_path), '*.py')):
         if not basename(x).startswith('__'):

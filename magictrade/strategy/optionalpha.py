@@ -5,7 +5,7 @@ from magictrade import Broker, storage
 from magictrade.strategy import TradingStrategy, NoValidLegException, TradeException, \
     TradeConfigException
 from magictrade.strategy.registry import register_strategy
-from magictrade.utils import get_percentage_change, get_allocation
+from magictrade.utils import get_percentage_change, get_allocation, safe_abs
 
 strategies = {
     'iron_condor': {
@@ -32,25 +32,23 @@ valid_directions = ('neutral', 'bullish', 'bearish')
 
 @register_strategy
 class OptionAlphaTradingStrategy(TradingStrategy):
-    name = 'oatrading'
+    name = 'optionalpha'
 
     def __init__(self, broker: Broker):
         self.broker = broker
 
     @staticmethod
     def _find_option_with_probability(options: List, probability: int, ttype: str = 'short'):
-        key = 'chance_of_profit_' + ttype
-        options = [o for o in options if o[key] is not None]
-        for option in sorted(options, key=lambda o: o[key]):
-            if option[key] * 100 >= probability:
+        for option in sorted(options, key=lambda o: o.probability_otm):
+            if option.probability_otm * 100 >= probability:
                 return option
 
     @staticmethod
     def _get_long_leg(options: List, short_leg: Dict, o_type: str, width: int):
-        for option in sorted(options, key=lambda o: o['strike_price'], reverse=o_type == 'put'):
-            if o_type == 'call' and option['strike_price'] > short_leg['strike_price'] \
-                    or o_type == 'put' and option['strike_price'] < short_leg['strike_price']:
-                distance = abs(option['strike_price'] - short_leg['strike_price'])
+        for option in sorted(options, key=lambda o: o.strike_price, reverse=o_type == 'put'):
+            if o_type == 'call' and option.strike_price > short_leg.strike_price \
+                    or o_type == 'put' and option.strike_price < short_leg.strike_price:
+                distance = abs(option.strike_price - short_leg.strike_price)
                 if distance >= width:
                     return option
         raise TradeException("No suitable strike price for long leg.")
@@ -59,9 +57,9 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         quote = kwargs['quote']
         calls = self.broker.filter_options(options, option_type='call')
         puts = self.broker.filter_options(options, option_type='put')
-        closest_call = min(calls, key=lambda x: abs(x['strike_price'] - quote))
+        closest_call = min(calls, key=lambda x: abs(x.strike_price - quote))
         for option in puts:
-            if option['strike_price'] == closest_call['strike_price']:
+            if option.strike_price == closest_call.strike_price:
                 closest_put = option
         call_wing = self._find_option_with_probability(calls, config['probability'])
         put_wing = self._find_option_with_probability(puts, config['probability'])
@@ -123,16 +121,15 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             offset += 1
         return target_date
 
-    @staticmethod
-    def _get_price(legs: List) -> float:
+    def _get_price(self, legs: List) -> float:
         price = 0
         for leg in legs:
             if len(leg) == 2:
                 action = leg[1]
-                leg_price = leg[0]['mark_price']
+                leg_price = leg[0].mark_price
             else:
                 action = leg['side']
-                leg_price = leg['mark_price']
+                leg_price = leg.mark_price
             if action == 'sell':
                 price += leg_price
             elif action == 'buy':

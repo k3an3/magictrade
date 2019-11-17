@@ -80,7 +80,7 @@ class PaperMoneyBroker(Broker):
         if exp_dates:
             return []
         elif option_type:
-            return [o for o in options if o["type"] == option_type]
+            return [RobinhoodBroker.RHOption(o) for o in options if o["type"] == option_type]
 
     def get_value(self) -> float:
         value = self.balance
