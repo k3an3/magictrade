@@ -4,12 +4,16 @@ from typing import Tuple, Any, List, Dict
 from tdameritrade import TDClient
 from tdameritrade.auth import refresh_token
 
-from magictrade import Broker
-from magictrade.broker import InvalidOptionError
+from magictrade.broker import Broker, InvalidOptionError
+from magictrade.broker.registry import register_broker
 
 
+@register_broker
 class TDAmeritradeBroker(Broker):
-    def __init__(self, client_id: str, account_id: str = None, access_token: str = None, refresh_token: str = None):
+    name = 'td_ameritrade'
+
+    def __init__(self, client_id: str = None, account_id: str = None, access_token: str = None,
+                 refresh_token: str = None):
         self.client = TDClient(access_token=access_token, accountIds=[account_id], refresh_token=refresh_token,
                                client_id=client_id)
         if not access_token:
@@ -42,7 +46,7 @@ class TDAmeritradeBroker(Broker):
         raise NotImplementedError()
 
     def options_positions(self) -> List:
-        return [p for p in self._get_account(positions=True)['positions'] if p['instrument']['asset_type'] == 'OPTION']
+        return [p for p in self._get_account(positions=True)['positions'] if p['instrument']['assetType'] == 'OPTION']
 
     @staticmethod
     def _strip_exp(options: Any) -> Any:
@@ -97,7 +101,7 @@ class TDAmeritradeBroker(Broker):
         return self.client.trade_options(self._account_id, new_legs, price, order_type='LIMIT', strategy='CUSTOM')
 
     def buy(self, symbol: str, quantity: int) -> Tuple[str, Any]:
-        pass
+        raise NotImplementedError
 
     def sell(self, symbol: str, quantity: int) -> Tuple[str, Any]:
-        pass
+        raise NotImplementedError

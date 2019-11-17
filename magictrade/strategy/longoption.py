@@ -3,6 +3,7 @@ from typing import List, Dict
 
 from magictrade import Broker
 from magictrade.strategy import TradingStrategy, TradeException, TradeConfigException
+from magictrade.strategy.registry import register_strategy
 from magictrade.utils import get_allocation
 
 strategies = {
@@ -12,6 +13,7 @@ total_allocation = 40
 option_types = ('call', 'put')
 
 
+@register_strategy
 class LongOptionTradingStrategy(TradingStrategy):
     name = 'longoption'
 

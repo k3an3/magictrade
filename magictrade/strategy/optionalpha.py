@@ -4,6 +4,7 @@ from typing import List, Dict
 from magictrade import Broker, storage
 from magictrade.strategy import TradingStrategy, NoValidLegException, TradeException, \
     TradeConfigException
+from magictrade.strategy.registry import register_strategy
 from magictrade.utils import get_percentage_change, get_allocation
 
 strategies = {
@@ -29,6 +30,7 @@ total_allocation = 40
 valid_directions = ('neutral', 'bullish', 'bearish')
 
 
+@register_strategy
 class OptionAlphaTradingStrategy(TradingStrategy):
     name = 'oatrading'
 
@@ -68,10 +70,8 @@ class OptionAlphaTradingStrategy(TradingStrategy):
 
     def iron_condor(self, config: Dict, options: List, **kwargs):
         width = kwargs['width']
-        call_wing = self.credit_spread(config, self.broker.filter_options(options, option_type='call'), direction='bearish',
-                                       width=width)
-        put_wing = self.credit_spread(config, self.broker.filter_options(options, option_type='put'), direction='bullish',
-                                      width=width)
+        call_wing = self.credit_spread(config, options, direction='bearish', width=width)
+        put_wing = self.credit_spread(config, options, direction='bullish', width=width)
         return call_wing[0], call_wing[1], put_wing[0], put_wing[1]
 
     def credit_spread(self, config: Dict, options: List, **kwargs):
@@ -223,7 +223,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             blacklist_dates.add(target_date)
 
             options_on_date = self.broker.filter_options(options, [target_date])
-            options_on_date = [o for o in self.broker.get_options_data(options_on_date)]
+            options_on_date = self.broker.get_options_data(options_on_date)
 
             try:
                 legs = method(config, options_on_date, quote=quote, direction=direction, width=spread_width)

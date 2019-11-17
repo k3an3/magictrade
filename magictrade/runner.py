@@ -9,66 +9,12 @@ from requests import HTTPError
 from time import sleep
 
 from magictrade import storage
-from magictrade.broker.papermoney import PaperMoneyBroker
-from magictrade.broker.robinhood import RobinhoodBroker
-from magictrade.strategy.optionalpha import OptionAlphaTradingStrategy
+from magictrade.broker import brokers, load_brokers
+from magictrade.strategy import strategies, load_strategies
 from magictrade.utils import market_is_open, get_version
 
-parser = ArgumentParser(description="Daemon to make automated trades.")
-parser.add_argument('-k', '--oauth-keyfile', dest='keyfile', help='Path to keyfile containing access and refresh '
-                                                                  'tokens.')
-parser.add_argument('-x', '--authenticate-only', action='store_true', dest='authonly', help='Authenticate and exit. '
-                                                                                            'Useful for automatically '
-                                                                                            'updating expired tokens.')
-parser.add_argument('-d', '--debug', action='store_true', dest='debug',
-                    help='Simulate trades even if market is closed. '
-                         'Exceptions are re-raised.')
-parser.add_argument('-a', '--allocation', type=int, default=40, dest='allocation',
-                    help='Percent of account to trade with.')
-parser.add_argument('-u', '--username', dest='username', help='Username for broker account. May also specify with '
-                                                              'environment variable.')
-parser.add_argument('-p', '--password', dest='password', help='Password for broker account. May also specify with '
-                                                              'environment variable.')
-parser.add_argument('-m', '--mfa-code', dest='mfa', help='MFA code for broker account. May also specify with '
-                                                         'environment variable.')
-parser.add_argument('-s', '--market-open-delay', type=int, default=600, help='Max time in seconds to sleep after '
-                                                                             'market opens.')
-parser.add_argument('broker', choices=('papermoney', 'robinhood',), help='Broker to use.')
-args = parser.parse_args()
-
-logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
-if 'username' in os.environ:
-    logging.info("Attempting credentials from envars...")
-elif args.username:
-    logging.info("Attempting credentials from args...")
-else:
-    logging.info("Using stored credentials...")
-    if not os.path.exists(args.keyfile):
-        logging.error("Can't find keyfile. Aborting.")
-        raise SystemExit
-
-username = os.environ.pop('username', None) or args.username
-password = os.environ.pop('password', None) or args.password
-mfa_code = os.environ.pop('mfa_code', None) or args.mfa
-
-if args.broker == 'papermoney':
-    broker = PaperMoneyBroker(balance=15_000, account_id="livetest",
-                              username=username,
-                              password=password,
-                              mfa_code=mfa_code,
-                              robinhood=True, token_file=args.keyfile)
-elif args.broker == 'robinhood':
-    broker = RobinhoodBroker(username=username, password=password,
-                             mfa_code=mfa_code, token_file=args.keyfile)
-else:
-    logging.warn("No valid broker provided. Exiting...")
-    raise SystemExit
-if args.authonly:
-    logging.info("Authentication success. Exiting.")
-    raise SystemExit
-strategy = OptionAlphaTradingStrategy(broker)
 queue_name = 'oatrading-queue'
-rand_sleep = 3600, 7200
+rand_sleep = 1800, 5400
 
 
 def normalize_trade(trade: Dict) -> Dict:
@@ -195,4 +141,63 @@ def main_loop():
 
 
 if __name__ == '__main__':
+    load_brokers()
+    load_strategies()
+    parser = ArgumentParser(description="Daemon to make automated trades.")
+    parser.add_argument('-k', '--oauth-keyfile', dest='keyfile', help='Path to keyfile containing access and refresh '
+                                                                      'tokens.')
+    parser.add_argument('-x', '--authenticate-only', action='store_true', dest='authonly',
+                        help='Authenticate and exit. '
+                             'Useful for automatically '
+                             'updating expired tokens.')
+    parser.add_argument('-d', '--debug', action='store_true', dest='debug',
+                        help='Simulate trades even if market is closed. '
+                             'Exceptions are re-raised.')
+    parser.add_argument('-a', '--allocation', type=int, default=30, dest='allocation',
+                        help='Percent of account to trade with.')
+    parser.add_argument('-u', '--username', dest='username', help='Username/ID for broker account. May also specify '
+                                                                  'with environment variable.')
+    parser.add_argument('-p', '--password', dest='password', help='Password for broker account. May also specify with '
+                                                                  'environment variable.')
+    parser.add_argument('-m', '--mfa-code', dest='mfa', help='MFA code for broker account. May also specify with '
+                                                             'environment variable.')
+    parser.add_argument('-s', '--market-open-delay', type=int, default=600, help='Max time in seconds to sleep after '
+                                                                                 'market opens.')
+    parser.add_argument('broker', choices=brokers.keys(), help='Broker to use.')
+    parser.add_argument('strategy', choices=strategies.keys(), help='Strategy to use.')
+    args = parser.parse_args()
+
+    logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
+    if args.broker in ('papermoney', 'robinhood'):
+        if 'username' in os.environ:
+            logging.info("Attempting credentials from envars...")
+        elif args.username:
+            logging.info("Attempting credentials from args...")
+        else:
+            logging.info("Using stored credentials...")
+            if not os.path.exists(args.keyfile):
+                logging.error("Can't find keyfile. Aborting.")
+                raise SystemExit
+        username = os.environ.pop('username', None) or args.username
+        password = os.environ.pop('password', None) or args.password
+        mfa_code = os.environ.pop('mfa_code', None) or args.mfa
+
+    if args.broker == 'papermoney':
+        broker = PaperMoneyBroker(balance=15_000, account_id="livetest",
+                                  username=username,
+                                  password=password,
+                                  mfa_code=mfa_code,
+                                  robinhood=True, token_file=args.keyfile)
+    elif args.broker == 'robinhood':
+        broker = RobinhoodBroker(username=username, password=password,
+                                 mfa_code=mfa_code, token_file=args.keyfile)
+    elif args.broker == 'td_ameritrade':
+        broker = TDAmeritradeBroker(account_id=args.username)
+    else:
+        logging.warn("No valid broker provided. Exiting...")
+        raise SystemExit
+    if args.authonly:
+        logging.info("Authentication success. Exiting.")
+        raise SystemExit
+    strategy = OptionAlphaTradingStrategy(broker)
     main()

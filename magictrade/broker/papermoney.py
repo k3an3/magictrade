@@ -7,12 +7,16 @@ import requests
 
 from magictrade import Position
 from magictrade.broker import Broker, InsufficientFundsError, NonexistentAssetError, InvalidOptionError
+from magictrade.broker.registry import register_broker
 from magictrade.broker.robinhood import RobinhoodBroker
 
 API_KEY = "3KODWEPB1ZR37OT7"
 
 
+@register_broker
 class PaperMoneyBroker(Broker):
+    name = 'papermoney'
+
     def __init__(self, balance: int = 1_000_000, data: Dict = {}, account_id: str = None,
                  date: str = None, data_files: List[Tuple[str, str]] = [],
                  options_data: Dict = [], exp_dates: Dict = {}, username: str = None,
@@ -50,7 +54,7 @@ class PaperMoneyBroker(Broker):
                 return self.rb.options_positions()
             except AttributeError:
                 pass
-        return self.options
+        return {option['option']: option for option in self.options}
 
     def options_positions_data(self, options: List) -> List:
         if self.options_data:

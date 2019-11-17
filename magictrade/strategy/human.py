@@ -5,6 +5,7 @@ from scipy.stats import linregress
 
 from magictrade import Broker, storage, Position
 from magictrade.strategy import TradingStrategy
+from magictrade.strategy.registry import register_strategy
 from magictrade.utils import get_percentage_change
 
 DEFAULT_CONFIG = {
@@ -25,7 +26,10 @@ DEFAULT_CONFIG = {
 }
 
 
+@register_strategy
 class HumanTradingStrategy(TradingStrategy):
+    name = 'human'
+
     def __init__(self, broker: Broker, config: Dict = {}):
         super().__init__(broker)
         self.config = {**DEFAULT_CONFIG, **config}

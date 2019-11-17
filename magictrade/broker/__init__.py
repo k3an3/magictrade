@@ -1,7 +1,13 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
-
 from typing import Tuple, Any, List
+
+from magictrade.broker.registry import brokers
+
+
+def load_brokers():
+    from magictrade.utils import import_modules
+    import_modules(__file__, 'broker')
 
 
 class InsufficientFundsError(Exception):

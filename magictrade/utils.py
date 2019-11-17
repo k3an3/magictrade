@@ -1,5 +1,8 @@
 import subprocess
 from datetime import datetime, time
+from glob import glob
+from os.path import join, dirname, basename
+
 from math import erf, sqrt, log
 from typing import List, Tuple, Dict
 
@@ -7,6 +10,12 @@ import pkg_resources
 from pytz import timezone
 
 from magictrade import storage
+
+
+def import_modules(base_path: str, parent_module: str) -> None:
+    for x in glob(join(dirname(base_path), '*.py')):
+        if not basename(x).startswith('__'):
+            __import__(f'magictrade.{parent_module}.{basename(x)[:-3]}', globals(), locals())
 
 
 def calculate_percent_otm(current_price: float, strike_price: float, iv: float, days_to_exp: int):

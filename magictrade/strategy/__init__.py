@@ -2,7 +2,14 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import List, Dict
 
-from magictrade import Broker, storage
+from magictrade import storage
+from magictrade.broker import Broker
+from magictrade.strategy.registry import strategies
+
+
+def load_strategies():
+    from magictrade.utils import import_modules
+    import_modules(__file__, 'strategy')
 
 
 class TradingStrategy(ABC):
@@ -35,8 +42,9 @@ class TradingStrategy(ABC):
 
     def get_current_positions(self):
         positions = storage.lrange(self.get_name() + ":positions", 0, -1)
-        account_positions = self.broker.options_positions()
-        owned_options = {option['option']: option for option in account_positions}
+        if not positions:
+            return
+        owned_options = self.broker.options_positions()
 
         for position in positions:
             data = storage.hgetall("{}:{}".format(self.get_name(), position))
