@@ -10,6 +10,9 @@ from time import sleep
 
 from magictrade import storage
 from magictrade.broker import brokers, load_brokers
+from magictrade.broker.papermoney import PaperMoneyBroker
+from magictrade.broker.robinhood import RobinhoodBroker
+from magictrade.broker.td_ameritrade import TDAmeritradeBroker
 from magictrade.strategy import strategies, load_strategies
 from magictrade.utils import market_is_open, get_version
 
@@ -182,6 +185,7 @@ if __name__ == '__main__':
         password = os.environ.pop('password', None) or args.password
         mfa_code = os.environ.pop('mfa_code', None) or args.mfa
 
+    broker_kwargs = {}
     if args.broker == 'papermoney':
         broker = PaperMoneyBroker(balance=15_000, account_id="livetest",
                                   username=username,
@@ -191,13 +195,13 @@ if __name__ == '__main__':
     elif args.broker == 'robinhood':
         broker = RobinhoodBroker(username=username, password=password,
                                  mfa_code=mfa_code, token_file=args.keyfile)
-    elif args.broker == 'td_ameritrade':
+    elif args.broker == 'tdameritrade':
         broker = TDAmeritradeBroker(account_id=args.username)
     else:
-        logging.warn("No valid broker provided. Exiting...")
+        logging.warning("No valid broker provided. Exiting...")
         raise SystemExit
     if args.authonly:
         logging.info("Authentication success. Exiting.")
         raise SystemExit
-    strategy = OptionAlphaTradingStrategy(broker)
+    strategy = strategies[args.strategy](broker)
     main()
