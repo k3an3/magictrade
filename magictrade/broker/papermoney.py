@@ -8,7 +8,7 @@ import requests
 from magictrade import Position
 from magictrade.broker import Broker, InsufficientFundsError, NonexistentAssetError, InvalidOptionError
 from magictrade.broker.registry import register_broker
-from magictrade.broker.robinhood import RobinhoodBroker
+from magictrade.broker.robinhood import RobinhoodBroker, RHOption
 
 API_KEY = "3KODWEPB1ZR37OT7"
 
@@ -16,6 +16,7 @@ API_KEY = "3KODWEPB1ZR37OT7"
 @register_broker
 class PaperMoneyBroker(Broker):
     name = 'papermoney'
+    option = RHOption
 
     def __init__(self, balance: int = 1_000_000, data: Dict = {}, account_id: str = None,
                  date: str = None, data_files: List[Tuple[str, str]] = [],
@@ -61,7 +62,7 @@ class PaperMoneyBroker(Broker):
             for option in options:
                 for od in self.options_data:
                     if option['option'] == od['instrument']:
-                        option.update(od)
+                        option.data.update(od)
                         break
             return options
         return self.rb.options_positions_data(options)
@@ -80,7 +81,7 @@ class PaperMoneyBroker(Broker):
         if exp_dates:
             return []
         elif option_type:
-            return [RobinhoodBroker.RHOption(o) for o in options if o["type"] == option_type]
+            return [RHOption(o) for o in options if o["type"] == option_type]
 
     def get_value(self) -> float:
         value = self.balance

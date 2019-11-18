@@ -13,30 +13,32 @@ from magictrade.broker.registry import register_broker
 token_filename = '.oauth2-token'
 
 
+class RHOption(OptionBase):
+    @property
+    def id(self):
+        return self.data['id']
+
+    @property
+    def option_type(self) -> str:
+        return self.data['type']
+
+    @property
+    def probability_otm(self) -> float:
+        return self.data['chance_of_profit_short'] or 0.0
+
+    @property
+    def strike_price(self) -> float:
+        return self.data['strike_price']
+
+    @property
+    def mark_price(self) -> float:
+        return self.data['mark_price']
+
+
 @register_broker
 class RobinhoodBroker(Broker):
     name = 'robinhood'
-
-    class RHOption(OptionBase):
-        @property
-        def id(self):
-            return self.data['id']
-
-        @property
-        def option_type(self) -> str:
-            return self.data['type']
-
-        @property
-        def probability_otm(self) -> float:
-            return self.data['chance_of_profit_short'] or 0.0
-
-        @property
-        def strike_price(self) -> float:
-            return self.data['strike_price']
-
-        @property
-        def mark_price(self) -> float:
-            return self.data['mark_price']
+    option = RHOption
 
     def __init__(self, username: str = None, password: str = None, mfa_code: str = None,
                  token_file: str = None):
@@ -91,7 +93,7 @@ class RobinhoodBroker(Broker):
         return options
 
     def options_positions_data(self, options: List) -> List:
-        return self._normalize_options_data(OptionPosition.mergein_marketdata_list(self.client, options))
+        return [RHOption(o) for o in self._normalize_options_data(OptionPosition.mergein_marketdata_list(self.client, options))]
 
     def get_options(self, symbol: str) -> List:
         stock = Stock.fetch(self.client, symbol)

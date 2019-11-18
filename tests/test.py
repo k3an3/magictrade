@@ -544,7 +544,7 @@ class TestOAStrategy:
         assert round(result['price'], 2) == 55.5
 
     def test_delete_position(self):
-        name = 'oatrading-testdel'
+        name = 'optionalpha-testdel'
         pmb = PaperMoneyBroker(account_id='testdel')
         test_id = str(uuid.uuid4())
         oab = OptionAlphaTradingStrategy(pmb)
@@ -571,7 +571,7 @@ class TestOAStrategy:
                                   legs)
 
     def test_storage(self):
-        name = 'oatrading-teststor'
+        name = 'optionalpha-teststor'
         pmb = PaperMoneyBroker(account_id='teststor', date=date, data=quotes, options_data=oa_options_1,
                                exp_dates=exp_dates)
         oab = OptionAlphaTradingStrategy(pmb)
@@ -601,7 +601,7 @@ class TestOAStrategy:
         name = 'testmaint-' + str(uuid.uuid4())
         pmb = PaperMoneyBroker(account_id=name, date=date, data=quotes, options_data=oa_options_1,
                                exp_dates=exp_dates)
-        name = 'oatrading-' + name
+        name = 'optionalpha-' + name
         test_id = str(uuid.uuid4())
         id_1 = str(uuid.uuid4())
         id_2 = str(uuid.uuid4())

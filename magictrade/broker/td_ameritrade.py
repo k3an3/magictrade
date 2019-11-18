@@ -7,30 +7,32 @@ from magictrade.broker import Broker, InvalidOptionError, Option
 from magictrade.broker.registry import register_broker
 
 
+class TDOption(Option):
+    @property
+    def id(self):
+        return self.data['symbol']
+
+    @property
+    def option_type(self) -> str:
+        return self.data['putCall'].lower()
+
+    @property
+    def probability_otm(self) -> float:
+        return abs(self.data['delta'])
+
+    @property
+    def strike_price(self) -> float:
+        return self.data['strikePrice']
+
+    @property
+    def mark_price(self) -> float:
+        return self.data['mark'] / 100
+
+
 @register_broker
 class TDAmeritradeBroker(Broker):
     name = 'tdameritrade'
-
-    class TDOption(Option):
-        @property
-        def id(self):
-            return self.data['symbol']
-
-        @property
-        def option_type(self) -> str:
-            return self.data['putCall'].lower()
-
-        @property
-        def probability_otm(self) -> float:
-            return abs(self.data['delta'])
-
-        @property
-        def strike_price(self) -> float:
-            return self.data['strikePrice']
-
-        @property
-        def mark_price(self) -> float:
-            return self.data['mark'] / 100
+    option = TDOption
 
     def __init__(self, client_id: str = None, account_id: str = None, access_token: str = None,
                  refresh_token: str = None):
@@ -95,7 +97,7 @@ class TDAmeritradeBroker(Broker):
                 'call': calls,
             }
         elif option_type:
-            return [self.TDOption(option[0]) for option in options[option_type.lower()].values()]
+            return [TDOption(option[0]) for option in options[option_type.lower()].values()]
 
     def options_transact(self, legs: List[Dict], direction: str, price: float,
                          quantity: int, effect: str = 'open', time_in_force: str = 'gfd') -> Tuple[Any, Any]:

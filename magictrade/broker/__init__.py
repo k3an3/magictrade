@@ -22,8 +22,9 @@ class InvalidOptionError(Exception):
     pass
 
 
-class Option(ABC):
+class Option(dict, ABC):
     def __init__(self, option_data: Dict):
+        super().__init__(option_data)
         self.data = option_data
 
     def __getattr__(self, item):

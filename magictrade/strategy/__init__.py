@@ -58,7 +58,7 @@ class TradingStrategy(ABC):
             leg_ids = storage.lrange("{}:{}:legs".format(self.get_name(), position), 0, -1)
             legs = []
             for leg in leg_ids:
-                legs.append(storage.hgetall("{}:leg:{}".format(self.get_name(), leg)))
+                legs.append(self.broker.option(storage.hgetall("{}:leg:{}".format(self.get_name(), leg))))
             # Make sure we still own all legs, else abandon management of this position.
             if self.check_positions(legs, owned_options):
                 self.delete_position(position)
