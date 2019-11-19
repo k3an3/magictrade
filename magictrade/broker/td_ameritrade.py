@@ -81,8 +81,8 @@ class TDAmeritradeBroker(Broker):
         options = self.client.options(symbol)
         return {
             'expiration_dates': self._strip_exp(options['callExpDateMap'].keys()),
-            'puts': self._strip_exp(options['putExpDateMap']),
-            'calls': self._strip_exp(options['callExpDateMap'])
+            'put': self._strip_exp(options['putExpDateMap']),
+            'call': self._strip_exp(options['callExpDateMap'])
         }
 
     def filter_options(self, options: Dict, exp_dates: List = [], option_type: str = None) -> List:
@@ -90,8 +90,8 @@ class TDAmeritradeBroker(Broker):
             puts = {}
             calls = {}
             for exp_date in exp_dates:
-                puts.update(options['puts'][exp_date])
-                calls.update(options['calls'][exp_date])
+                puts.update(options['put'][exp_date])
+                calls.update(options['call'][exp_date])
             return {
                 'put': puts,
                 'call': calls,

@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pytest
 
 from magictrade import storage
-from magictrade.broker import InsufficientFundsError, NonexistentAssetError
+from magictrade.broker import InsufficientFundsError, NonexistentAssetError, InvalidOptionError
 from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.broker.td_ameritrade import TDAmeritradeBroker
 from magictrade.strategy.buyandhold import BuyandHoldStrategy
@@ -17,7 +17,6 @@ from magictrade.strategy.optionalpha import OptionAlphaTradingStrategy, strategi
 from magictrade.strategy.reactive import ReactiveStrategy
 from magictrade.utils import get_account_history, get_percentage_change, get_allocation, calculate_percent_otm
 from data import quotes, human_quotes_1, reactive_quotes, oa_options_1, exp_dates, td_account_json
-
 
 date = datetime.strptime("2019-03-31", "%Y-%m-%d")
 
@@ -329,7 +328,6 @@ class TestHumanStrategy:
 
 
 class TestOAStrategy:
-
     def test_find_probability_call_short(self):
         pmb = PaperMoneyBroker(account_id='test', )
         oab = OptionAlphaTradingStrategy(pmb)
@@ -668,8 +666,8 @@ class TestTDAmeritradeBroker:
 
     def test_options(self, broker: TDAmeritradeBroker, options: Dict):
         assert '2019-12-04' in options['expiration_dates']
-        assert len(options['puts']) == 36
-        assert len(options['calls']) == 36
+        assert len(options['put']) == 36
+        assert len(options['call']) == 36
 
     def test_balance(self, broker: TDAmeritradeBroker):
         with patch('requests.request') as m:
@@ -701,3 +699,77 @@ class TestTDAmeritradeBroker:
         assert len(filtered) == 124
         for option in filtered:
             assert option.option_type == 'call'
+
+    def test_options_transact_invalid(self, broker: TDAmeritradeBroker):
+        with pytest.raises(InvalidOptionError):
+            broker.options_transact([], None, 0.0, 1, 'buy')
+
+    def test_find_probability_call_short(self, broker: TDAmeritradeBroker, options: Dict):
+        oab = OptionAlphaTradingStrategy(broker)
+        options_by_date = broker.filter_options(options, ['2019-12-04'])
+        calls = broker.filter_options(options_by_date, option_type='call')
+        assert oab._find_option_with_probability(calls, 70, 'short').id == 'SPY_120419C307'
+
+    def test_find_probability_put_short(self, broker: TDAmeritradeBroker, options: Dict):
+        oab = OptionAlphaTradingStrategy(broker)
+        options_by_date = broker.filter_options(options, ['2019-12-04'])
+        puts = broker.filter_options(options_by_date, option_type='put')
+        assert oab._find_option_with_probability(puts, 70, 'short').id == 'SPY_120419P315'
+
+    def test_get_long_leg_put(self, broker: TDAmeritradeBroker, options: Dict):
+        oab = OptionAlphaTradingStrategy(broker)
+        options_by_date = broker.filter_options(options, ['2019-12-04'])
+        puts = broker.filter_options(options_by_date, option_type='put')
+        for option in puts:
+            if option.strike_price == 315.0:
+                short_leg = option
+        assert oab._get_long_leg(puts, short_leg, 'put', width=1).strike_price == 314.0
+
+    def test_get_long_leg_put_1(self, broker: TDAmeritradeBroker, options: Dict):
+        oab = OptionAlphaTradingStrategy(broker)
+        options_by_date = broker.filter_options(options, ['2019-12-04'])
+        puts = broker.filter_options(options_by_date, option_type='put')
+        for option in puts:
+            if option.strike_price == 315.0:
+                short_leg = option
+        assert oab._get_long_leg(puts, short_leg, 'put', width=2.5).strike_price == 312.0
+
+    def test_get_long_leg_call(self, broker: TDAmeritradeBroker, options: Dict):
+        oab = OptionAlphaTradingStrategy(broker)
+        options_by_date = broker.filter_options(options, ['2019-12-04'])
+        calls = broker.filter_options(options_by_date, option_type='call')
+        for option in calls:
+            if option.strike_price == 315.0:
+                short_leg = option
+        assert oab._get_long_leg(calls, short_leg, 'call', width=1).strike_price == 316.0
+
+    def test_get_long_leg_call_1(self, broker: TDAmeritradeBroker, options: Dict):
+        oab = OptionAlphaTradingStrategy(broker)
+        options_by_date = broker.filter_options(options, ['2019-12-04'])
+        calls = broker.filter_options(options_by_date, option_type='call')
+        for option in calls:
+            if option.strike_price == 315.0:
+                short_leg = option
+        assert oab._get_long_leg(calls, short_leg, 'call', width=2.5).strike_price == 318.0
+
+    def test_credit_spread(self, broker: TDAmeritradeBroker, options: Dict):
+        oab = OptionAlphaTradingStrategy(broker)
+        options_by_date = broker.filter_options(options, ['2019-12-04'])
+        legs = oab.credit_spread(strategies['credit_spread'], options_by_date, direction='bullish', width=3)
+        assert legs[0][0].strike_price == 315.0
+        assert legs[1][0].strike_price == 312.0
+        assert legs[0][1] == 'sell'
+        assert legs[1][1] == 'buy'
+
+    def test_iron_condor(self, broker: TDAmeritradeBroker, options: Dict):
+        oab = OptionAlphaTradingStrategy(broker)
+        options_by_date = broker.filter_options(options, ['2019-12-04'])
+        wings = oab.iron_condor(strategies['iron_condor'], options_by_date, width=1)
+        assert wings[0][0].strike_price == 301.0
+        assert wings[1][0].strike_price == 302.0
+        assert wings[2][0].strike_price == 317.0
+        assert wings[3][0].strike_price == 316.0
+        assert wings[0][1] == 'sell'
+        assert wings[1][1] == 'buy'
+        assert wings[2][1] == 'sell'
+        assert wings[3][1] == 'buy'
