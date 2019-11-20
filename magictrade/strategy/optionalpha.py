@@ -1,4 +1,4 @@
-from datetime import timedelta, datetime
+from datetime import timedelta
 from typing import List, Dict
 
 from magictrade import Broker, storage
@@ -218,11 +218,14 @@ class OptionAlphaTradingStrategy(TradingStrategy):
 
         blacklist_dates = set()
 
-        while timeline > 0 or days_out > 0:
+        attempts = 0
+        while attempts <= 7:
             target_date = self._get_target_date(config, options, timeline, days_out, blacklist_dates)
             blacklist_dates.add(target_date)
+            attempts += 1
 
-            options_on_date = self.broker.filter_options(options, [target_date])
+            if not (options_on_date := self.broker.filter_options(options, [target_date])):
+                continue
             # Get data, but not all options will return data. Filter them out.
             options_on_date = [o for o in self.broker.get_options_data(options_on_date) if o.get('mark_price')]
 
@@ -230,10 +233,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
                 legs = method(config, options_on_date, quote=quote, direction=direction, width=spread_width)
                 break
             except NoValidLegException:
-                if days_out:
-                    days_out -= 5
-                else:
-                    timeline -= 10
+                continue
         else:
             raise TradeException("Could not find a valid expiration date with suitable strikes.")
 
