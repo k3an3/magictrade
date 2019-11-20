@@ -120,3 +120,11 @@ class Broker(ABC):
         value = self.get_value()
         storage.rpush(self.account_id + ':dates', self.date.strftime("%Y-%m-%d %H-%M-%S"))
         storage.rpush(self.account_id + ':values', value)
+
+    @staticmethod
+    def parse_leg(leg: Dict) -> (Dict, str):
+        if len(leg) == 2:
+            leg, action = leg
+        else:
+            action = leg['side']
+        return leg, action

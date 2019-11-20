@@ -18,7 +18,7 @@ class TDOption(Option):
 
     @property
     def probability_otm(self) -> float:
-        return abs(self.data['delta'])
+        return 1.0 - abs(self.data['delta'])
 
     @property
     def strike_price(self) -> float:
@@ -26,7 +26,7 @@ class TDOption(Option):
 
     @property
     def mark_price(self) -> float:
-        return self.data['mark'] / 100
+        return self.data['mark']
 
 
 @register_broker
@@ -107,25 +107,27 @@ class TDAmeritradeBroker(Broker):
         effect = {'open': 'TO_OPEN',
                   'close': 'TO_CLOSE'
                   }[effect]
+        order_type = {
+            'open': 'NET_CREDIT',
+            'close': 'NET_DEBIT',
+        }[effect]
 
         new_legs = []
         for leg in legs:
-            if len(leg) == 2:
-                leg, action = leg
-            else:
-                action = leg['side']
+            leg, action = self.parse_leg(leg)
             new_legs.append({
                 'instruction': '_'.join((action.upper(), effect)),
                 'quantity': leg.get('quantity', 1),
-                'instrument': leg['instrument'],
+                'instrument': {
+                    'symbol': leg.id,
+                    'assetType': 'OPTION',
+                },
             })
 
-        return self.client.trade_options(self._account_id, new_legs, price, order_type='LIMIT', strategy='CUSTOM')
+        return self.client.trade_options(self._account_id, new_legs, price, order_type=order_type, strategy='CUSTOM')
 
     def buy(self, symbol: str, quantity: int) -> Tuple[str, Any]:
         raise NotImplementedError
 
     def sell(self, symbol: str, quantity: int) -> Tuple[str, Any]:
         raise NotImplementedError
-
-

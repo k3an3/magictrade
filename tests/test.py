@@ -6,17 +6,17 @@ from typing import Dict
 from unittest.mock import patch
 
 import pytest
+from data import quotes, human_quotes_1, reactive_quotes, oa_options_1, exp_dates, td_account_json
 
 from magictrade import storage
 from magictrade.broker import InsufficientFundsError, NonexistentAssetError, InvalidOptionError
 from magictrade.broker.papermoney import PaperMoneyBroker
-from magictrade.broker.td_ameritrade import TDAmeritradeBroker
+from magictrade.broker.td_ameritrade import TDAmeritradeBroker, TDOption
 from magictrade.strategy.buyandhold import BuyandHoldStrategy
 from magictrade.strategy.human import HumanTradingStrategy, DEFAULT_CONFIG
 from magictrade.strategy.optionalpha import OptionAlphaTradingStrategy, strategies, TradeException, high_iv
 from magictrade.strategy.reactive import ReactiveStrategy
 from magictrade.utils import get_account_history, get_percentage_change, get_allocation, calculate_percent_otm
-from data import quotes, human_quotes_1, reactive_quotes, oa_options_1, exp_dates, td_account_json
 
 date = datetime.strptime("2019-03-31", "%Y-%m-%d")
 
@@ -686,6 +686,9 @@ class TestTDAmeritradeBroker:
         assert len(filtered['call']) == 53
         assert len(filtered['put']) == 53
 
+    def test_mark_price(self):
+        assert TDOption({'mark': 150}).mark_price == 150
+
     def test_filter_options_type_puts(self, broker: TDAmeritradeBroker, options: Dict):
         filtered = broker.filter_options(options, ['2019-12-23'])
         filtered = broker.filter_options(filtered, option_type='put')
@@ -708,13 +711,13 @@ class TestTDAmeritradeBroker:
         oab = OptionAlphaTradingStrategy(broker)
         options_by_date = broker.filter_options(options, ['2019-12-04'])
         calls = broker.filter_options(options_by_date, option_type='call')
-        assert oab._find_option_with_probability(calls, 70, 'short').id == 'SPY_120419C307'
+        assert oab._find_option_with_probability(calls, 70, 'short').id == 'SPY_120419C315'
 
     def test_find_probability_put_short(self, broker: TDAmeritradeBroker, options: Dict):
         oab = OptionAlphaTradingStrategy(broker)
         options_by_date = broker.filter_options(options, ['2019-12-04'])
         puts = broker.filter_options(options_by_date, option_type='put')
-        assert oab._find_option_with_probability(puts, 70, 'short').id == 'SPY_120419P315'
+        assert oab._find_option_with_probability(puts, 70, 'short').id == 'SPY_120419P308'
 
     def test_get_long_leg_put(self, broker: TDAmeritradeBroker, options: Dict):
         oab = OptionAlphaTradingStrategy(broker)
@@ -756,8 +759,8 @@ class TestTDAmeritradeBroker:
         oab = OptionAlphaTradingStrategy(broker)
         options_by_date = broker.filter_options(options, ['2019-12-04'])
         legs = oab.credit_spread(strategies['credit_spread'], options_by_date, direction='bullish', width=3)
-        assert legs[0][0].strike_price == 315.0
-        assert legs[1][0].strike_price == 312.0
+        assert legs[0][0].strike_price == 308.0
+        assert legs[1][0].strike_price == 305.0
         assert legs[0][1] == 'sell'
         assert legs[1][1] == 'buy'
 
@@ -765,10 +768,10 @@ class TestTDAmeritradeBroker:
         oab = OptionAlphaTradingStrategy(broker)
         options_by_date = broker.filter_options(options, ['2019-12-04'])
         wings = oab.iron_condor(strategies['iron_condor'], options_by_date, width=1)
-        assert wings[0][0].strike_price == 301.0
-        assert wings[1][0].strike_price == 302.0
-        assert wings[2][0].strike_price == 317.0
-        assert wings[3][0].strike_price == 316.0
+        assert wings[0][0].strike_price == 318.0
+        assert wings[1][0].strike_price == 319.0
+        assert wings[2][0].strike_price == 302.0
+        assert wings[3][0].strike_price == 301.0
         assert wings[0][1] == 'sell'
         assert wings[1][1] == 'buy'
         assert wings[2][1] == 'sell'

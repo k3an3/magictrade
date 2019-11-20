@@ -1,11 +1,11 @@
-from datetime import timedelta, datetime
+from datetime import timedelta
 from typing import List, Dict
 
 from magictrade import Broker, storage
 from magictrade.strategy import TradingStrategy, NoValidLegException, TradeException, \
     TradeConfigException
 from magictrade.strategy.registry import register_strategy
-from magictrade.utils import get_percentage_change, get_allocation, safe_abs
+from magictrade.utils import get_percentage_change, get_allocation
 
 strategies = {
     'iron_condor': {
@@ -237,7 +237,8 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         allocation = get_allocation(self.broker, allocation)
         quantity = self._get_quantity(allocation, spread_width)
         if not quantity:
-            raise TradeException("Trade quantity equals 0.")
+            raise TradeException("Trade quantity equals 0. Ensure allocation is high enough, or enough capital is "
+                                 "available.")
         option_order = self.broker.options_transact(legs, 'credit', price,
                                                     quantity, 'open')
         self.save_order(option_order, legs, {}, strategy=strategy, price=price,
