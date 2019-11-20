@@ -75,6 +75,7 @@ class PaperMoneyBroker(Broker):
     def filter_options(self, options: List, exp_dates: List):
         if not self.options_data:
             return self.rb.filter_options(options, exp_dates)
+        return options
 
     def get_value(self) -> float:
         value = self.balance
