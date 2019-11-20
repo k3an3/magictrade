@@ -79,7 +79,7 @@ class PaperMoneyBroker(Broker):
 
     def filter_options(self, options: List, exp_dates: List = [], option_type: str = None):
         if exp_dates:
-            return []
+            return options
         elif option_type:
             return [RHOption(o) for o in options if o["type"] == option_type]
 

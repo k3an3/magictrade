@@ -215,21 +215,21 @@ class OptionAlphaTradingStrategy(TradingStrategy):
 
         blacklist_dates = set()
 
-        while timeline > 0 or days_out > 0:
+        attempts = 0
+        while attempts <= 7:
             target_date = self._get_target_date(config, options, timeline, days_out, blacklist_dates)
             blacklist_dates.add(target_date)
+            attempts += 1
 
-            options_on_date = self.broker.filter_options(options, [target_date])
+            if not (options_on_date := self.broker.filter_options(options, [target_date])):
+                continue
             options_on_date = self.broker.get_options_data(options_on_date)
 
             try:
                 legs = method(config, options_on_date, quote=quote, direction=direction, width=spread_width)
                 break
             except NoValidLegException:
-                if days_out:
-                    days_out -= 5
-                else:
-                    timeline -= 10
+                continue
         else:
             raise TradeException("Could not find a valid expiration date with suitable strikes.")
 
