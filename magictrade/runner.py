@@ -16,7 +16,6 @@ from magictrade.broker.td_ameritrade import TDAmeritradeBroker
 from magictrade.strategy import strategies, load_strategies
 from magictrade.utils import market_is_open, get_version
 
-queue_name = 'oatrading-queue'
 rand_sleep = 1800, 5400
 
 
@@ -166,6 +165,7 @@ if __name__ == '__main__':
                                                              'environment variable.')
     parser.add_argument('-s', '--market-open-delay', type=int, default=600, help='Max time in seconds to sleep after '
                                                                                  'market opens.')
+    parser.add_argument('-q', '--queue-name', help='Queue name to store data in.')
     parser.add_argument('broker', choices=brokers.keys(), help='Broker to use.')
     parser.add_argument('strategy', choices=strategies.keys(), help='Strategy to use.')
     args = parser.parse_args()
@@ -203,5 +203,8 @@ if __name__ == '__main__':
     if args.authonly:
         logging.info("Authentication success. Exiting.")
         raise SystemExit
+    queue_name = args.queue_name
+    if not queue_name:
+        raise SystemExit("Must provide queue name.")
     strategy = strategies[args.strategy](broker)
     main()
