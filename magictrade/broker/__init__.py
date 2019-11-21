@@ -104,7 +104,7 @@ class Broker(ABC):
         pass
 
     @abstractmethod
-    def options_transact(self, legs: List, direction: str, price: float, quantity: int, effect: str) -> Tuple[Any, Any]:
+    def options_transact(self, legs: List, direction: str, price: float, quantity: int, effect: str, **kwargs) -> Tuple[Any, Any]:
         pass
 
     @abstractmethod

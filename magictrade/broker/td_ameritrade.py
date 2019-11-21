@@ -100,17 +100,20 @@ class TDAmeritradeBroker(Broker):
             return [TDOption(option[0]) for option in options[option_type.lower()].values()]
 
     def options_transact(self, legs: List[Dict], direction: str, price: float,
-                         quantity: int, effect: str = 'open', time_in_force: str = 'gfd') -> Tuple[Any, Any]:
+                         quantity: int, effect: str = 'open', time_in_force: str = 'gfd', **kwargs) -> Tuple[Any, Any]:
         if effect not in ('open', 'close'):
             raise InvalidOptionError()
 
-        effect = {'open': 'TO_OPEN',
-                  'close': 'TO_CLOSE'
-                  }[effect]
-        order_type = {
-            'open': 'NET_CREDIT',
-            'close': 'NET_DEBIT',
+        order_type, effect = {
+            'open': ('NET_CREDIT', 'TO_OPEN'),
+            'close': ('NET_DEBIT', 'TO_CLOSE'),
         }[effect]
+
+        if strategy := kwargs.get('strategy', 'CUSTOM'):
+            if strategy == 'credit_spread':
+                strategy = 'VERTICAL'
+            elif strategy in ('iron_condor', 'iron_butterfly'):
+                strategy = strategy.upper()
 
         new_legs = []
         for leg in legs:
@@ -124,7 +127,8 @@ class TDAmeritradeBroker(Broker):
                 },
             })
 
-        return self.client.trade_options(self._account_id, new_legs, price, order_type=order_type, strategy='CUSTOM')
+        return self.client.trade_options(self._account_id, new_legs, quantity, price,
+                                         order_type=order_type, strategy=strategy)
 
     def buy(self, symbol: str, quantity: int) -> Tuple[str, Any]:
         raise NotImplementedError

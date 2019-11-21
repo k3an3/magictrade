@@ -240,7 +240,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             raise TradeException("Trade quantity equals 0. Ensure allocation is high enough, or enough capital is "
                                  "available.")
         option_order = self.broker.options_transact(legs, 'credit', price,
-                                                    quantity, 'open')
+                                                    quantity, 'open', strategy=strategy)
         self.save_order(option_order, legs, {}, strategy=strategy, price=price,
                         quantity=quantity, expires=target_date, symbol=symbol)
         self.log("[{}]: Opened {} in {} for direction {} with quantity {} and price {}.".format(
