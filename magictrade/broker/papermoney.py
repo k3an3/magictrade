@@ -8,7 +8,7 @@ import requests
 from magictrade import Position
 from magictrade.broker import Broker, InsufficientFundsError, NonexistentAssetError, InvalidOptionError
 from magictrade.broker.registry import register_broker
-from magictrade.broker.robinhood import RobinhoodBroker, RHOption
+from magictrade.broker.robinhood import RobinhoodBroker, RHOption, RHOptionOrder
 
 API_KEY = "3KODWEPB1ZR37OT7"
 
@@ -150,7 +150,7 @@ class PaperMoneyBroker(Broker):
                 'ratio_quantity': '1',
                 'id': str(uuid.uuid4()),
             })
-        return {'id': str(uuid.uuid4()), 'legs': new_legs}
+        return RHOptionOrder({'id': str(uuid.uuid4()), 'legs': new_legs})
 
     def buy(self, symbol: str, quantity: int) -> Tuple[str, Position]:
         debit = self.get_quote(symbol) * quantity

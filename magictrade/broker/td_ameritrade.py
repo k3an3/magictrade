@@ -1,9 +1,10 @@
+import uuid
 from typing import Tuple, Any, List, Dict
 
 from tdameritrade import TDClient
 from tdameritrade.auth import refresh_token
 
-from magictrade.broker import Broker, InvalidOptionError, Option
+from magictrade.broker import Broker, InvalidOptionError, Option, OptionOrder
 from magictrade.broker.registry import register_broker
 
 
@@ -27,6 +28,22 @@ class TDOption(Option):
     @property
     def mark_price(self) -> float:
         return self.data['mark']
+
+
+class TDOptionOrder(OptionOrder):
+    @property
+    def id(self) -> str:
+        return str(self.data['orderId'])
+
+    @property
+    def legs(self):
+        new_legs = []
+        for leg in self.data['orderLegCollection']:
+            leg = {**leg, **leg['instrument'],
+                   'id': str(uuid.uuid4())}
+            leg.pop('instrument')
+            new_legs.append(leg)
+        return new_legs
 
 
 @register_broker
@@ -127,8 +144,8 @@ class TDAmeritradeBroker(Broker):
                 },
             })
 
-        return self.client.trade_options(self._account_id, new_legs, quantity, price,
-                                         order_type=order_type, strategy=strategy)
+        return TDOptionOrder(self.client.trade_options(self._account_id, new_legs, quantity, price,
+                                                  order_type=order_type, strategy=strategy))
 
     def buy(self, symbol: str, quantity: int) -> Tuple[str, Any]:
         raise NotImplementedError

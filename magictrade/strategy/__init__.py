@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import List, Dict
 
 from magictrade import storage
-from magictrade.broker import Broker
+from magictrade.broker import Broker, OptionOrder
 from magictrade.strategy.registry import strategies
 
 
@@ -67,21 +67,21 @@ class TradingStrategy(ABC):
                 continue
             yield position, data, legs
 
-    def save_order(self, option_order: Dict, legs: List, order_data: Dict = {}, **kwargs):
-        storage.lpush(self.get_name() + ":positions", option_order["id"])
-        storage.lpush(self.get_name() + ":all_positions", option_order["id"])
-        storage.hmset("{}:{}".format(self.get_name(), option_order["id"]),
+    def save_order(self, option_order: OptionOrder, legs: List, order_data: Dict = {}, **kwargs):
+        storage.lpush(self.get_name() + ":positions", option_order.id)
+        storage.lpush(self.get_name() + ":all_positions", option_order.id)
+        storage.hmset("{}:{}".format(self.get_name(), option_order.id),
                       {
                           'time': datetime.now().timestamp(),
                           **kwargs,
                           **order_data,
                       })
-        for leg in option_order["legs"]:
-            storage.lpush("{}:{}:legs".format(self.get_name(), option_order["id"]),
+        for leg in option_order.legs:
+            storage.lpush("{}:{}:legs".format(self.get_name(), option_order.id),
                           leg["id"])
             leg.pop('executions', None)
             storage.hmset("{}:leg:{}".format(self.get_name(), leg["id"]), leg)
-        storage.set("{}:raw:{}".format(self.get_name(), option_order["id"]), str(legs))
+        storage.set("{}:raw:{}".format(self.get_name(), option_order.id), str(legs))
 
 
 class TradeException(Exception):

@@ -8,6 +8,7 @@ from fast_arrow.resources.account import Account
 from magictrade import Broker
 from magictrade.broker import InvalidOptionError
 from magictrade.broker import Option as OptionBase
+from magictrade.broker import OptionOrder as OptionBaseOrder
 from magictrade.broker.registry import register_broker
 
 token_filename = '.oauth2-token'
@@ -33,6 +34,16 @@ class RHOption(OptionBase):
     @property
     def mark_price(self) -> float:
         return self.data['mark_price']
+
+
+class RHOptionOrder(OptionBaseOrder):
+    @property
+    def id(self) -> str:
+        return str(self.data['id'])
+
+    @property
+    def legs(self):
+        return self.data['legs']
 
 
 @register_broker
@@ -93,7 +104,8 @@ class RobinhoodBroker(Broker):
         return options
 
     def options_positions_data(self, options: List) -> List:
-        return [RHOption(o) for o in self._normalize_options_data(OptionPosition.mergein_marketdata_list(self.client, options))]
+        return [RHOption(o) for o in
+                self._normalize_options_data(OptionPosition.mergein_marketdata_list(self.client, options))]
 
     def get_options(self, symbol: str) -> List:
         stock = Stock.fetch(self.client, symbol)
@@ -128,8 +140,9 @@ class RobinhoodBroker(Broker):
                 'ratio_quantity': str(int(leg.get('ratio_quantity', 1)))
             })
 
-        return OptionOrder.submit(self.client, direction, new_legs,
-                                  str(abs(round(price, 2))), quantity, time_in_force, "immediate", "limit")
+        return RHOptionOrder(OptionOrder.submit(self.client, direction, new_legs,
+                                                str(abs(round(price, 2))), quantity, time_in_force, "immediate",
+                                                "limit"))
 
     def buy(self, symbol: str, quantity: int) -> Tuple[str, Any]:
         raise NotImplementedError()

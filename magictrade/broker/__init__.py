@@ -57,6 +57,21 @@ class Option(dict, ABC):
         pass
 
 
+class OptionOrder(ABC):
+    def __init__(self, order_data: Dict):
+        self.data = order_data
+
+    @property
+    @abstractmethod
+    def id(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def legs(self):
+        pass
+
+
 class Broker(ABC):
     @abstractmethod
     def get_quote(self, symbol: str) -> float:
@@ -104,7 +119,8 @@ class Broker(ABC):
         pass
 
     @abstractmethod
-    def options_transact(self, legs: List, direction: str, price: float, quantity: int, effect: str, **kwargs) -> Tuple[Any, Any]:
+    def options_transact(self, legs: List, direction: str, price: float, quantity: int, effect: str, **kwargs) -> Tuple[
+        Any, Any]:
         pass
 
     @abstractmethod

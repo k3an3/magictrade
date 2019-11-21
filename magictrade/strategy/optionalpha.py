@@ -244,7 +244,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         self.save_order(option_order, legs, {}, strategy=strategy, price=price,
                         quantity=quantity, expires=target_date, symbol=symbol)
         self.log("[{}]: Opened {} in {} for direction {} with quantity {} and price {}.".format(
-            option_order["id"],
+            option_order.id,
             strategy,
             symbol,
             direction,

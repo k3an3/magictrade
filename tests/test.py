@@ -574,7 +574,7 @@ class TestOAStrategy:
                                exp_dates=exp_dates)
         oab = OptionAlphaTradingStrategy(pmb)
         result = oab.make_trade('MU', 'bearish', high_iv)
-        oid = result['order']["id"]
+        oid = result['order'].id
         assert oid == storage.lrange(name + ":positions", 0, -1)[0]
         data = storage.hgetall("{}:{}".format(name, oid))
         assert data['strategy'] == 'credit_spread'
@@ -582,8 +582,8 @@ class TestOAStrategy:
         assert float(data['price']) == result['price'] / result['quantity']
         legs = storage.lrange("{}:{}:legs".format(name, oid), 0, -1)
         assert len(legs) == 2
-        assert result['order']["legs"][0]["id"] in legs
-        assert result['order']["legs"][1]["id"] in legs
+        assert result['order'].legs[0]["id"] in legs
+        assert result['order'].legs[1]["id"] in legs
         oab.delete_position(oid)
 
     def test_maintenance_no_action(self):
@@ -630,7 +630,7 @@ class TestOAStrategy:
             {'option': 'https://api.robinhood.com/options/instruments/9d870f5d-bd44-4750-8ff6-7aee58249b9f/'}]
         orders = oab.maintenance()
         assert len(orders) == 1
-        assert len(orders[0]['legs']) == 2
+        assert len(orders[0].legs) == 2
         assert not storage.lrange(name + ":positions", 0, -1)
 
     def test_trade_insufficient_balance(self):
