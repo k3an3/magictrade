@@ -87,3 +87,7 @@ def get_monthly_option(start_date: datetime = None) -> str:
     first_friday = first_day_of_month + timedelta(
         days=((4 - calendar.monthrange(start_date.year, month)[0]) + 7) % 7)
     return date_format(first_friday + timedelta(days=14))
+
+
+def get_risk(spread_width: float, price: float) -> float:
+    return (spread_width - price) * 100

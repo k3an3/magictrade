@@ -9,14 +9,15 @@ import pytest
 from data import quotes, human_quotes_1, reactive_quotes, oa_options_1, exp_dates, td_account_json
 
 from magictrade import storage
-from magictrade.broker import InsufficientFundsError, NonexistentAssetError, InvalidOptionError
+from magictrade.broker import InsufficientFundsError, NonexistentAssetError, InvalidOptionError, Option
 from magictrade.broker.papermoney import PaperMoneyBroker
+from magictrade.broker.robinhood import RHOption
 from magictrade.broker.td_ameritrade import TDAmeritradeBroker, TDOption
 from magictrade.strategy.buyandhold import BuyandHoldStrategy
 from magictrade.strategy.human import HumanTradingStrategy, DEFAULT_CONFIG
 from magictrade.strategy.optionalpha import OptionAlphaTradingStrategy, strategies, TradeException, high_iv
 from magictrade.strategy.reactive import ReactiveStrategy
-from magictrade.utils import get_account_history, get_percentage_change, get_allocation, calculate_percent_otm
+from magictrade.utils import get_account_history, get_percentage_change, get_allocation, calculate_percent_otm, get_risk
 
 date = datetime.strptime("2019-03-31", "%Y-%m-%d")
 
@@ -211,6 +212,9 @@ class TestUtils:
     def test_prob_otm(self):
         assert calculate_percent_otm(311.79, 313, 7.45, 4) == 0.69
         assert calculate_percent_otm(311.79, 308, 7.30, 4) == 0.95
+
+    def test_get_risk(self):
+        assert get_risk(3, 1.12) == 188
 
 
 class TestBAHStrategy:
@@ -515,6 +519,11 @@ class TestOAStrategy:
         oab = OptionAlphaTradingStrategy(pmb)
         assert oab._get_quantity(30_000, 3) == 100
 
+    def test_get_quantity_price(self):
+        pmb = PaperMoneyBroker(account_id='test', )
+        oab = OptionAlphaTradingStrategy(pmb)
+        assert oab._get_quantity(30_000, 3, 1.56) == 208
+
     def test_make_trade_neutral_mid_iv(self):
         pmb = PaperMoneyBroker(account_id='test', date=date, data=quotes, options_data=oa_options_1,
                                exp_dates=exp_dates)
@@ -524,8 +533,8 @@ class TestOAStrategy:
         assert oab._get_price(result['legs']) <= pmb.balance * 0.03
         assert result['legs'][0][0].strike_price == 42.0
         assert oab._get_price(result['legs']) == 0.31
-        assert result['quantity'] == 100
-        assert result['price'] == 31.0
+        assert result['quantity'] == 111
+        assert result['price'] == 34.41
 
     def test_make_trade_neutral_high_iv(self):
         pmb = PaperMoneyBroker(account_id='test', date=date, data=quotes, options_data=oa_options_1,
@@ -535,8 +544,8 @@ class TestOAStrategy:
         assert result['strategy'] == 'iron_butterfly'
         assert oab._get_price(result['legs']) <= pmb.balance * 0.03
         assert result['legs'][0][0].strike_price == 38.5
-        assert result['quantity'] == 100
-        assert round(result['price'], 2) == 110.5
+        assert result['quantity'] == 335
+        assert round(result['price'], 2) == 370.17
 
     def test_make_trade_bearish(self):
         pmb = PaperMoneyBroker(account_id='test', date=date, data=quotes, options_data=oa_options_1,
@@ -546,8 +555,8 @@ class TestOAStrategy:
         assert result['strategy'] == 'credit_spread'
         assert oab._get_price(result['legs']) <= pmb.balance * 0.03
         assert result['legs'][0][0].strike_price == 40.0
-        assert result['quantity'] == 100
-        assert round(result['price'], 2) == 55.5
+        assert result['quantity'] == 122
+        assert round(result['price'], 2) == 67.71
 
     def test_delete_position(self):
         name = 'optionalpha-testdel'
@@ -648,6 +657,29 @@ class TestOAStrategy:
         oab = OptionAlphaTradingStrategy(pmb)
         with pytest.raises(TradeException):
             strategy, legs, q, p, _ = oab.make_trade('MU', 'bearish', high_iv)
+
+    def test_butterfly_spread_width(self):
+        pmb = PaperMoneyBroker('test-balance')
+        oab = OptionAlphaTradingStrategy(pmb)
+        legs = (
+            (RHOption({'strike_price': 52, 'type': 'call'}), 'sell'),
+            (RHOption({'strike_price': 59, 'type': 'call'}), 'buy'),
+            (RHOption({'strike_price': 52, 'type': 'put'}), 'sell'),
+            (RHOption({'strike_price': 47, 'type': 'put'}), 'buy'),
+        )
+        assert oab._butterfly_spread_width(legs) == 7
+
+    def test_butterfly_spread_width_1(self):
+        pmb = PaperMoneyBroker('test-balance')
+        oab = OptionAlphaTradingStrategy(pmb)
+        legs = (
+            (RHOption({'strike_price': 52, 'type': 'call'}), 'sell'),
+            (RHOption({'strike_price': 59, 'type': 'call'}), 'buy'),
+            (RHOption({'strike_price': 52, 'type': 'put'}), 'sell'),
+            (RHOption({'strike_price': 42, 'type': 'put'}), 'buy'),
+        )
+        assert oab._butterfly_spread_width(legs) == 10
+
 
 
 class TestRobinhoodBroker:

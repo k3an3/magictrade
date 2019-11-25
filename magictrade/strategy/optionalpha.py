@@ -1,11 +1,12 @@
 from datetime import timedelta
-from typing import List, Dict
+from typing import List, Dict, Tuple
 
 from magictrade import Broker, storage
+from magictrade.broker import Option
 from magictrade.strategy import TradingStrategy, NoValidLegException, TradeException, \
     TradeConfigException
 from magictrade.strategy.registry import register_strategy
-from magictrade.utils import get_percentage_change, get_allocation, date_format, get_monthly_option
+from magictrade.utils import get_percentage_change, get_allocation, date_format, get_monthly_option, get_risk
 
 strategies = {
     'iron_condor': {
@@ -140,8 +141,19 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         return price
 
     @staticmethod
-    def _get_quantity(allocation: float, spread_width: float) -> int:
-        return int(allocation / (spread_width * 100))
+    def _get_quantity(allocation: float, spread_width: float, price: float = 0.0) -> int:
+        return int(allocation / get_risk(spread_width, price))
+
+    @staticmethod
+    def _butterfly_spread_width(legs: List[Tuple[Option, str]]):
+        leg_map = {}
+        map_format = "{}:{}"
+        for leg, side in legs:
+            leg_map[map_format.format(side, leg.option_type)] = leg.strike_price
+        widths = []
+        for t in ('call', 'put'):
+            widths.append(abs(leg_map[map_format.format('sell', t)] - leg_map[map_format.format('buy', t)]))
+        return max(widths)
 
     @staticmethod
     def invert_action(legs: List) -> None:
@@ -237,7 +249,9 @@ class OptionAlphaTradingStrategy(TradingStrategy):
 
         price = self._get_price(legs)
         allocation = get_allocation(self.broker, allocation)
-        quantity = self._get_quantity(allocation, spread_width)
+        if strategy == 'iron_butterfly':
+            spread_width = self._butterfly_spread_width(legs)
+        quantity = self._get_quantity(allocation, spread_width, price)
         if not quantity:
             raise TradeException("Trade quantity equals 0. Ensure allocation is high enough, or enough capital is "
                                  "available.")
