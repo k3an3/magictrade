@@ -5,7 +5,7 @@ from magictrade import Broker, storage
 from magictrade.strategy import TradingStrategy, NoValidLegException, TradeException, \
     TradeConfigException
 from magictrade.strategy.registry import register_strategy
-from magictrade.utils import get_percentage_change, get_allocation
+from magictrade.utils import get_percentage_change, get_allocation, date_format, get_monthly_option
 
 strategies = {
     'iron_condor': {
@@ -98,12 +98,15 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         return (short_leg, 'sell'), (long_leg, 'buy')
 
     def _get_target_date(self, config: Dict, options: List, timeline: int = 0, days_out: int = 0,
-                         blacklist_dates: set = set()):
+                         blacklist_dates: set = set(), monthly: bool = False):
         if not days_out:
             timeline_range = config['timeline'][1] - config['timeline'][0]
             timeline = config['timeline'][0] + timeline_range * timeline / 100
         else:
             timeline = days_out
+
+        if monthly:
+            return get_monthly_option(self.broker.date + timedelta(days=timeline))
 
         target_date = None
         offset = 0
@@ -112,8 +115,8 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         else:
             dates = options['expiration_dates']
         while not target_date:
-            td1 = (self.broker.date + timedelta(days=timeline + offset)).strftime("%Y-%m-%d")
-            td2 = (self.broker.date + timedelta(days=timeline - offset)).strftime("%Y-%m-%d")
+            td1 = date_format(self.broker.date + timedelta(days=timeline + offset))
+            td2 = date_format(self.broker.date + timedelta(days=timeline - offset))
             if td1 in dates and td1 not in blacklist_dates:
                 target_date = td1
             elif td2 in dates and td2 not in blacklist_dates:
@@ -181,7 +184,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         return orders
 
     def make_trade(self, symbol: str, direction: str, iv_rank: int = 50, allocation: int = 3, timeline: int = 50,
-                   spread_width: int = 3, days_out: int = 0):
+                   spread_width: int = 3, days_out: int = 0, monthly: bool = False):
         if direction not in valid_directions:
             raise TradeConfigException("Invalid direction. Must be in " + str(valid_directions))
 

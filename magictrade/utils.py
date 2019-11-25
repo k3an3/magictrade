@@ -1,5 +1,6 @@
+import calendar
 import subprocess
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from glob import glob
 from os.path import join, dirname, basename
 
@@ -74,3 +75,15 @@ def send_trade(queue_name: str, args: Dict) -> str:
     storage.hmset("{}:{}".format(queue_name, identifier), args)
     storage.lpush(queue_name, identifier)
     return identifier
+
+
+def date_format(date: datetime) -> str:
+    return date.strftime("%Y-%m-%d")
+
+
+def get_monthly_option(start_date: datetime = None) -> str:
+    month = start_date.month
+    first_day_of_month = datetime(start_date.year, month, 1)
+    first_friday = first_day_of_month + timedelta(
+        days=((4 - calendar.monthrange(start_date.year, month)[0]) + 7) % 7)
+    return date_format(first_friday + timedelta(days=14))

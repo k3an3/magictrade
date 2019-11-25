@@ -431,6 +431,14 @@ class TestOAStrategy:
         assert oab._get_target_date({'timeline': [30, 60]}, options, days_out=45) == '2019-05-17'
         assert oab._get_target_date({'timeline': [30, 60]}, options, days_out=60) == '2019-05-17'
 
+    def test_get_target_date_monthly(self):
+        pmb = PaperMoneyBroker(account_id='test', balance=1_000_000, date=datetime.strptime('2019-11-24', '%Y-%m-%d'))
+        oab = OptionAlphaTradingStrategy(pmb)
+        options = {'expiration_dates': exp_dates}
+        assert oab._get_target_date({'timeline': [30, 60]}, options, days_out=30, monthly=True) == '2019-12-20'
+        assert oab._get_target_date({'timeline': [30, 60]}, options, days_out=45, monthly=True) == '2020-01-17'
+        assert oab._get_target_date({'timeline': [30, 60]}, options, days_out=60, monthly=True) == '2020-01-17'
+
     def test_iron_condor(self):
         pmb = PaperMoneyBroker(account_id='test')
         oab = OptionAlphaTradingStrategy(pmb)
