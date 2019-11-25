@@ -116,7 +116,7 @@ class RobinhoodBroker(Broker):
         if exp_dates:
             return Option.in_chain(self.client, options["id"], expiration_dates=exp_dates)
         elif option_type:
-            return [o for o in options if o["type"] == option_type]
+            return [RHOption(o) for o in options if o["type"] == option_type]
 
     def get_options_data(self, options: List) -> List:
         return self._normalize_options_data(Option.mergein_marketdata_list(self.client, options))
