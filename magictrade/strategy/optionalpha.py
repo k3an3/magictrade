@@ -196,7 +196,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         return orders
 
     def make_trade(self, symbol: str, direction: str, iv_rank: int = 50, allocation: int = 3, timeline: int = 50,
-                   spread_width: int = 3, days_out: int = 0, monthly: bool = False):
+                   spread_width: int = 3, days_out: int = 0, monthly: bool = False, exp_date: str = None):
         if direction not in valid_directions:
             raise TradeConfigException("Invalid direction. Must be in " + str(valid_directions))
 
@@ -231,7 +231,16 @@ class OptionAlphaTradingStrategy(TradingStrategy):
 
         attempts = 0
         while attempts <= 7:
-            target_date = self._get_target_date(config, options, timeline, days_out, blacklist_dates)
+            # Only try the specified date once.
+            if exp_date:
+                target_date = exp_date
+                attempts = 7
+            else:
+                target_date = self._get_target_date(config, options, timeline, days_out, blacklist_dates,
+                                                    monthly=monthly)
+                # Only try one monthly option
+                if monthly:
+                    attempts = 7
             blacklist_dates.add(target_date)
             attempts += 1
 
@@ -245,7 +254,8 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             except NoValidLegException:
                 continue
         else:
-            raise TradeException("Could not find a valid expiration date with suitable strikes.")
+            raise TradeException("Could not find a valid expiration date with suitable strikes, "
+                                 "or supplied expiration date has no options.")
 
         price = self._get_price(legs)
         allocation = get_allocation(self.broker, allocation)

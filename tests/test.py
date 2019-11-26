@@ -9,7 +9,7 @@ import pytest
 from data import quotes, human_quotes_1, reactive_quotes, oa_options_1, exp_dates, td_account_json
 
 from magictrade import storage
-from magictrade.broker import InsufficientFundsError, NonexistentAssetError, InvalidOptionError, Option
+from magictrade.broker import InsufficientFundsError, NonexistentAssetError, InvalidOptionError
 from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.broker.robinhood import RHOption
 from magictrade.broker.td_ameritrade import TDAmeritradeBroker, TDOption
@@ -215,6 +215,9 @@ class TestUtils:
 
     def test_get_risk(self):
         assert get_risk(3, 1.12) == 188
+
+    def test_get_risk_1(self):
+        assert get_risk(5, 2.50) == 250
 
 
 class TestBAHStrategy:
@@ -679,7 +682,6 @@ class TestOAStrategy:
             (RHOption({'strike_price': 42, 'type': 'put'}), 'buy'),
         )
         assert oab._butterfly_spread_width(legs) == 10
-
 
 
 class TestRobinhoodBroker:
