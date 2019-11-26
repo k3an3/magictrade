@@ -4,11 +4,15 @@ from typing import Dict
 
 from magictrade import Broker
 from magictrade.strategy import TradingStrategy
+from magictrade.strategy.registry import register_strategy
 
 logger = getLogger('magictrade')
 
 
+@register_strategy
 class ReactiveStrategy(TradingStrategy):
+    name = 'reactive'
+
     def __init__(self, broker: Broker, config: Dict = {}):
         self.config = config
         self.last_price = 0

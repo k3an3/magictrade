@@ -5,6 +5,7 @@ from typing import List, Dict
 from magictrade import Broker
 from magictrade.strategy import TradingStrategy, TradeException, TradeConfigException, filter_option_type, \
     TradeDateException
+from magictrade.strategy.registry import register_strategy
 from magictrade.utils import get_allocation, get_offset_date
 
 strategies = {
@@ -15,6 +16,7 @@ option_types = ('call', 'put')
 DATE_REGEX = re.compile(r'^(20[0-9]{2})-(0[1-9]|1[0-2])-([0-2][0-9]|3[01])$')
 
 
+@register_strategy
 class LongOptionTradingStrategy(TradingStrategy):
     name = 'longoption'
 

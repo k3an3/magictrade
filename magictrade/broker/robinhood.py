@@ -1,6 +1,5 @@
 import json
 import os
-from datetime import datetime
 from typing import Tuple, Any, List, Dict
 
 from fast_arrow import Client, Stock, OptionChain, Option, OptionOrder, OptionPosition, StockMarketdata, Portfolio
@@ -8,11 +7,50 @@ from fast_arrow.resources.account import Account
 
 from magictrade import Broker
 from magictrade.broker import InvalidOptionError
+from magictrade.broker import Option as OptionBase
+from magictrade.broker import OptionOrder as OptionBaseOrder
+from magictrade.broker.registry import register_broker
 
 token_filename = '.oauth2-token'
 
 
+class RHOption(OptionBase):
+    @property
+    def id(self):
+        return self.data['id']
+
+    @property
+    def option_type(self) -> str:
+        return self.data['type']
+
+    @property
+    def probability_otm(self) -> float:
+        return self.data['chance_of_profit_short'] or 0.0
+
+    @property
+    def strike_price(self) -> float:
+        return self.data['strike_price']
+
+    @property
+    def mark_price(self) -> float:
+        return self.data['mark_price']
+
+
+class RHOptionOrder(OptionBaseOrder):
+    @property
+    def id(self) -> str:
+        return str(self.data['id'])
+
+    @property
+    def legs(self):
+        return self.data['legs']
+
+
+@register_broker
 class RobinhoodBroker(Broker):
+    name = 'robinhood'
+    option = RHOption
+
     def __init__(self, username: str = None, password: str = None, mfa_code: str = None,
                  token_file: str = None):
         token_file = token_file or token_filename
@@ -33,10 +71,6 @@ class RobinhoodBroker(Broker):
                        'refresh_token': self.client.refresh_token}, f)
         self.portfolio = None
 
-    @property
-    def date(self) -> str:
-        return datetime.now()
-
     def get_quote(self, symbol: str) -> float:
         return float(StockMarketdata.quote_by_symbol(self.client, symbol)['last_trade_price'])
 
@@ -56,34 +90,39 @@ class RobinhoodBroker(Broker):
         return float(Account.all(self.client)[0]["buying_power"])
 
     def options_positions(self) -> List:
-        return OptionPosition.all(self.client, nonzero=True)
+        return {option['option']: option for option in OptionPosition.all(self.client, nonzero=True)}
 
     @staticmethod
     def _normalize_options_data(options):
         for option in options:
-            for key, value in option.items():
-                try:
-                    option[key] = float(value)
-                except (ValueError, TypeError):
-                    pass
+            if option.get('mark_price'):
+                for key, value in option.items():
+                    try:
+                        option[key] = float(value)
+                    except (ValueError, TypeError):
+                        pass
         return options
 
     def options_positions_data(self, options: List) -> List:
-        return self._normalize_options_data(OptionPosition.mergein_marketdata_list(self.client, options))
+        return [RHOption(o) for o in
+                self._normalize_options_data(OptionPosition.mergein_marketdata_list(self.client, options))]
 
     def get_options(self, symbol: str) -> List:
         stock = Stock.fetch(self.client, symbol)
 
         return OptionChain.fetch(self.client, stock["id"], symbol)
 
-    def filter_options_by_date(self, options: List, exp_dates: List):
-        return Option.in_chain(self.client, options["id"], expiration_dates=exp_dates)
+    def filter_options_by_date(self, options: List, exp_dates: List = [], option_type: str = None) -> List:
+        if exp_dates:
+            return Option.in_chain(self.client, options["id"], expiration_dates=exp_dates)
+        elif option_type:
+            return [RHOption(o) for o in options if o["type"] == option_type]
 
     def get_options_data(self, options: List) -> List:
         return self._normalize_options_data(Option.mergein_marketdata_list(self.client, options))
 
     def options_transact(self, legs: List[Dict], direction: str, price: float,
-                         quantity: int, effect: str = 'open', time_in_force: str = 'gfd') -> Tuple[Any, Any]:
+                         quantity: int, effect: str = 'open', time_in_force: str = 'gfd', **kwargs) -> Tuple[Any, Any]:
         if effect not in ('open', 'close') \
                 or direction not in ('credit', 'debit'):
             raise InvalidOptionError()
@@ -101,9 +140,9 @@ class RobinhoodBroker(Broker):
                 'ratio_quantity': str(int(leg.get('ratio_quantity', 1)))
             })
 
-        oo = OptionOrder.submit(self.client, direction, new_legs,
-                                str(abs(round(price, 2))), quantity, time_in_force, "immediate", "limit")
-        return oo
+        return RHOptionOrder(OptionOrder.submit(self.client, direction, new_legs,
+                                                str(abs(round(price, 2))), quantity, time_in_force, "immediate",
+                                                "limit"))
 
     def buy(self, symbol: str, quantity: int) -> Tuple[str, Any]:
         raise NotImplementedError()

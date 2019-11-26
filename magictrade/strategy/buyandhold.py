@@ -5,11 +5,15 @@ from typing import Dict
 from magictrade import Broker
 from magictrade.broker import InsufficientFundsError
 from magictrade.strategy import TradingStrategy
+from magictrade.strategy.registry import register_strategy
 
 logger = getLogger('magictrade')
 
 
+@register_strategy
 class BuyandHoldStrategy(TradingStrategy):
+    name = 'buyandhold'
+
     def __init__(self, broker: Broker, config: Dict = {}):
         self.config = config
         super().__init__(broker)

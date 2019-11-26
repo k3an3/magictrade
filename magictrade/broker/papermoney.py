@@ -7,12 +7,17 @@ import requests
 
 from magictrade import Position
 from magictrade.broker import Broker, InsufficientFundsError, NonexistentAssetError, InvalidOptionError
-from magictrade.broker.robinhood import RobinhoodBroker
+from magictrade.broker.registry import register_broker
+from magictrade.broker.robinhood import RobinhoodBroker, RHOption, RHOptionOrder
 
 API_KEY = "3KODWEPB1ZR37OT7"
 
 
+@register_broker
 class PaperMoneyBroker(Broker):
+    name = 'papermoney'
+    option = RHOption
+
     def __init__(self, balance: int = 1_000_000, data: Dict = {}, account_id: str = None,
                  date: str = None, data_files: List[Tuple[str, str]] = [],
                  options_data: Dict = [], exp_dates: Dict = {}, username: str = None,
@@ -50,14 +55,14 @@ class PaperMoneyBroker(Broker):
                 return self.rb.options_positions()
             except AttributeError:
                 pass
-        return self.options
+        return {option['option']: option for option in self.options}
 
     def options_positions_data(self, options: List) -> List:
         if self.options_data:
             for option in options:
                 for od in self.options_data:
                     if option['option'] == od['instrument']:
-                        option.update(od)
+                        option.data.update(od)
                         break
             return options
         return self.rb.options_positions_data(options)
@@ -74,14 +79,11 @@ class PaperMoneyBroker(Broker):
             return self.options_data
         return self.rb.get_options_data(options)
 
-    def filter_options_by_date(self, options: List, exp_dates: List):
-        if not self.options_data:
-            return self.rb.filter_options_by_date(options, exp_dates)
-        else:
-            results = []
-            for date in exp_dates:
-                results.extend([option for option in options if option['expiration_date'] == date])
-            return results
+    def filter_options(self, options: List, exp_dates: List = [], option_type: str = None):
+        if exp_dates:
+            return options
+        elif option_type:
+            return [RHOption(o) for o in options if o["type"] == option_type]
 
     def get_value(self) -> float:
         value = self.balance
@@ -136,7 +138,7 @@ class PaperMoneyBroker(Broker):
                                    'c' if option_type == 'call' else 'p')
 
     def options_transact(self, legs: List[Dict], direction: str, price: float,
-                         quantity: int, effect: str = 'open', time_in_force: str = "gfd") -> Tuple[Any, Any]:
+                         quantity: int, effect: str = 'open', time_in_force: str = "gfd", **kwargs) -> Tuple[Any, Any]:
         if effect not in ('open', 'close') \
                 or direction not in ('credit', 'debit'):
             raise InvalidOptionError()
@@ -157,7 +159,7 @@ class PaperMoneyBroker(Broker):
                 'ratio_quantity': '1',
                 'id': str(uuid.uuid4()),
             })
-        return {'id': str(uuid.uuid4()), 'legs': new_legs}
+        return RHOptionOrder({'id': str(uuid.uuid4()), 'legs': new_legs})
 
     def buy(self, symbol: str, quantity: int) -> Tuple[str, Position]:
         debit = self.get_quote(symbol) * quantity

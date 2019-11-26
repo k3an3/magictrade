@@ -5,7 +5,14 @@ from typing import List, Dict
 
 from py_expression_eval import Parser
 
-from magictrade import Broker, storage
+from magictrade import storage
+from magictrade.broker import Broker, OptionOrder
+from magictrade.strategy.registry import strategies
+
+
+def load_strategies():
+    from magictrade.utils import import_modules
+    import_modules(__file__, 'strategy')
 
 
 class TradingStrategy(ABC):
@@ -38,8 +45,9 @@ class TradingStrategy(ABC):
 
     def get_current_positions(self):
         positions = storage.lrange(self.get_name() + ":positions", 0, -1)
-        account_positions = self.broker.options_positions()
-        owned_options = {option['option']: option for option in account_positions}
+        if not positions:
+            return
+        owned_options = self.broker.options_positions()
 
         for position in positions:
             data = storage.hgetall("{}:{}".format(self.get_name(), position))
@@ -53,7 +61,7 @@ class TradingStrategy(ABC):
             leg_ids = storage.lrange("{}:{}:legs".format(self.get_name(), position), 0, -1)
             legs = []
             for leg in leg_ids:
-                legs.append(storage.hgetall("{}:leg:{}".format(self.get_name(), leg)))
+                legs.append(self.broker.option(storage.hgetall("{}:leg:{}".format(self.get_name(), leg))))
             # Make sure we still own all legs, else abandon management of this position.
             if self.check_positions(legs, owned_options):
                 self.delete_position(position)
@@ -62,20 +70,20 @@ class TradingStrategy(ABC):
                 continue
             yield position, data, legs
 
-    def save_order(self, option_order: Dict, legs: List, order_data: Dict = {},
+    def save_order(self, option_order: OptionOrder, legs: List, order_data: Dict = {},
                    close_criteria: Dict = {}, **kwargs):
         if close_criteria:
             kwargs['close_criteria'] = json.dumps(close_criteria)
-        storage.lpush(self.get_name() + ":positions", option_order["id"])
-        storage.lpush(self.get_name() + ":all_positions", option_order["id"])
-        storage.hmset("{}:{}".format(self.get_name(), option_order["id"]),
+        storage.lpush(self.get_name() + ":positions", option_order.id)
+        storage.lpush(self.get_name() + ":all_positions", option_order.id)
+        storage.hmset("{}:{}".format(self.get_name(), option_order.id),
                       {
                           'time': datetime.now().timestamp(),
                           **kwargs,
                           **order_data,
                       })
-        for leg in option_order["legs"]:
-            storage.lpush("{}:{}:legs".format(self.get_name(), option_order["id"]),
+        for leg in option_order.legs:
+            storage.lpush("{}:{}:legs".format(self.get_name(), option_order.id),
                           leg["id"])
             leg.pop('executions', None)
             storage.hmset("{}:leg:{}".format(self.get_name(), leg["id"]), leg)
@@ -103,6 +111,7 @@ class TradingStrategy(ABC):
 
 def filter_option_type(options: List, o_type: str):
     return [o for o in options if o["type"] == o_type]
+        storage.set("{}:raw:{}".format(self.get_name(), option_order.id), str(legs))
 
 
 class TradeException(Exception):

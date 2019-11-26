@@ -10,14 +10,13 @@ setup(
     author_email='keane.m.okelley@gmail.com',
     description='',
     install_requires=[
+        'py-expression-eval',
         'pytest',
         'redis',
-        'fast_arrow',
         'requests',
-        'py-expression-eval',
-    ],
-    dependency_links=[
-        'https://github.com/k3an3/fast_arrow@dev#egg=fast_arrow'
+        'scipy',
+        'fast_arrow @ git+https://github.com/k3an3/fast_arrow@dev#egg=fast_arrow',
+        'tdameritrade @ git+https://github.com/k3an3/tdameritrade@add-option-trades#egg=tdameritrade',
     ],
     entry_points={
         'console_scripts': [

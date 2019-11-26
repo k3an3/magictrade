@@ -1,6 +1,13 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
+from typing import Tuple, Any, List, Dict
 
-from typing import Tuple, Any, List
+from magictrade.broker.registry import brokers
+
+
+def load_brokers():
+    from magictrade.utils import import_modules
+    import_modules(__file__, 'broker')
 
 
 class InsufficientFundsError(Exception):
@@ -13,6 +20,56 @@ class NonexistentAssetError(Exception):
 
 class InvalidOptionError(Exception):
     pass
+
+
+class Option(dict, ABC):
+    def __init__(self, option_data: Dict):
+        super().__init__(option_data)
+        self.data = option_data
+
+    def __getattr__(self, item):
+        if item == 'get':
+            return self.data.get
+
+    @property
+    @abstractmethod
+    def id(self):
+        pass
+
+    @property
+    @abstractmethod
+    def option_type(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def probability_otm(self) -> float:
+        pass
+
+    @property
+    @abstractmethod
+    def strike_price(self) -> float:
+        pass
+
+    @property
+    @abstractmethod
+    def mark_price(self) -> float:
+        pass
+
+
+class OptionOrder(ABC):
+    def __init__(self, order_data: Dict):
+        self.data = order_data
+
+    @property
+    @abstractmethod
+    def id(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def legs(self):
+        pass
 
 
 class Broker(ABC):
@@ -40,9 +97,8 @@ class Broker(ABC):
         pass
 
     @property
-    @abstractmethod
     def date(self) -> str:
-        pass
+        return datetime.now()
 
     @abstractmethod
     def options_positions(self) -> List:
@@ -59,11 +115,12 @@ class Broker(ABC):
         return options
 
     @abstractmethod
-    def filter_options_by_date(self, options: List, exp_dates: List):
+    def filter_options_by_date(self, options: List, exp_dates: List, option_type: str = None) -> List[Option]:
         pass
 
     @abstractmethod
-    def options_transact(self, legs: List, direction: str, price: float, quantity: int, effect: str) -> Tuple[Any, Any]:
+    def options_transact(self, legs: List, direction: str, price: float, quantity: int, effect: str, **kwargs) -> Tuple[
+        Any, Any]:
         pass
 
     @abstractmethod
@@ -91,3 +148,11 @@ class Broker(ABC):
         value = self.get_value()
         storage.rpush(self.account_id + ':dates', self.date.strftime("%Y-%m-%d %H-%M-%S"))
         storage.rpush(self.account_id + ':values', value)
+
+    @staticmethod
+    def parse_leg(leg: Dict) -> (Dict, str):
+        if len(leg) == 2:
+            leg, action = leg
+        else:
+            action = leg['side']
+        return leg, action

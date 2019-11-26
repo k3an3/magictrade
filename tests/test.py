@@ -1,12 +1,18 @@
+import json
 import uuid
 from datetime import datetime
+from os.path import join, dirname
+from typing import Dict
+from unittest.mock import patch
 
 import pytest
-from data import quotes, human_quotes_1, reactive_quotes, test_options_1, exp_dates
+from data import quotes, human_quotes_1, reactive_quotes, test_options_1, exp_dates, td_account_json
 
 from magictrade import storage
-from magictrade.broker import InsufficientFundsError, NonexistentAssetError
+from magictrade.broker import InsufficientFundsError, NonexistentAssetError, InvalidOptionError
 from magictrade.broker.papermoney import PaperMoneyBroker
+from magictrade.broker.robinhood import RHOption
+from magictrade.broker.td_ameritrade import TDAmeritradeBroker, TDOption
 from magictrade.strategy import filter_option_type, TradeConfigException, TradeDateException, TradeCriteriaException
 from magictrade.strategy.buyandhold import BuyandHoldStrategy
 from magictrade.strategy.human import HumanTradingStrategy, DEFAULT_CONFIG
@@ -14,6 +20,7 @@ from magictrade.strategy.longoption import LongOptionTradingStrategy
 from magictrade.strategy.optionalpha import OptionAlphaTradingStrategy, strategies, TradeException, high_iv
 from magictrade.strategy.reactive import ReactiveStrategy
 from magictrade.utils import get_account_history, get_percentage_change, get_allocation
+from magictrade.utils import get_account_history, get_percentage_change, get_allocation, calculate_percent_otm, get_risk
 
 date = datetime.strptime("2019-03-31", "%Y-%m-%d")
 
@@ -26,7 +33,7 @@ class TestRunner:
         pass
 
 
-class TestPaperMoney:
+class TestPaperMoneyBroker:
     def test_date(self):
         pmb = PaperMoneyBroker(account_id='test', date='1234')
         assert pmb.date == '1234'
@@ -92,6 +99,16 @@ class TestPaperMoney:
         pmb = PaperMoneyBroker(account_id='test', data=quotes)
         with pytest.raises(NonexistentAssetError):
             pmb.sell('SPY', 1)
+
+    def test_filter_option_type_call(self):
+        pmb = PaperMoneyBroker(account_id='test', )
+        for option in pmb.filter_options(oa_options_1, option_type='call'):
+            assert option.option_type == 'call'
+
+    def test_filter_option_type_put(self):
+        pmb = PaperMoneyBroker(account_id='test', )
+        for option in pmb.filter_options(oa_options_1, option_type='put'):
+            assert option.option_type == 'put'
 
     """
     def test_buy_option(self):
@@ -202,6 +219,16 @@ class TestUtils:
         assert get_percentage_change(100, 200) == 100
         assert round(get_percentage_change(100, 100.57), 2) == 0.57
         assert get_percentage_change(100, 50) == -50
+
+    def test_prob_otm(self):
+        assert calculate_percent_otm(311.79, 313, 7.45, 4) == 0.69
+        assert calculate_percent_otm(311.79, 308, 7.30, 4) == 0.95
+
+    def test_get_risk(self):
+        assert get_risk(3, 1.12) == 188
+
+    def test_get_risk_1(self):
+        assert get_risk(5, 2.50) == 250
 
 
 class TestBAHStrategy:
@@ -319,86 +346,68 @@ class TestHumanStrategy:
 
 
 class TestOAStrategy:
-    def test_filter_option_type_call(self):
-        pmb = PaperMoneyBroker(account_id='test', )
-        oab = OptionAlphaTradingStrategy(pmb)
-        for option in filter_option_type(test_options_1, 'call'):
-            assert option['type'] == 'call'
-
-    def test_filter_option_type_put(self):
-        pmb = PaperMoneyBroker(account_id='test', )
-        oab = OptionAlphaTradingStrategy(pmb)
-        for option in filter_option_type(test_options_1, 'put'):
-            assert option['type'] == 'put'
-
     def test_find_probability_call_short(self):
         pmb = PaperMoneyBroker(account_id='test', )
         oab = OptionAlphaTradingStrategy(pmb)
-        calls = filter_option_type(test_options_1, 'call')
-        assert oab._find_option_with_probability(calls, 70, 'short')['id'] == '9d870f5d-bd44-4750-8ff6-7aee58249b9f'
+        calls = pmb.filter_options(test_options_1, option_type='call')
+        assert oab._find_option_with_probability(calls, 70, 'short').id == '9d870f5d-bd44-4750-8ff6-7aee58249b9f'
 
     def test_find_probability_call_long(self):
         pmb = PaperMoneyBroker(account_id='test', )
         oab = OptionAlphaTradingStrategy(pmb)
-        calls = filter_option_type(test_options_1, 'call')
-        assert oab._find_option_with_probability(calls, 48, 'long')['id'] == '03facad1-959d-4674-85d5-79d50ff75ea6'
+        calls = pmb.filter_options(test_options_1, option_type='call')
+        assert oab._find_option_with_probability(calls, 48, 'long').id == '03facad1-959d-4674-85d5-79d50ff75ea6'
 
     def test_find_probability_put_short(self):
         pmb = PaperMoneyBroker(account_id='test', )
         oab = OptionAlphaTradingStrategy(pmb)
-        puts = filter_option_type(test_options_1, 'put')
-        assert oab._find_option_with_probability(puts, 72, 'short')['id'] == 'f3acdb4d-82da-417b-ad13-5255613745bd'
-
-    def test_find_probability_put_long(self):
-        pmb = PaperMoneyBroker(account_id='test', )
-        oab = OptionAlphaTradingStrategy(pmb)
-        puts = filter_option_type(test_options_1, 'put')
-        assert oab._find_option_with_probability(puts, 27, 'long')['id'] == 'f3acdb4d-82da-417b-ad13-5255613745bd'
+        puts = pmb.filter_options(oa_options_1, option_type='put')
+        assert oab._find_option_with_probability(puts, 72, 'short').id == 'f3acdb4d-82da-417b-ad13-5255613745bd'
 
     def test_get_long_leg_put(self):
         pmb = PaperMoneyBroker(account_id='test', )
         oab = OptionAlphaTradingStrategy(pmb)
-        puts = filter_option_type(test_options_1, 'put')
+        puts = pmb.filter_options(test_options_1, option_type='put')
         for option in puts:
-            if option['strike_price'] == 38.5:
+            if option.strike_price == 38.5:
                 short_leg = option
-        assert oab._get_long_leg(puts, short_leg, 'put', width=1)['strike_price'] == 37.5
+        assert oab._get_long_leg(puts, short_leg, 'put', width=1).strike_price == 37.5
 
     def test_get_long_leg_put_1(self):
         pmb = PaperMoneyBroker(account_id='test', )
         oab = OptionAlphaTradingStrategy(pmb)
-        puts = filter_option_type(test_options_1, 'put')
+        puts = pmb.filter_options(test_options_1, option_type='put')
         for option in puts:
-            if option['strike_price'] == 38.5:
+            if option.strike_price == 38.5:
                 short_leg = option
-        assert oab._get_long_leg(puts, short_leg, 'put', width=2.5)['strike_price'] == 36.0
+        assert oab._get_long_leg(puts, short_leg, 'put', width=2.5).strike_price == 36.0
 
     def test_get_long_leg_call(self):
         pmb = PaperMoneyBroker(account_id='test', )
         oab = OptionAlphaTradingStrategy(pmb)
-        puts = filter_option_type(test_options_1, 'call')
+        puts = pmb.filter_options(test_options_1, option_type='call')
         for option in puts:
-            if option['strike_price'] == 38.0:
+            if option.strike_price == 38.0:
                 short_leg = option
-        assert oab._get_long_leg(puts, short_leg, 'call', width=1)['strike_price'] == 39.0
+        assert oab._get_long_leg(puts, short_leg, 'call', width=1).strike_price == 39.0
 
     def test_get_long_leg_call_1(self):
         pmb = PaperMoneyBroker(account_id='test', )
         oab = OptionAlphaTradingStrategy(pmb)
-        puts = filter_option_type(test_options_1, 'call')
+        puts = pmb.filter_options(test_options_1, option_type='call')
         for option in puts:
-            if option['strike_price'] == 38.0:
+            if option.strike_price == 38.0:
                 short_leg = option
-        assert oab._get_long_leg(puts, short_leg, 'call', width=2.5)['strike_price'] == 40.5
+        assert oab._get_long_leg(puts, short_leg, 'call', width=2.5).strike_price == 40.5
 
     def test_iron_butterfly(self):
         pmb = PaperMoneyBroker(account_id='test', )
         oab = OptionAlphaTradingStrategy(pmb)
         wings = oab.iron_butterfly(strategies['iron_butterfly'], test_options_1, quote=39.5)
-        assert wings[0][0]['strike_price'] == 39.5
-        assert wings[1][0]['strike_price'] == 39.5
-        assert wings[2][0]['strike_price'] == 42.0
-        assert wings[3][0]['strike_price'] == 36.5
+        assert wings[0][0].strike_price == 39.5
+        assert wings[1][0].strike_price == 39.5
+        assert wings[2][0].strike_price == 42.0
+        assert wings[3][0].strike_price == 36.5
         assert wings[0][1] == 'sell'
         assert wings[1][1] == 'sell'
         assert wings[2][1] == 'buy'
@@ -409,10 +418,10 @@ class TestOAStrategy:
         oab = OptionAlphaTradingStrategy(pmb)
         strategies['iron_butterfly']['probability'] = 75
         wings = oab.iron_butterfly(strategies['iron_butterfly'], test_options_1, quote=39.5)
-        assert wings[0][0]['strike_price'] == 39.5
-        assert wings[1][0]['strike_price'] == 39.5
-        assert wings[2][0]['strike_price'] == 40.5
-        assert wings[3][0]['strike_price'] == 38.0
+        assert wings[0][0].strike_price == 39.5
+        assert wings[1][0].strike_price == 39.5
+        assert wings[2][0].strike_price == 40.5
+        assert wings[3][0].strike_price == 38.0
         assert wings[0][1] == 'sell'
         assert wings[1][1] == 'sell'
         assert wings[2][1] == 'buy'
@@ -440,14 +449,22 @@ class TestOAStrategy:
         assert oab._get_target_date({'timeline': [30, 60]}, options, days_out=45) == '2019-05-17'
         assert oab._get_target_date({'timeline': [30, 60]}, options, days_out=60) == '2019-05-17'
 
+    def test_get_target_date_monthly(self):
+        pmb = PaperMoneyBroker(account_id='test', balance=1_000_000, date=datetime.strptime('2019-11-24', '%Y-%m-%d'))
+        oab = OptionAlphaTradingStrategy(pmb)
+        options = {'expiration_dates': exp_dates}
+        assert oab._get_target_date({'timeline': [30, 60]}, options, days_out=30, monthly=True) == '2019-12-20'
+        assert oab._get_target_date({'timeline': [30, 60]}, options, days_out=45, monthly=True) == '2020-01-17'
+        assert oab._get_target_date({'timeline': [30, 60]}, options, days_out=60, monthly=True) == '2020-01-17'
+
     def test_iron_condor(self):
         pmb = PaperMoneyBroker(account_id='test')
         oab = OptionAlphaTradingStrategy(pmb)
         wings = oab.iron_condor(strategies['iron_condor'], test_options_1, width=1)
-        assert wings[0][0]['strike_price'] == 42.0
-        assert wings[1][0]['strike_price'] == 43.0
-        assert wings[2][0]['strike_price'] == 36.5
-        assert wings[3][0]['strike_price'] == 35.5
+        assert wings[0][0].strike_price == 42.0
+        assert wings[1][0].strike_price == 43.0
+        assert wings[2][0].strike_price == 36.5
+        assert wings[3][0].strike_price == 35.5
         assert wings[0][1] == 'sell'
         assert wings[1][1] == 'buy'
         assert wings[2][1] == 'sell'
@@ -457,8 +474,8 @@ class TestOAStrategy:
         pmb = PaperMoneyBroker(account_id='test', )
         oab = OptionAlphaTradingStrategy(pmb)
         legs = oab.credit_spread(strategies['credit_spread'], test_options_1, direction='bullish', width=3)
-        assert legs[0][0]['strike_price'] == 38.5
-        assert legs[1][0]['strike_price'] == 35.5
+        assert legs[0][0].strike_price == 38.5
+        assert legs[1][0].strike_price == 35.5
         assert legs[0][1] == 'sell'
         assert legs[1][1] == 'buy'
 
@@ -466,8 +483,8 @@ class TestOAStrategy:
         pmb = PaperMoneyBroker(account_id='test', )
         oab = OptionAlphaTradingStrategy(pmb)
         legs = oab.credit_spread(strategies['credit_spread'], test_options_1, direction='bearish', width=4.5)
-        assert legs[0][0]['strike_price'] == 40.0
-        assert legs[1][0]['strike_price'] == 44.5
+        assert legs[0][0].strike_price == 40.0
+        assert legs[1][0].strike_price == 44.5
         assert legs[0][1] == 'sell'
         assert legs[1][1] == 'buy'
 
@@ -516,6 +533,11 @@ class TestOAStrategy:
         oab = OptionAlphaTradingStrategy(pmb)
         assert oab._get_quantity(30_000, 3) == 100
 
+    def test_get_quantity_price(self):
+        pmb = PaperMoneyBroker(account_id='test', )
+        oab = OptionAlphaTradingStrategy(pmb)
+        assert oab._get_quantity(30_000, 3, 1.56) == 208
+
     def test_make_trade_neutral_mid_iv(self):
         pmb = PaperMoneyBroker(account_id='test', date=date, data=quotes, options_data=test_options_1,
                                exp_dates=exp_dates)
@@ -523,10 +545,10 @@ class TestOAStrategy:
         result = oab.make_trade('MU', 'neutral', 52)
         assert result['strategy'] == 'iron_condor'
         assert oab._get_price(result['legs']) <= pmb.balance * 0.03
-        assert result['legs'][0][0]["strike_price"] == 42.0
+        assert result['legs'][0][0].strike_price == 42.0
         assert oab._get_price(result['legs']) == 0.31
-        assert result['quantity'] == 100
-        assert result['price'] == 31.0
+        assert result['quantity'] == 111
+        assert result['price'] == 34.41
 
     def test_make_trade_neutral_high_iv(self):
         pmb = PaperMoneyBroker(account_id='test', date=date, data=quotes, options_data=test_options_1,
@@ -535,9 +557,9 @@ class TestOAStrategy:
         result = oab.make_trade('MU', 'neutral', high_iv)
         assert result['strategy'] == 'iron_butterfly'
         assert oab._get_price(result['legs']) <= pmb.balance * 0.03
-        assert result['legs'][0][0]["strike_price"] == 38.5
-        assert result['quantity'] == 100
-        assert round(result['price'], 2) == 110.5
+        assert result['legs'][0][0].strike_price == 38.5
+        assert result['quantity'] == 335
+        assert round(result['price'], 2) == 370.17
 
     def test_make_trade_bearish(self):
         pmb = PaperMoneyBroker(account_id='test', date=date, data=quotes, options_data=test_options_1,
@@ -546,12 +568,12 @@ class TestOAStrategy:
         result = oab.make_trade('MU', 'bearish', high_iv)
         assert result['strategy'] == 'credit_spread'
         assert oab._get_price(result['legs']) <= pmb.balance * 0.03
-        assert result['legs'][0][0]["strike_price"] == 40.0
-        assert result['quantity'] == 100
-        assert round(result['price'], 2) == 55.5
+        assert result['legs'][0][0].strike_price == 40.0
+        assert result['quantity'] == 122
+        assert round(result['price'], 2) == 67.71
 
     def test_delete_position(self):
-        name = 'oatrading-testdel'
+        name = 'optionalpha-testdel'
         pmb = PaperMoneyBroker(account_id='testdel')
         test_id = str(uuid.uuid4())
         oab = OptionAlphaTradingStrategy(pmb)
@@ -578,12 +600,12 @@ class TestOAStrategy:
                                   legs)
 
     def test_storage(self):
-        name = 'oatrading-teststor'
+        name = 'optionalpha-teststor'
         pmb = PaperMoneyBroker(account_id='teststor', date=date, data=quotes, options_data=test_options_1,
                                exp_dates=exp_dates)
         oab = OptionAlphaTradingStrategy(pmb)
         result = oab.make_trade('MU', 'bearish', high_iv)
-        oid = result['order']["id"]
+        oid = result['order'].id
         assert oid == storage.lrange(name + ":positions", 0, -1)[0]
         data = storage.hgetall("{}:{}".format(name, oid))
         assert data['strategy'] == 'credit_spread'
@@ -591,8 +613,8 @@ class TestOAStrategy:
         assert float(data['price']) == result['price'] / result['quantity']
         legs = storage.lrange("{}:{}:legs".format(name, oid), 0, -1)
         assert len(legs) == 2
-        assert result['order']["legs"][0]["id"] in legs
-        assert result['order']["legs"][1]["id"] in legs
+        assert result['order'].legs[0]["id"] in legs
+        assert result['order'].legs[1]["id"] in legs
         oab.delete_position(oid)
 
     def test_maintenance_no_action(self):
@@ -608,7 +630,7 @@ class TestOAStrategy:
         name = 'testmaint-' + str(uuid.uuid4())
         pmb = PaperMoneyBroker(account_id=name, date=date, data=quotes, options_data=test_options_1,
                                exp_dates=exp_dates)
-        name = 'oatrading-' + name
+        name = 'optionalpha-' + name
         test_id = str(uuid.uuid4())
         id_1 = str(uuid.uuid4())
         id_2 = str(uuid.uuid4())
@@ -639,7 +661,7 @@ class TestOAStrategy:
             {'option': 'https://api.robinhood.com/options/instruments/9d870f5d-bd44-4750-8ff6-7aee58249b9f/'}]
         orders = oab.maintenance()
         assert len(orders) == 1
-        assert len(orders[0]['legs']) == 2
+        assert len(orders[0].legs) == 2
         assert not storage.lrange(name + ":positions", 0, -1)
 
     def test_trade_insufficient_balance(self):
@@ -968,3 +990,161 @@ class TestTradingStrategyBase:
                 'expr': 'price < 200'
             }
         ], price=100, date=current_time.timestamp())
+
+    def test_butterfly_spread_width(self):
+        pmb = PaperMoneyBroker('test-balance')
+        oab = OptionAlphaTradingStrategy(pmb)
+        legs = (
+            (RHOption({'strike_price': 52, 'type': 'call'}), 'sell'),
+            (RHOption({'strike_price': 59, 'type': 'call'}), 'buy'),
+            (RHOption({'strike_price': 52, 'type': 'put'}), 'sell'),
+            (RHOption({'strike_price': 47, 'type': 'put'}), 'buy'),
+        )
+        assert oab._butterfly_spread_width(legs) == 7
+
+    def test_butterfly_spread_width_1(self):
+        pmb = PaperMoneyBroker('test-balance')
+        oab = OptionAlphaTradingStrategy(pmb)
+        legs = (
+            (RHOption({'strike_price': 52, 'type': 'call'}), 'sell'),
+            (RHOption({'strike_price': 59, 'type': 'call'}), 'buy'),
+            (RHOption({'strike_price': 52, 'type': 'put'}), 'sell'),
+            (RHOption({'strike_price': 42, 'type': 'put'}), 'buy'),
+        )
+        assert oab._butterfly_spread_width(legs) == 10
+
+
+class TestRobinhoodBroker:
+    pass
+
+
+class TestTDAmeritradeBroker:
+    @pytest.fixture
+    def broker(self):
+        with patch('requests.request') as m:
+            m.return_value.status_code = 200
+            m.return_value.json.return_value = td_account_json
+            return TDAmeritradeBroker(client_id='asdf', account_id='<accountno>', access_token='access',
+                                      refresh_token='refresh')
+
+    @pytest.fixture
+    def options(self, broker: TDAmeritradeBroker):
+        with open(join(dirname(__file__), 'data', 'td_ameritrade_spy_options.json')) as f:
+            raw_options = json.load(f)
+        with patch('requests.request') as m:
+            m.return_value.status_code = 200
+            m.return_value.json.return_value = raw_options
+            return broker.get_options('SPY')
+
+    def test_options(self, broker: TDAmeritradeBroker, options: Dict):
+        assert '2019-12-04' in options['expiration_dates']
+        assert len(options['put']) == 36
+        assert len(options['call']) == 36
+
+    def test_balance(self, broker: TDAmeritradeBroker):
+        with patch('requests.request') as m:
+            m.return_value.status_code = 200
+            m.return_value.json.return_value = td_account_json['<accountno>']
+            assert broker.balance == 2729.96
+
+    def test_buying_power(self, broker: TDAmeritradeBroker):
+        with patch('requests.request') as m:
+            m.return_value.status_code = 200
+            m.return_value.json.return_value = td_account_json['<accountno>']
+            assert broker.buying_power == 1980.97
+
+    def test_filter_options_date(self, broker: TDAmeritradeBroker, options: Dict):
+        filtered = broker.filter_options(options, ['2019-12-04'])
+        assert len(filtered['call']) == 53
+        assert len(filtered['put']) == 53
+
+    def test_mark_price(self):
+        assert TDOption({'mark': 150}).mark_price == 150
+
+    def test_filter_options_type_puts(self, broker: TDAmeritradeBroker, options: Dict):
+        filtered = broker.filter_options(options, ['2019-12-23'])
+        filtered = broker.filter_options(filtered, option_type='put')
+        assert len(filtered) == 23
+        for option in filtered:
+            assert option.option_type == 'put'
+
+    def test_filter_options_type_calls(self, broker: TDAmeritradeBroker, options: Dict):
+        filtered = broker.filter_options(options, ['2019-12-31'])
+        filtered = broker.filter_options(filtered, option_type='call')
+        assert len(filtered) == 124
+        for option in filtered:
+            assert option.option_type == 'call'
+
+    def test_options_transact_invalid(self, broker: TDAmeritradeBroker):
+        with pytest.raises(InvalidOptionError):
+            broker.options_transact([], None, 0.0, 1, 'buy')
+
+    def test_find_probability_call_short(self, broker: TDAmeritradeBroker, options: Dict):
+        oab = OptionAlphaTradingStrategy(broker)
+        options_by_date = broker.filter_options(options, ['2019-12-04'])
+        calls = broker.filter_options(options_by_date, option_type='call')
+        assert oab._find_option_with_probability(calls, 70, 'short').id == 'SPY_120419C315'
+
+    def test_find_probability_put_short(self, broker: TDAmeritradeBroker, options: Dict):
+        oab = OptionAlphaTradingStrategy(broker)
+        options_by_date = broker.filter_options(options, ['2019-12-04'])
+        puts = broker.filter_options(options_by_date, option_type='put')
+        assert oab._find_option_with_probability(puts, 70, 'short').id == 'SPY_120419P308'
+
+    def test_get_long_leg_put(self, broker: TDAmeritradeBroker, options: Dict):
+        oab = OptionAlphaTradingStrategy(broker)
+        options_by_date = broker.filter_options(options, ['2019-12-04'])
+        puts = broker.filter_options(options_by_date, option_type='put')
+        for option in puts:
+            if option.strike_price == 315.0:
+                short_leg = option
+        assert oab._get_long_leg(puts, short_leg, 'put', width=1).strike_price == 314.0
+
+    def test_get_long_leg_put_1(self, broker: TDAmeritradeBroker, options: Dict):
+        oab = OptionAlphaTradingStrategy(broker)
+        options_by_date = broker.filter_options(options, ['2019-12-04'])
+        puts = broker.filter_options(options_by_date, option_type='put')
+        for option in puts:
+            if option.strike_price == 315.0:
+                short_leg = option
+        assert oab._get_long_leg(puts, short_leg, 'put', width=2.5).strike_price == 312.0
+
+    def test_get_long_leg_call(self, broker: TDAmeritradeBroker, options: Dict):
+        oab = OptionAlphaTradingStrategy(broker)
+        options_by_date = broker.filter_options(options, ['2019-12-04'])
+        calls = broker.filter_options(options_by_date, option_type='call')
+        for option in calls:
+            if option.strike_price == 315.0:
+                short_leg = option
+        assert oab._get_long_leg(calls, short_leg, 'call', width=1).strike_price == 316.0
+
+    def test_get_long_leg_call_1(self, broker: TDAmeritradeBroker, options: Dict):
+        oab = OptionAlphaTradingStrategy(broker)
+        options_by_date = broker.filter_options(options, ['2019-12-04'])
+        calls = broker.filter_options(options_by_date, option_type='call')
+        for option in calls:
+            if option.strike_price == 315.0:
+                short_leg = option
+        assert oab._get_long_leg(calls, short_leg, 'call', width=2.5).strike_price == 318.0
+
+    def test_credit_spread(self, broker: TDAmeritradeBroker, options: Dict):
+        oab = OptionAlphaTradingStrategy(broker)
+        options_by_date = broker.filter_options(options, ['2019-12-04'])
+        legs = oab.credit_spread(strategies['credit_spread'], options_by_date, direction='bullish', width=3)
+        assert legs[0][0].strike_price == 308.0
+        assert legs[1][0].strike_price == 305.0
+        assert legs[0][1] == 'sell'
+        assert legs[1][1] == 'buy'
+
+    def test_iron_condor(self, broker: TDAmeritradeBroker, options: Dict):
+        oab = OptionAlphaTradingStrategy(broker)
+        options_by_date = broker.filter_options(options, ['2019-12-04'])
+        wings = oab.iron_condor(strategies['iron_condor'], options_by_date, width=1)
+        assert wings[0][0].strike_price == 318.0
+        assert wings[1][0].strike_price == 319.0
+        assert wings[2][0].strike_price == 302.0
+        assert wings[3][0].strike_price == 301.0
+        assert wings[0][1] == 'sell'
+        assert wings[1][1] == 'buy'
+        assert wings[2][1] == 'sell'
+        assert wings[3][1] == 'buy'
