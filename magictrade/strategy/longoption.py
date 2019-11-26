@@ -1,4 +1,3 @@
-import datetime
 import re
 from typing import List, Dict
 
@@ -32,12 +31,11 @@ class LongOptionTradingStrategy(TradingStrategy):
 
     def get_option(self, symbol: str, option_type: str, expiration_date: str, strike_price: float) -> Dict:
         options = filter_option_type(self.broker.get_options(symbol), option_type)
-        options = self.broker.filter_options_by_date(options, [expiration_date])
+        options = self.broker.filter_options(options, [expiration_date])
         if not options:
             raise TradeDateException(
                 f"No options for {symbol} found with the provided expiration date '{expiration_date}'.")
-        # Get data, but not all options will return data. Filter them out.
-        options = [o for o in self.broker.get_options_data(options) if o.get('mark_price')]
+        options = self.broker.get_options_data(options)
 
         try:
             return self.find_option(options, strike_price)
@@ -75,7 +73,7 @@ class LongOptionTradingStrategy(TradingStrategy):
                             strike_price)
         symbol = symbol.upper()
         quote = self.broker.get_quote(symbol)
-        date = datetime.datetime.now()
+        date = self.broker.date
         if not quote:
             raise TradeException("Error getting quote for " + symbol)
 
@@ -115,7 +113,7 @@ class LongOptionTradingStrategy(TradingStrategy):
                         expires=expiration_date)
 
         self.log("[{}]: Bought {} in {} with quantity {} and price {}.".format(
-            option_order["id"],
+            option_order.id,
             option_type,
             symbol,
             quantity,

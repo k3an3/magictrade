@@ -87,7 +87,7 @@ class TradingStrategy(ABC):
                           leg["id"])
             leg.pop('executions', None)
             storage.hmset("{}:leg:{}".format(self.get_name(), leg["id"]), leg)
-        storage.set("{}:raw:{}".format(self.get_name(), option_order["id"]), str(legs))
+        storage.set("{}:raw:{}".format(self.get_name(), option_order.id), str(legs))
 
     @staticmethod
     def evaluate_criteria(criteria, **kwargs) -> bool:
@@ -111,7 +111,6 @@ class TradingStrategy(ABC):
 
 def filter_option_type(options: List, o_type: str):
     return [o for o in options if o["type"] == o_type]
-        storage.set("{}:raw:{}".format(self.get_name(), option_order.id), str(legs))
 
 
 class TradeException(Exception):

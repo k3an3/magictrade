@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import timedelta, datetime
 from typing import List, Dict, Tuple
 
 from magictrade import Broker, storage
@@ -254,7 +254,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             blacklist_dates.add(target_date)
             attempts += 1
 
-            if not (options_on_date := self.broker.filter_options_by_date(options, [target_date])):
+            if not (options_on_date := self.broker.filter_options(options, [target_date])):
                 continue
             options_on_date = self.broker.get_options_data(options_on_date)
 

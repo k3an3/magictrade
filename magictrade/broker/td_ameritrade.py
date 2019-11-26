@@ -152,3 +152,12 @@ class TDAmeritradeBroker(Broker):
 
     def sell(self, symbol: str, quantity: int) -> Tuple[str, Any]:
         raise NotImplementedError
+
+    def replace_order(self, order: str):
+        pass
+
+    def get_order(self, order: str):
+        pass
+
+    def cancel_order(self, ref_id: str):
+        pass

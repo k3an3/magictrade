@@ -115,10 +115,6 @@ class Broker(ABC):
         return options
 
     @abstractmethod
-    def filter_options_by_date(self, options: List, exp_dates: List, option_type: str = None) -> List[Option]:
-        pass
-
-    @abstractmethod
     def options_transact(self, legs: List, direction: str, price: float, quantity: int, effect: str, **kwargs) -> Tuple[
         Any, Any]:
         pass
