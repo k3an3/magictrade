@@ -426,7 +426,7 @@ class TestOAStrategy:
         pmb = PaperMoneyBroker(account_id='test', balance=1_000_000, date=datetime.strptime('2019-03-31', '%Y-%m-%d'))
         oab = OptionAlphaTradingStrategy(pmb)
         options = {'expiration_dates': exp_dates}
-        assert oab._get_target_date({'timeline': [30, 60]}, options, 0) == '2019-05-03'
+        assert oab._get_target_date({'timeline': [30, 60]}, options, 0) == '2019-04-19'
         assert oab._get_target_date({'timeline': [30, 60]}, options, 50) == '2019-05-17'
         assert oab._get_target_date({'timeline': [30, 60]}, options, 100) == '2019-05-17'
 
