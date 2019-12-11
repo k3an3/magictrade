@@ -9,7 +9,7 @@ import pytest
 from data import quotes, human_quotes_1, reactive_quotes, rh_options_1, exp_dates, td_account_json
 
 from magictrade import storage
-from magictrade.broker import InsufficientFundsError, NonexistentAssetError, InvalidOptionError
+from magictrade.broker import InsufficientFundsError, NonexistentAssetError, InvalidOptionError, Broker
 from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.broker.robinhood import RHOption
 from magictrade.broker.td_ameritrade import TDAmeritradeBroker, TDOption
@@ -1011,6 +1011,16 @@ class TestTradingStrategyBase:
             (RHOption({'strike_price': 42, 'type': 'put'}), 'buy'),
         )
         assert oab._butterfly_spread_width(legs) == 10
+
+
+class TestBroker:
+    def test_parse_leg(self):
+        leg = {'side': 'buy'}
+        assert Broker.parse_leg(leg) == (leg, 'buy')
+
+    def test_parse_leg_1(self):
+        leg = ({'leg': 'leg'}, 'buy')
+        assert Broker.parse_leg(leg) == (leg[0], 'buy')
 
 
 class TestRobinhoodBroker:

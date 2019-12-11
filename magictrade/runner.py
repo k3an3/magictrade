@@ -3,10 +3,9 @@ import logging
 import os
 import random
 from argparse import ArgumentParser, Namespace
-
-from requests import HTTPError
-from time import sleep
 from typing import Dict
+
+from time import sleep
 
 from magictrade import storage
 from magictrade.broker import brokers, load_brokers
@@ -173,21 +172,6 @@ def main():
         logging.info("Got SIGINT, Exiting...")
 
 
-def handle_error(e: Exception):
-    try:
-        if isinstance(e, HTTPError):
-            with open("http_debug.log", "a") as f:
-                text = str(e.response.text)
-                logging.error(text)
-                f.write(text + "\n")
-        if args.debug:
-            raise e
-        import sentry_sdk
-        sentry_sdk.capture_exception(e)
-    except ImportError:
-        pass
-
-
 def main_loop():
     next_maintenance = 0
     next_balance_check = 0
@@ -298,3 +282,4 @@ if __name__ == '__main__':
         raise SystemExit("Must provide queue name.")
     trade_queue = TradeQueue(queue_name)
     strategy = strategies[args.strategy](broker)
+    main()

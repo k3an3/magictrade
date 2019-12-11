@@ -77,3 +77,9 @@ class TradeQueue:
     def staged_to_queue(self):
         while self._stage:
             storage.lpush(self.queue_name, self._stage.pop())
+
+    def send_trade(self, args: Dict) -> str:
+        from magictrade.utils import generate_identifier
+        identifier = generate_identifier(args['symbol'])
+        self.add(identifier, args)
+        return identifier

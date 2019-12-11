@@ -1,7 +1,6 @@
 import argparse
 
 from magictrade.trade_queue import TradeQueue
-from magictrade.utils import send_trade
 
 default_queue_name = 'oatrading-queue'
 
@@ -15,7 +14,7 @@ def handle_trade(args: argparse.Namespace, trade_queue: TradeQueue):
     args.pop('func')
     args.pop('cmd')
     args.pop('queue_name')
-    identifier = send_trade(trade_queue, args)
+    identifier = trade_queue.send_trade(trade_queue, args)
     print("Placed trade {} with data:\n{}".format(identifier, args))
 
 

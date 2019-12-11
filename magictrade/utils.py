@@ -1,19 +1,17 @@
 import calendar
+import logging
 import subprocess
 from datetime import datetime, time, timedelta
 from glob import glob
 from os.path import join, dirname, basename
-
-from math import erf, sqrt, log
 from typing import List, Tuple, Dict
 
 import pkg_resources
+from math import erf, sqrt, log
 from pytz import timezone
-import pkg_resources
 from requests import HTTPError
 
 from magictrade import storage, Broker
-from magictrade.trade_queue import TradeQueue
 
 
 def safe_abs(x, /):
@@ -75,13 +73,6 @@ def get_allocation(broker, allocation: int):
 
 def generate_identifier(symbol: str) -> str:
     return "{}-{}".format(symbol.upper(), datetime.now().strftime("%Y%m%d%H%M%S"))
-
-
-def send_trade(queue_name: str, args: Dict) -> str:
-    identifier = generate_identifier(args['symbol'])
-    tq = TradeQueue(queue_name)
-    tq.add(identifier, args)
-    return identifier
 
 
 def date_format(date: datetime) -> str:
