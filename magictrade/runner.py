@@ -115,7 +115,7 @@ def main_loop():
                     identifier, trade = get_next_trade(len(trade_queue))
                     result = make_trade(trade, identifier)
                     if result:
-                        logging.info("Completed transaction: " + str(trade))
+                        logging.info("Processed trade: " + str(trade))
                         handle_results(result, identifier, trade)
                 trade_queue.staged_to_queue()
                 if next_maintenance:
@@ -236,7 +236,6 @@ def main_loop():
                     logging.info("Ingested trade: " + str(trade))
                     normalize_trade(trade)
 
-                    result = {}
                     try:
                         result = strategy.make_trade(**trade)
                     except Exception as e:

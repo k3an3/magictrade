@@ -206,7 +206,8 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         return orders
 
     def make_trade(self, symbol: str, direction: str, iv_rank: int = 50, allocation: int = 3, timeline: int = 50,
-                   spread_width: int = 3, days_out: int = 0, monthly: bool = False, exp_date: str = None):
+                   spread_width: int = 3, days_out: int = 0, monthly: bool = False, exp_date: str = None,
+                   open_criteria: List = [], close_criteria: List = []):
         if direction not in valid_directions:
             raise TradeConfigException("Invalid direction. Must be in " + str(valid_directions))
 
@@ -234,6 +235,11 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         quote = self.broker.get_quote(symbol)
         if not quote:
             raise TradeException("Error getting quote for " + symbol)
+
+        if open_criteria and not self.evaluate_criteria(open_criteria,
+                                                        date=self.broker.date.timestamp(),
+                                                        price=quote):
+            return {'status': 'deferred'}
 
         options = self.broker.get_options(symbol)
 
@@ -278,7 +284,8 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         option_order = self.broker.options_transact(legs, 'credit', price,
                                                     quantity, 'open', strategy=strategy)
         self.save_order(option_order, legs, {}, strategy=strategy, price=price,
-                        quantity=quantity, expires=target_date, symbol=symbol)
+                        quantity=quantity, expires=target_date, symbol=symbol,
+                        close_criteria=close_criteria)
         self.log("[{}]: Opened {} in {} for direction {} with quantity {} and price {}.".format(
             option_order.id,
             strategy,

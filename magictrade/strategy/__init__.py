@@ -51,6 +51,7 @@ class TradingStrategy(ABC):
 
         for position in positions:
             data = storage.hgetall("{}:{}".format(self.get_name(), position))
+            data['close_criteria'] = json.loads(data['close_criteria'])
             # Temporary fix: the trade might not have filled yet
             try:
                 time_placed = datetime.fromtimestamp(float(data['time']))
