@@ -3,6 +3,8 @@ import logging
 import os
 import random
 from argparse import ArgumentParser, Namespace
+
+from requests import HTTPError
 from time import sleep
 from typing import Dict
 
@@ -20,21 +22,6 @@ DEFAULT_TIMEOUT = 1800
 
 load_brokers()
 load_strategies()
-
-def main():
-    logging.info("Magictrade daemon {} starting with queue name '{}'.".format(get_version(), queue_name))
-    try:
-        import sentry_sdk
-
-        logging.info("Sentry support enabled")
-        sentry_sdk.init("https://251af7f144544ad893c4cb87dfddf7fa@sentry.io/1458727")
-    except ImportError:
-        pass
-    logging.info("Authenticated with account " + broker.account_id)
-    try:
-        main_loop()
-    except KeyboardInterrupt:
-        logging.info("Got SIGINT, Exiting...")
 
 
 def handle_results(result: Dict, identifier: str, trade: Dict):
@@ -97,6 +84,7 @@ def get_next_trade():
     logging.info("Ingested trade: " + str(trade))
     normalize_trade(trade)
     return identifier, trade
+
 
 def main_loop():
     next_maintenance = 0
@@ -163,69 +151,10 @@ def parse_args() -> Namespace:
                                                              'environment variable.')
     parser.add_argument('-s', '--market-open-delay', type=int, default=600, help='Max time in seconds to sleep after '
                                                                                  'market opens.')
-    parser.add_argument('broker', choices=('papermoney', 'robinhood',), help='Broker to use.')
     parser.add_argument('-q', '--queue-name', help='Queue name to store data in.')
     parser.add_argument('broker', choices=brokers.keys(), help='Broker to use.')
     parser.add_argument('strategy', choices=strategies.keys(), help='Strategy to use.')
     return parser.parse_args()
-
-
-if __name__ == '__main__':
-    args = parse_args()
-
-    logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
-    if args.broker in ('papermoney', 'robinhood'):
-    if 'username' in os.environ:
-        logging.info("Attempting credentials from envars...")
-    elif args.username:
-        logging.info("Attempting credentials from args...")
-    else:
-        logging.info("Using stored credentials...")
-        if not os.path.exists(args.keyfile):
-            logging.error("Can't find keyfile. Aborting.")
-            raise SystemExit
-    username = os.environ.pop('username', None) or args.username
-    password = os.environ.pop('password', None) or args.password
-    mfa_code = os.environ.pop('mfa_code', None) or args.mfa
-
-broker_kwargs = {}
-if args.broker == 'papermoney':
-    broker = PaperMoneyBroker(balance=15_000, account_id="livetest",
-                              username=username,
-                              password=password,
-                              mfa_code=mfa_code,
-                              robinhood=True, token_file=args.keyfile)
-elif args.broker == 'robinhood':
-    broker = RobinhoodBroker(username=username, password=password,
-                             mfa_code=mfa_code, token_file=args.keyfile)
-elif args.broker == 'tdameritrade':
-    broker = TDAmeritradeBroker(account_id=args.username)
-else:
-    logging.warning("No valid broker provided. Exiting...")
-    raise SystemExit
-if args.authonly:
-    logging.info("Authentication success. Exiting.")
-    raise SystemExit
-queue_name = args.queue_name
-if not queue_name:
-    raise SystemExit("Must provide queue name.")
-strategy = strategies[args.strategy](broker)
-
-
-def normalize_trade(trade: Dict) -> Dict:
-    funcs = {
-        'iv_rank': int,
-        'allocation': float,
-        'timeline': int,
-        'days_out': int,
-        'spread_width': float,
-    }
-    # Copy to list so dict isn't modified during iteration
-    for key, value in list(trade.items()):
-        if value and key in funcs:
-            trade[key] = funcs[key](value)
-        elif not value:
-            del trade[key]
 
 
 def main():
@@ -283,7 +212,7 @@ def main_loop():
                     handle_error(e)
                 else:
                     logging.info("Completed {} tasks.".format(len(results)))
-                next_maintenance = random.randint(*rand_sleep)
+                next_maintenance = random.randint(*RAND_SLEEP)
                 logging.info("Next check in {}s".format(next_maintenance))
             elif not next_balance_check or storage.get(queue_name + ":new_allocation"):
                 storage.delete(queue_name + ":new_allocation")
@@ -297,7 +226,7 @@ def main_loop():
                     current_allocation = int(storage.get(queue_name + ":allocation") or 0) or args.allocation
                     if buying_power < balance * (100 - current_allocation) / 100:
                         storage.set(queue_name + ":current_usage", f"{buying_power}/{balance}")
-                        next_balance_check = random.randint(*rand_sleep)
+                        next_balance_check = random.randint(*RAND_SLEEP)
                         logging.info("Not enough buying power, {}/{}. Sleeping {}s.".format(
                             buying_power, balance, next_balance_check))
                         break
@@ -331,4 +260,42 @@ def main_loop():
 
 
 if __name__ == '__main__':
-    main()
+    args = parse_args()
+
+    logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
+    if 'username' in os.environ:
+        logging.info("Attempting credentials from envars...")
+    elif args.username:
+        logging.info("Attempting credentials from args...")
+    else:
+        logging.info("Using stored credentials...")
+        if not os.path.exists(args.keyfile):
+            logging.error("Can't find keyfile. Aborting.")
+            raise SystemExit
+    username = os.environ.pop('username', None) or args.username
+    password = os.environ.pop('password', None) or args.password
+    mfa_code = os.environ.pop('mfa_code', None) or args.mfa
+
+    broker_kwargs = {}
+    if args.broker == 'papermoney':
+        broker = PaperMoneyBroker(balance=15_000, account_id="livetest",
+                                  username=username,
+                                  password=password,
+                                  mfa_code=mfa_code,
+                                  robinhood=True, token_file=args.keyfile)
+    elif args.broker == 'robinhood':
+        broker = RobinhoodBroker(username=username, password=password,
+                                 mfa_code=mfa_code, token_file=args.keyfile)
+    elif args.broker == 'tdameritrade':
+        broker = TDAmeritradeBroker(account_id=args.username)
+    else:
+        logging.warning("No valid broker provided. Exiting...")
+        raise SystemExit
+    if args.authonly:
+        logging.info("Authentication success. Exiting.")
+        raise SystemExit
+    queue_name = args.queue_name
+    if not queue_name:
+        raise SystemExit("Must provide queue name.")
+    trade_queue = TradeQueue(queue_name)
+    strategy = strategies[args.strategy](broker)
