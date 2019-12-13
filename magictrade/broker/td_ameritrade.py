@@ -129,11 +129,13 @@ class TDAmeritradeBroker(Broker):
             'close': ('NET_DEBIT', 'TO_CLOSE'),
         }[effect]
 
-        if strategy := kwargs.get('strategy', 'CUSTOM'):
-            if strategy == 'credit_spread':
-                strategy = 'VERTICAL'
-            elif strategy in ('iron_condor', 'iron_butterfly'):
-                strategy = strategy.upper()
+        strategies = {
+            'credit_spread': 'VERTICAL',
+            'iron_condor': 'IRON_CONDOR',
+            'iron_butterfly': 'BUTTERFLY',
+        }
+
+        strategy = strategies.get(kwargs.get('strategy'), 'CUSTOM')
 
         new_legs = []
         for leg in legs:
