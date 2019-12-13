@@ -85,7 +85,11 @@ class TDAmeritradeBroker(Broker):
         raise NotImplementedError()
 
     def options_positions(self) -> List:
-        return [p for p in self._get_account(positions=True)['positions'] if p['instrument']['assetType'] == 'OPTION']
+        return {p['instrument']['symbol']: p for p in self._get_account(positions=True)['positions'] if
+                p['instrument']['assetType'] == 'OPTION'}
+
+    def options_positions_data(self, options: List) -> List:
+        return [TDOption(self.client.quote(o['instrument']['symbol'])) for o in options]
 
     @staticmethod
     def _strip_exp(options: Any) -> Any:
@@ -126,11 +130,13 @@ class TDAmeritradeBroker(Broker):
             'close': ('NET_DEBIT', 'TO_CLOSE'),
         }[effect]
 
-        if strategy := kwargs.get('strategy', 'CUSTOM'):
-            if strategy == 'credit_spread':
-                strategy = 'VERTICAL'
-            elif strategy in ('iron_condor', 'iron_butterfly'):
-                strategy = strategy.upper()
+        strategies = {
+            'credit_spread': 'VERTICAL',
+            'iron_condor': 'IRON_CONDOR',
+            'iron_butterfly': 'BUTTERFLY',
+        }
+
+        strategy = strategies.get(kwargs.get('strategy'), 'CUSTOM')
 
         new_legs = []
         for leg in legs:
@@ -161,3 +167,7 @@ class TDAmeritradeBroker(Broker):
 
     def cancel_order(self, ref_id: str):
         pass
+
+    @staticmethod
+    def leg_in_options(leg: Dict, options: Dict) -> bool:
+        return leg['instrument']['symbol'] in options

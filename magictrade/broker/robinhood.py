@@ -92,6 +92,10 @@ class RobinhoodBroker(Broker):
     def options_positions(self) -> List:
         return {option['option']: option for option in OptionPosition.all(self.client, nonzero=True)}
 
+    def options_positions_data(self, options: List) -> List:
+        return [RHOption(o) for o in
+                self._normalize_options_data(OptionPosition.mergein_marketdata_list(self.client, options))]
+
     @staticmethod
     def _normalize_options_data(options):
         for option in options:
@@ -102,10 +106,6 @@ class RobinhoodBroker(Broker):
                     except (ValueError, TypeError):
                         pass
         return options
-
-    def options_positions_data(self, options: List) -> List:
-        return [RHOption(o) for o in
-                self._normalize_options_data(OptionPosition.mergein_marketdata_list(self.client, options))]
 
     def get_options(self, symbol: str) -> List:
         stock = Stock.fetch(self.client, symbol)
@@ -158,3 +158,7 @@ class RobinhoodBroker(Broker):
 
     def get_order(self, ref_id: str):
         return OptionOrder.get(self.client, ref_id)
+
+    @staticmethod
+    def leg_in_options(leg: Dict, options: Dict) -> bool:
+        return leg['option'] in options
