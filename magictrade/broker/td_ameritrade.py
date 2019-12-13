@@ -106,7 +106,8 @@ class TDAmeritradeBroker(Broker):
             'call': self._strip_exp(options['callExpDateMap'])
         }
 
-    def filter_options(self, options: Dict, exp_dates: List = [], option_type: str = None) -> List:
+    @staticmethod
+    def filter_options(options: Dict, exp_dates: List = [], option_type: str = None) -> List:
         if exp_dates:
             puts = {}
             calls = {}
@@ -151,7 +152,7 @@ class TDAmeritradeBroker(Broker):
             })
 
         return TDOptionOrder(self.client.trade_options(self._account_id, new_legs, quantity, price,
-                                                  order_type=order_type, strategy=strategy))
+                                                       order_type=order_type, strategy=strategy))
 
     def buy(self, symbol: str, quantity: int) -> Tuple[str, Any]:
         raise NotImplementedError

@@ -103,7 +103,6 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         if not days_out:
             timeline_range = config['timeline'][1] - config['timeline'][0]
             timeline = config['timeline'][0] + timeline_range * timeline / 100
-            monthly = True
         else:
             timeline = days_out
 
