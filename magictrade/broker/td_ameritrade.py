@@ -85,7 +85,8 @@ class TDAmeritradeBroker(Broker):
         raise NotImplementedError()
 
     def options_positions(self) -> List:
-        return [p for p in self._get_account(positions=True)['positions'] if p['instrument']['assetType'] == 'OPTION']
+        return {p['instrument']['symbol']: p for p in self._get_account(positions=True)['positions'] if
+                p['instrument']['assetType'] == 'OPTION'}
 
     def options_positions_data(self, options: List) -> List:
         return [TDOption(self.client.quote(o['instrument']['symbol'])) for o in options]
@@ -157,3 +158,7 @@ class TDAmeritradeBroker(Broker):
 
     def sell(self, symbol: str, quantity: int) -> Tuple[str, Any]:
         raise NotImplementedError
+
+    @staticmethod
+    def leg_in_options(leg: Dict, options: Dict) -> bool:
+        return leg['instrument']['symbol'] in options

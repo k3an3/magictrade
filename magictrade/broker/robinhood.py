@@ -149,3 +149,7 @@ class RobinhoodBroker(Broker):
 
     def sell(self, symbol: str, quantity: int) -> Tuple[str, Any]:
         raise NotImplementedError()
+
+    @staticmethod
+    def leg_in_options(leg: Dict, options: Dict) -> bool:
+        return leg['option'] in options

@@ -144,3 +144,8 @@ class Broker(ABC):
         else:
             action = leg['side']
         return leg, action
+
+    @staticmethod
+    @abstractmethod
+    def leg_in_options(leg: Dict, options: Dict):
+        pass

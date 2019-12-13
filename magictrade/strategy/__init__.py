@@ -34,10 +34,9 @@ class TradingStrategy(ABC):
         # consider not deleting this one for archival purposes
         storage.delete("{}:{}".format(self.get_name(), trade_id))
 
-    @staticmethod
-    def check_positions(legs: List, options: Dict) -> Dict:
+    def check_positions(self, legs: List, options: Dict) -> Dict:
         for leg in legs:
-            if not leg['option'] in options:
+            if not self.broker.leg_in_options(leg, options):
                 return leg
 
     def get_current_positions(self):

@@ -176,3 +176,7 @@ class PaperMoneyBroker(Broker):
             del self.stocks[symbol]
             position = None
         return 'success', position
+
+    @staticmethod
+    def leg_in_options(leg: Dict, options: Dict) -> bool:
+        return RobinhoodBroker.leg_in_options(leg, options)
