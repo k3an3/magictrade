@@ -97,7 +97,7 @@ class Broker(ABC):
         pass
 
     @property
-    def date(self) -> str:
+    def date(self) -> datetime:
         return datetime.now()
 
     @abstractmethod

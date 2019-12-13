@@ -125,7 +125,8 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             offset += 1
         return target_date
 
-    def _get_price(self, legs: List) -> float:
+    @staticmethod
+    def _get_price(legs: List) -> float:
         price = 0
         for leg in legs:
             if len(leg) == 2:
