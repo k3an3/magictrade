@@ -171,4 +171,4 @@ class TDAmeritradeBroker(Broker):
 
     @staticmethod
     def leg_in_options(leg: Dict, options: Dict) -> bool:
-        return leg['instrument']['symbol'] in options
+        return leg['symbol'] in options

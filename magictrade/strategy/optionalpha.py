@@ -160,12 +160,6 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         storage.lpush(self.get_name() + ":log", "{} {}".format(datetime.now().timestamp(), msg))
 
     @staticmethod
-    def check_positions(legs: List, options: Dict) -> Dict:
-        for leg in legs:
-            if not leg['option'] in options:
-                return leg
-
-    @staticmethod
     def invert_action(legs: List) -> None:
         for leg in legs:
             if leg['side'] == 'buy':
