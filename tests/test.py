@@ -1,4 +1,5 @@
 import json
+import subprocess
 import uuid
 from datetime import datetime
 from os.path import join, dirname
@@ -1157,3 +1158,8 @@ class TestTDAmeritradeBroker:
         assert wings[1][1] == 'buy'
         assert wings[2][1] == 'sell'
         assert wings[3][1] == 'buy'
+
+
+class TestRunner:
+    def test_entry_point(self):
+        assert subprocess.run(['magictrade-daemon']).returncode == 2
