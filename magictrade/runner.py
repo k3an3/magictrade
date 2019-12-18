@@ -7,12 +7,11 @@ from typing import Dict
 
 from time import sleep
 
-from magictrade import storage
-from magictrade.broker import brokers, load_brokers
+from magictrade.broker import brokers, load_brokers, Broker
 from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.broker.robinhood import RobinhoodBroker
 from magictrade.broker.td_ameritrade import TDAmeritradeBroker
-from magictrade.strategy import strategies, load_strategies
+from magictrade.strategy import strategies, load_strategies, TradingStrategy
 from magictrade.trade_queue import TradeQueue
 from magictrade.utils import market_is_open, get_version, normalize_trade, handle_error
 
@@ -23,110 +22,115 @@ load_brokers()
 load_strategies()
 
 
-def handle_results(result: Dict, identifier: str, trade: Dict):
-    trade_queue.set_status(identifier, result.get('status', 'unknown'))
-    # check if status is deferred, add a counter back to the original trade that the main loop will check and decrement
-    if result.get('status') == 'deferred':
-        trade['timeout'] = result.get('timeout', DEFAULT_TIMEOUT)
-        trade_queue.add(identifier, trade)
+class Runner:
+    def __init__(self, args: Namespace, trade_queue: TradeQueue, broker: Broker,
+                 strategy: TradingStrategy):
+        self.args = args
+        self.trade_queue = trade_queue
+        self.broker = broker
+        self.strategy = strategy
 
+    def handle_results(self, result: Dict, identifier: str, trade: Dict):
+        self.trade_queue.set_status(identifier, result.get('status', 'unknown'))
+        # check if status is deferred, add a counter back to the original trade that the main loop will check and
+        # decrement
+        if result.get('status') == 'deferred':
+            trade['timeout'] = result.get('timeout', DEFAULT_TIMEOUT)
+            self.trade_queue.add(identifier, trade)
 
-def run_maintenance() -> None:
-    logging.info("Running maintenance...")
-    try:
-        results = strategy.maintenance()
-    except Exception as e:
-        logging.error("Error while performing maintenance: {}".format(e))
-        handle_error(e, args.debug)
-    else:
-        logging.info("Completed {} tasks.".format(len(results)))
-
-
-def check_balance() -> int:
-    try:
-        buying_power = broker.buying_power
-        balance = broker.balance
-    except Exception as e:
-        logging.error("Error while getting balances: {}".format(e))
-        handle_error(e, args.debug)
-    current_allocation = trade_queue.get_allocation() or args.allocation
-    if buying_power < balance * (100 - current_allocation) / 100:
-        trade_queue.set_current_usage(buying_power, balance)
-        next_balance_check = random.randint(*RAND_SLEEP)
-        logging.info("Not enough buying power, {}/{}. Sleeping {}s.".format(
-            buying_power, balance, next_balance_check))
-        return next_balance_check
-
-
-def make_trade(trade: Dict, identifier: str) -> Dict:
-    try:
-        return strategy.make_trade(**trade)
-    except Exception as e:
-        logging.error("Error while making trade '{}': {}".format(trade, e))
-        trade_queue.add_failed(identifier, str(e))
-        handle_error(e, args.debug)
-
-
-def get_next_trade():
-    while True:
-        identifier, trade = trade_queue.pop()
-        if 'timeout' in trade and int(trade['timeout']):
-            trade['timeout'] = int(trade['timeout']) - 1
-            trade_queue.stage_trade(identifier, trade)
-            trade_queue.set_data(identifier, trade)
-        elif 'target_date' in trade and datetime.datetime.fromtimestamp(
-                float(trade['target_date'])) > datetime.datetime.now():
-            trade_queue.stage_trade(identifier)
+    def run_maintenance(self) -> None:
+        logging.info("Running maintenance...")
+        try:
+            results = self.strategy.maintenance()
+        except Exception as e:
+            logging.error("Error while performing maintenance: {}".format(e))
+            handle_error(e, self.args.debug)
         else:
-            break
+            logging.info("Completed {} tasks.".format(len(results)))
 
-    logging.info("Ingested trade: " + str(trade))
-    normalize_trade(trade)
-    return identifier, trade
+    def check_balance(self) -> int:
+        try:
+            buying_power = self.broker.buying_power
+            balance = self.broker.balance
+        except Exception as e:
+            logging.error("Error while getting balances: {}".format(e))
+            handle_error(e, self.args.debug)
+        current_allocation = self.trade_queue.get_allocation() or self.args.allocation
+        if buying_power < balance * (100 - current_allocation) / 100:
+            self.trade_queue.set_current_usage(buying_power, balance)
+            next_balance_check = random.randint(*RAND_SLEEP)
+            logging.info("Not enough buying power, {}/{}. Sleeping {}s.".format(
+                buying_power, balance, next_balance_check))
+            return next_balance_check
 
+    def make_trade(self, trade: Dict, identifier: str) -> Dict:
+        try:
+            return self.strategy.make_trade(**trade)
+        except Exception as e:
+            logging.error("Error while making trade '{}': {}".format(trade, e))
+            self.trade_queue.add_failed(identifier, str(e))
+            handle_error(e, self.args.debug)
 
-def main_loop():
-    next_maintenance = 0
-    next_balance_check = 0
-    next_heartbeat = 0
-    first_trade = False
+    def get_next_trade(self) -> (str, Dict):
+        while True:
+            identifier, trade = self.trade_queue.pop()
+            if 'timeout' in trade and int(trade['timeout']):
+                trade['timeout'] = int(trade['timeout']) - 1
+                self.trade_queue.stage_trade(identifier, trade)
+                self.trade_queue.set_data(identifier, trade)
+            elif 'target_date' in trade and datetime.datetime.fromtimestamp(
+                    float(trade['target_date'])) > datetime.datetime.now():
+                self.trade_queue.stage_trade(identifier)
+            else:
+                break
 
-    while True:
-        if not next_heartbeat:
-            trade_queue.heartbeat()
-            next_heartbeat = 60
-        if market_is_open() or args.debug:
-            if not args.debug and first_trade:
-                logging.info("Sleeping to make sure market is open...")
-                sleep(random.randint(min(58, args.market_open_delay), args.market_open_delay))
-                first_trade = False
-            if not next_maintenance:
-                run_maintenance()
-                next_maintenance = random.randint(*RAND_SLEEP)
-                logging.info("Next check in {}s".format(next_maintenance))
-            elif not next_balance_check or trade_queue.pop_new_allocation():
-                while len(trade_queue):
-                    next_balance_check = check_balance()
+        logging.info("Ingested trade: " + str(trade))
+        normalize_trade(trade)
+        return identifier, trade
+
+    def run(self):
+        next_maintenance = 0
+        next_balance_check = 0
+        next_heartbeat = 0
+        first_trade = False
+
+        while True:
+            if not next_heartbeat:
+                self.trade_queue.heartbeat()
+                next_heartbeat = 60
+            if market_is_open() or self.args.debug:
+                if not self.args.debug and first_trade:
+                    logging.info("Sleeping to make sure market is open...")
+                    sleep(random.randint(min(58, self.args.market_open_delay),
+                                         self.rgs.market_open_delay))
+                    first_trade = False
+                if not next_maintenance:
+                    self.run_maintenance()
+                    next_maintenance = random.randint(*RAND_SLEEP)
+                    logging.info("Next check in {}s".format(next_maintenance))
+                elif not next_balance_check or self.trade_queue.pop_new_allocation():
+                    while len(self.trade_queue):
+                        next_balance_check = self.check_balance()
+                        if next_balance_check:
+                            break
+                        self.trade_queue.delete_current_usage()
+
+                        identifier, trade = self.get_next_trade(len(self.trade_queue))
+                        result = self.make_trade(trade, identifier)
+                        if result:
+                            logging.info("Processed trade: " + str(trade))
+                            self.handle_results(result, identifier, trade)
+                    self.trade_queue.staged_to_queue()
+                    if next_maintenance:
+                        next_maintenance -= 1
                     if next_balance_check:
-                        break
-                    trade_queue.delete_current_usage()
-
-                    identifier, trade = get_next_trade(len(trade_queue))
-                    result = make_trade(trade, identifier)
-                    if result:
-                        logging.info("Processed trade: " + str(trade))
-                        handle_results(result, identifier, trade)
-                trade_queue.staged_to_queue()
+                        next_balance_check -= 1
+            else:  # market not open
                 if next_maintenance:
-                    next_maintenance -= 1
-                if next_balance_check:
-                    next_balance_check -= 1
-        else:  # market not open
-            if next_maintenance:
-                next_maintenance = 0
-            first_trade = True
-        sleep(1)
-        next_heartbeat -= 1
+                    next_maintenance = 0
+                first_trade = True
+            sleep(1)
+            next_heartbeat -= 1
 
 
 def parse_args() -> Namespace:
@@ -157,92 +161,6 @@ def parse_args() -> Namespace:
 
 
 def main():
-    logging.info("Magictrade daemon {} starting with queue name '{}'.".format(get_version(), queue_name))
-    try:
-        import sentry_sdk
-
-        logging.info("Sentry support enabled")
-        sentry_sdk.init("https://251af7f144544ad893c4cb87dfddf7fa@sentry.io/1458727")
-    except ImportError:
-        pass
-    logging.info("Authenticated with account " + broker.account_id)
-    try:
-        main_loop()
-    except KeyboardInterrupt:
-        logging.info("Got SIGINT, Exiting...")
-
-
-def main_loop():
-    next_maintenance = 0
-    next_balance_check = 0
-    next_heartbeat = 0
-    first_trade = False
-
-    while True:
-        if not next_heartbeat:
-            storage.set(queue_name + ":heartbeat", datetime.datetime.now().timestamp())
-            next_heartbeat = 60
-        if market_is_open() or args.debug:
-            if not args.debug and first_trade:
-                logging.info("Sleeping to make sure market is open...")
-                sleep(random.randint(min(58, args.market_open_delay), args.market_open_delay))
-                first_trade = False
-            if not next_maintenance:
-                logging.info("Running maintenance...")
-                try:
-                    results = strategy.maintenance()
-                except Exception as e:
-                    logging.error("Error while performing maintenance: {}".format(e))
-                    handle_error(e)
-                else:
-                    logging.info("Completed {} tasks.".format(len(results)))
-                next_maintenance = random.randint(*RAND_SLEEP)
-                logging.info("Next check in {}s".format(next_maintenance))
-            elif not next_balance_check or storage.get(queue_name + ":new_allocation"):
-                storage.delete(queue_name + ":new_allocation")
-                while storage.llen(queue_name) > 0:
-                    try:
-                        buying_power = broker.buying_power
-                        balance = broker.balance
-                    except Exception as e:
-                        logging.error("Error while getting balances: {}".format(e))
-                        handle_error(e)
-                    current_allocation = int(storage.get(queue_name + ":allocation") or 0) or args.allocation
-                    if buying_power < balance * (100 - current_allocation) / 100:
-                        storage.set(queue_name + ":current_usage", f"{buying_power}/{balance}")
-                        next_balance_check = random.randint(*RAND_SLEEP)
-                        logging.info("Not enough buying power, {}/{}. Sleeping {}s.".format(
-                            buying_power, balance, next_balance_check))
-                        break
-                    storage.delete(queue_name + ":current_usage")
-                    identifier = storage.rpop(queue_name)
-                    trade = storage.hgetall("{}:{}".format(queue_name, identifier))
-                    logging.info("Ingested trade: " + str(trade))
-                    normalize_trade(trade)
-
-                    try:
-                        result = strategy.make_trade(**trade)
-                    except Exception as e:
-                        logging.error("Error while making trade '{}': {}".format(trade, e))
-                        storage.lpush(queue_name + "-failed", identifier)
-                        storage.set("{}:status:{}".format(queue_name, identifier), str(e))
-                        handle_error(e)
-                    else:
-                        logging.info("Completed transaction: " + str(trade))
-                        handle_results(result, identifier, trade)
-                if next_maintenance:
-                    next_maintenance -= 1
-                if next_balance_check:
-                    next_balance_check -= 1
-        else:  # market not open
-            if next_maintenance:
-                next_maintenance = 0
-            first_trade = True
-        sleep(1)
-        next_heartbeat -= 1
-
-
-if __name__ == '__main__':
     args = parse_args()
 
     logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
@@ -259,7 +177,6 @@ if __name__ == '__main__':
     password = os.environ.pop('password', None) or args.password
     mfa_code = os.environ.pop('mfa_code', None) or args.mfa
 
-    broker_kwargs = {}
     if args.broker == 'papermoney':
         broker = PaperMoneyBroker(balance=15_000, account_id="livetest",
                                   username=username,
@@ -282,4 +199,21 @@ if __name__ == '__main__':
         raise SystemExit("Must provide queue name.")
     trade_queue = TradeQueue(queue_name)
     strategy = strategies[args.strategy](broker)
+    logging.info("Magictrade daemon {} starting with queue name '{}'.".format(get_version(), queue_name))
+    try:
+        import sentry_sdk
+
+        logging.info("Sentry support enabled")
+        sentry_sdk.init("https://251af7f144544ad893c4cb87dfddf7fa@sentry.io/1458727")
+    except ImportError:
+        pass
+    logging.info("Authenticated with account " + broker.account_id)
+    runner = Runner(args, trade_queue, broker, strategy)
+    try:
+        runner.run()
+    except KeyboardInterrupt:
+        logging.info("Got SIGINT, Exiting...")
+
+
+if __name__ == '__main__':
     main()
