@@ -11,6 +11,7 @@ setup(
     description='',
     install_requires=[
         'py-expression-eval',
+        'pylint',
         'pytest',
         'redis',
         'requests',
