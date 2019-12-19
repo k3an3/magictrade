@@ -1,11 +1,11 @@
-import datetime
 import logging
 import os
 import random
-from argparse import ArgumentParser, Namespace
-from typing import Dict
 
+import datetime
+from argparse import ArgumentParser, Namespace
 from time import sleep
+from typing import Dict
 
 from magictrade.broker import brokers, load_brokers, Broker
 from magictrade.broker.papermoney import PaperMoneyBroker
@@ -102,7 +102,7 @@ class Runner:
                 if not self.args.debug and first_trade:
                     logging.info("Sleeping to make sure market is open...")
                     sleep(random.randint(min(58, self.args.market_open_delay),
-                                         self.rgs.market_open_delay))
+                                         self.args.market_open_delay))
                     first_trade = False
                 if not next_maintenance:
                     self.run_maintenance()
@@ -115,7 +115,7 @@ class Runner:
                             break
                         self.trade_queue.delete_current_usage()
 
-                        identifier, trade = self.get_next_trade(len(self.trade_queue))
+                        identifier, trade = self.get_next_trade()
                         result = self.make_trade(trade, identifier)
                         if result:
                             logging.info("Processed trade: " + str(trade))

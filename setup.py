@@ -16,7 +16,7 @@ setup(
         'requests',
         'scipy',
         'fast_arrow @ git+https://github.com/k3an3/fast_arrow@dev#egg=fast_arrow',
-        'tdameritrade @ git+https://github.com/k3an3/tdameritrade@add-option-trades#egg=tdameritrade',
+        'tdameritrade @ git+https://github.com/k3an3/tdameritrade@add-option-trades#egg=tdameritrade', 'pytz'
     ],
     entry_points={
         'console_scripts': [

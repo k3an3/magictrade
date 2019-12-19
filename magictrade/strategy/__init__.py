@@ -1,9 +1,9 @@
 import json
 from abc import ABC, abstractmethod
-from datetime import datetime
-from typing import List, Dict
 
+from datetime import datetime
 from py_expression_eval import Parser
+from typing import List, Dict
 
 from magictrade import storage
 from magictrade.broker import Broker, OptionOrder
@@ -16,8 +16,9 @@ def load_strategies():
 
 
 class TradingStrategy(ABC):
-    def __init__(self, broker: Broker):
+    def __init__(self, broker: Broker, name: str = None):
         self.broker = broker
+        self.name = name
 
     def get_name(self):
         return "{}-{}".format(self.name, self.broker.account_id)

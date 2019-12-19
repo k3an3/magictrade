@@ -5,7 +5,7 @@ from magictrade import storage
 from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.strategy.buyandhold import BuyandHoldStrategy
 from magictrade.strategy.human import HumanTradingStrategy
-from magictrade.utils import plot_account_balances, get_percentage_change
+from magictrade.utils import get_percentage_change
 
 parser = argparse.ArgumentParser(description='Plot results of trading algorithms.')
 parser.add_argument('-m', dest='momentum', type=float)
@@ -68,4 +68,4 @@ print("Buy and Hold:", round(pmb1.balance, 2), round(pmb1.get_value(), 2))
 print("Human:", round(pmb2.balance, 2), round(pmb2.get_value(), 2))
 print("Advantage: {:.2%}, Total: {:.2%}".format(get_percentage_change(pmb1.get_value(), pmb2.get_value()) / 100,
                                                 get_percentage_change(1_000_000, pmb2.get_value()) / 100))
-plot_account_balances(['Buy and Hold', 'Human'], trades=hts.trades, graph_ticks=350)
+# plot_account_balances(['Buy and Hold', 'Human'], trades=hts.trades, graph_ticks=350)

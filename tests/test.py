@@ -1,13 +1,13 @@
 import json
-import subprocess
-import uuid
-from datetime import datetime
 from os.path import join, dirname
-from typing import Dict
-from unittest.mock import patch
 
 import pytest
+import subprocess
+import uuid
 from data import quotes, human_quotes_1, reactive_quotes, rh_options_1, exp_dates, td_account_json
+from datetime import datetime
+from typing import Dict
+from unittest.mock import patch
 
 from magictrade import storage
 from magictrade.broker import InsufficientFundsError, NonexistentAssetError, InvalidOptionError, Broker
@@ -1163,3 +1163,6 @@ class TestTDAmeritradeBroker:
 class TestRunner:
     def test_entry_point(self):
         assert subprocess.run(['magictrade-daemon']).returncode == 2
+
+    def test_lint(self):
+        assert not subprocess.run(['pylint', '-E', 'magictrade']).returncode
