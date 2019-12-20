@@ -11,7 +11,15 @@ def handle_trade(args: argparse.Namespace, trade_queue: TradeQueue):
     args = vars(args)
     args.pop('func')
     args.pop('queue_name')
-    identifier = trade_queue.send_trade(args)
+    if args['open_criteria']:
+        trade_queue.add_criteria(args['open_criteria'])
+    if args['close_criteria']:
+        trade_queue.add_criteria(args['close_criteria'])
+    args.pop('open_criteria')
+    args.pop('close_criteria')
+    identifier = trade_queue.send_trade({
+        **args,
+    })
     print("Placed trade {} with data:\n{}".format(identifier, args))
 
 
@@ -40,11 +48,11 @@ def cli():
     trade_parser.add_argument('symbol', help="Symbol to trade. e.g. \"SPY\"")
     trade_parser.add_argument('-d', '--direction', default='neutral',
                               choices=('bullish', 'bearish', 'neutral'), help='Type of trade to make')
-    trade_parser.add_argument('--exp-date', help='Specify an exact expiration date')
-    trade_parser.add_argument('-o', '--open-criteria', metavar='expr', nargs='*',
+    trade_parser.add_argument('--exp-date', default='', help='Specify an exact expiration date')
+    trade_parser.add_argument('-o', '--open-criteria', default=[], metavar='expr', nargs='*',
                               help='Specify one or more logical expressions '
                                    'that determine when the trade is opened.')
-    trade_parser.add_argument('-c', '--close-criteria', metavar='expr', nargs='*',
+    trade_parser.add_argument('-c', '--close-criteria', default=[], metavar='expr', nargs='*',
                               help='Specify one or more logical expressions '
                                    'that determine when the trade is closed.')
     trade_parser.add_argument('-i', '--iv-rank', type=int, default=50,
@@ -65,7 +73,7 @@ def cli():
     trade_parser.add_argument('-w', '--spread-width', type=float, default=3,
                               help='Width of spreads')
     # Use const/default blank string to avoid ambiguity when retrieving from redis
-    trade_parser.add_argument('-m', '--monthly', action='store_const', const='true',
+    trade_parser.add_argument('-m', '--monthly', default='', action='store_const', const='true',
                               help='Whether to only trade monthly contracts')
     parser.add_argument('-q', '--queue-name', required=True,
                         help='Redis queue name that the '

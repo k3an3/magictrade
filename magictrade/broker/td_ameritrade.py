@@ -89,7 +89,7 @@ class TDAmeritradeBroker(Broker):
                 p['instrument']['assetType'] == 'OPTION'}
 
     def options_positions_data(self, options: List) -> List:
-        return [TDOption(self.client.quote(o['instrument']['symbol'])) for o in options]
+        return [TDOption(self.client.quote(o['symbol'])) for o in options]
 
     @staticmethod
     def _strip_exp(options: Any) -> Any:

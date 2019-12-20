@@ -1,5 +1,5 @@
 import datetime
-from typing import Dict
+from typing import Dict, List
 
 from magictrade import storage
 
@@ -32,6 +32,10 @@ class TradeQueue:
     def set_data(self, identifier: str, trade: Dict):
         storage.hmset(self._data_name(identifier), trade)
 
+    def add_criteria(self, identifier: str, open_close: str, criteria: List[str]):
+        key = f"{self._data_name(identifier)}:{open_close}_criteria"
+        storage.rpush(key, criteria)
+
     def add(self, identifier: str, trade: Dict):
         storage.lpush(self.queue_name, identifier)
         self.set_data(identifier, trade)
@@ -58,7 +62,10 @@ class TradeQueue:
         return storage.hgetall(self._data_name(identifier))
 
     def get_allocation(self, new: bool = False) -> int:
-        return int(storage.get("{}:{}allocation".format(self.queue_name, "new_" if new else ""))) or 0
+        try:
+            return int(storage.get("{}:{}allocation".format(self.queue_name, "new_" if new else ""))) or 0
+        except TypeError:
+            return 0
 
     def pop_new_allocation(self) -> int:
         new_allocation = self.get_allocation(new=True)
