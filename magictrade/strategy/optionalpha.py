@@ -139,7 +139,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
                 price += leg_price
             elif action == 'buy':
                 price -= leg_price
-        return round(price, ndigits=2)
+        return price
 
     @staticmethod
     def _get_quantity(allocation: float, spread_width: float, price: float = 0.0) -> int:

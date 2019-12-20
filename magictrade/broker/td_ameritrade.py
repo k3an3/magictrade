@@ -151,7 +151,8 @@ class TDAmeritradeBroker(Broker):
                 },
             })
 
-        return TDOptionOrder(self.client.trade_options(self._account_id, new_legs, quantity, price,
+        return TDOptionOrder(self.client.trade_options(self._account_id, new_legs,
+                                                       quantity, round(price, ndigits=2),
                                                        order_type=order_type, strategy=strategy))
 
     def buy(self, symbol: str, quantity: int) -> Tuple[str, Any]:
