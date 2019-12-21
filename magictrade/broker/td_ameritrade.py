@@ -40,7 +40,9 @@ class TDOptionOrder(OptionOrder):
         new_legs = []
         for leg in self.data['orderLegCollection']:
             leg = {**leg, **leg['instrument'],
-                   'id': str(uuid.uuid4())}
+                   'id': str(uuid.uuid4()),
+                   'side': leg['instruction'].split('_')[0].lower()
+                   }
             leg.pop('instrument')
             new_legs.append(leg)
         return new_legs
@@ -134,7 +136,7 @@ class TDAmeritradeBroker(Broker):
         strategies = {
             'credit_spread': 'VERTICAL',
             'iron_condor': 'IRON_CONDOR',
-            'iron_butterfly': 'BUTTERFLY',
+            'iron_butterfly': 'CUSTOM',
         }
 
         strategy = strategies.get(kwargs.get('strategy'), 'CUSTOM')
