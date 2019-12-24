@@ -73,6 +73,7 @@ class Runner:
             self.strategy.log(f"Fatal error making trade '{trade}'.")
             logging.error("Error while making trade '{}': {}".format(trade, e))
             if isinstance(e, HTTPError):
+                # pylint: disable=no-member
                 result = e.response.text
             else:
                 result = str(e)
