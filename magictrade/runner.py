@@ -1,11 +1,12 @@
+import datetime
 import logging
 import os
 import random
-
-import datetime
 from argparse import ArgumentParser, Namespace
-from time import sleep
 from typing import Dict
+
+from requests import HTTPError
+from time import sleep
 
 from magictrade.broker import brokers, load_brokers, Broker
 from magictrade.broker.papermoney import PaperMoneyBroker
@@ -44,6 +45,7 @@ class Runner:
             results = self.strategy.maintenance()
         except Exception as e:
             logging.error("Error while performing maintenance: {}".format(e))
+            self.strategy.log("Fatal error while performing maintenance.")
             handle_error(e, self.args.debug)
         else:
             logging.info("Completed {} tasks.".format(len(results)))
@@ -53,6 +55,7 @@ class Runner:
             buying_power = self.broker.buying_power
             balance = self.broker.balance
         except Exception as e:
+            self.strategy.log("Fatal error while getting balances.")
             logging.error("Error while getting balances: {}".format(e))
             handle_error(e, self.args.debug)
         current_allocation = self.trade_queue.get_allocation() or self.args.allocation
@@ -67,8 +70,13 @@ class Runner:
         try:
             return self.strategy.make_trade(**trade)
         except Exception as e:
+            self.strategy.log(f"Fatal error making trade '{trade}'.")
             logging.error("Error while making trade '{}': {}".format(trade, e))
-            self.trade_queue.add_failed(identifier, str(e))
+            if isinstance(e, HTTPError):
+                result = e.response.text
+            else:
+                result = str(e)
+            self.trade_queue.add_failed(identifier, result)
             handle_error(e, self.args.debug)
 
     def get_next_trade(self) -> (str, Dict):
