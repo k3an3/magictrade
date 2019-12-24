@@ -15,7 +15,9 @@ class TDOption(Option):
 
     @property
     def option_type(self) -> str:
-        return self.data['putCall'].lower()
+        if 'putCall' in self.data:
+            return self.data['putCall'].lower()
+        return {'P': 'put', 'C': 'call'}[self.data['contractType']]
 
     @property
     def probability_otm(self) -> float:
@@ -91,7 +93,7 @@ class TDAmeritradeBroker(Broker):
                 p['instrument']['assetType'] == 'OPTION'}
 
     def options_positions_data(self, options: List) -> List:
-        return [TDOption(self.client.quote(o['symbol'])) for o in options]
+        return [TDOption({**o, **self.client.quote(o['symbol'])}) for o in options]
 
     @staticmethod
     def _strip_exp(options: Any) -> Any:
