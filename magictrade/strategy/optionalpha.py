@@ -94,7 +94,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
                 width -= 1
         if not long_leg:
             raise NoValidLegException(f"Failed to find a suitable long leg for the trade. Short leg strike at "
-                                      f"{short_leg['strike_price']} and expiration {short_leg['expiration_date']}.")
+                                      f"{short_leg.strike_price} and expiration {short_leg.expiration_date}.")
 
         return (short_leg, 'sell'), (long_leg, 'buy')
 
