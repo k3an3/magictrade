@@ -51,20 +51,22 @@ class Runner:
             logging.info("Completed {} tasks.".format(len(results)))
 
     def check_balance(self) -> int:
+        next_balance_check = random.randint(*RAND_SLEEP)
         try:
             buying_power = self.broker.buying_power
             balance = self.broker.balance
         except Exception as e:
             self.strategy.log("Fatal error while getting balances.")
-            logging.error("Error while getting balances: {}".format(e))
+            logging.error("Error while getting balances: {}, sleeping {}s".format(
+                e, next_balance_check))
             handle_error(e, self.args.debug)
+            return 0
         current_allocation = self.trade_queue.get_allocation() or self.args.allocation
         if buying_power < balance * (100 - current_allocation) / 100:
             self.trade_queue.set_current_usage(buying_power, balance)
-            next_balance_check = random.randint(*RAND_SLEEP)
             logging.info("Not enough buying power, {}/{}. Sleeping {}s.".format(
                 buying_power, balance, next_balance_check))
-            return next_balance_check
+        return next_balance_check
 
     def make_trade(self, trade: Dict, identifier: str) -> Dict:
         try:
