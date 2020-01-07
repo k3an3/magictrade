@@ -60,7 +60,7 @@ class Runner:
             logging.error("Error while getting balances: {}, sleeping {}s".format(
                 e, next_balance_check))
             handle_error(e, self.args.debug)
-            return 0
+            return next_balance_check
         current_allocation = self.trade_queue.get_allocation() or self.args.allocation
         if buying_power < balance * (100 - current_allocation) / 100:
             self.trade_queue.set_current_usage(buying_power, balance)
