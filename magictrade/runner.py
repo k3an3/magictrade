@@ -66,7 +66,7 @@ class Runner:
             self.trade_queue.set_current_usage(buying_power, balance)
             logging.info("Not enough buying power, {}/{}. Sleeping {}s.".format(
                 buying_power, balance, next_balance_check))
-        return next_balance_check
+            return next_balance_check
 
     def make_trade(self, trade: Dict, identifier: str) -> Dict:
         try:
