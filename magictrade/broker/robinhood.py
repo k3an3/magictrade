@@ -112,7 +112,7 @@ class RobinhoodBroker(Broker):
 
         return OptionChain.fetch(self.client, stock["id"], symbol)
 
-    def filter_options_by_date(self, options: List, exp_dates: List = [], option_type: str = None) -> List:
+    def filter_options(self, options: List, exp_dates: List = [], option_type: str = None) -> List:
         if exp_dates:
             return Option.in_chain(self.client, options["id"], expiration_dates=exp_dates)
         elif option_type:

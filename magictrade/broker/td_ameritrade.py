@@ -15,7 +15,9 @@ class TDOption(Option):
 
     @property
     def option_type(self) -> str:
-        return self.data['putCall'].lower()
+        if 'putCall' in self.data:
+            return self.data['putCall'].lower()
+        return {'P': 'put', 'C': 'call'}[self.data['contractType']]
 
     @property
     def probability_otm(self) -> float:
@@ -40,7 +42,9 @@ class TDOptionOrder(OptionOrder):
         new_legs = []
         for leg in self.data['orderLegCollection']:
             leg = {**leg, **leg['instrument'],
-                   'id': str(uuid.uuid4())}
+                   'id': str(uuid.uuid4()),
+                   'side': leg['instruction'].split('_')[0].lower()
+                   }
             leg.pop('instrument')
             new_legs.append(leg)
         return new_legs
@@ -89,7 +93,7 @@ class TDAmeritradeBroker(Broker):
                 p['instrument']['assetType'] == 'OPTION'}
 
     def options_positions_data(self, options: List) -> List:
-        return [TDOption(self.client.quote(o['instrument']['symbol'])) for o in options]
+        return [TDOption({**o, **self.client.quote(o['symbol'])[o['symbol']]}) for o in options]
 
     @staticmethod
     def _strip_exp(options: Any) -> Any:
@@ -134,7 +138,7 @@ class TDAmeritradeBroker(Broker):
         strategies = {
             'credit_spread': 'VERTICAL',
             'iron_condor': 'IRON_CONDOR',
-            'iron_butterfly': 'BUTTERFLY',
+            'iron_butterfly': 'CUSTOM',
         }
 
         strategy = strategies.get(kwargs.get('strategy'), 'CUSTOM')
@@ -151,7 +155,8 @@ class TDAmeritradeBroker(Broker):
                 },
             })
 
-        return TDOptionOrder(self.client.trade_options(self._account_id, new_legs, quantity, price,
+        return TDOptionOrder(self.client.trade_options(self._account_id, new_legs,
+                                                       quantity, round(price, ndigits=2),
                                                        order_type=order_type, strategy=strategy))
 
     def buy(self, symbol: str, quantity: int) -> Tuple[str, Any]:

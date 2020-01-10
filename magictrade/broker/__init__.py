@@ -74,6 +74,10 @@ class OptionOrder(ABC):
 
 class Broker(ABC):
     @abstractmethod
+    def filter_options(self, options: List, exp_dates: List = [], option_type: str = None) -> List:
+        pass
+
+    @abstractmethod
     def get_quote(self, symbol: str) -> float:
         pass
 
