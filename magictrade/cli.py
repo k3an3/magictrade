@@ -11,12 +11,6 @@ def handle_trade(args: argparse.Namespace, trade_queue: TradeQueue):
     args = vars(args)
     args.pop('func')
     args.pop('queue_name')
-    if args['open_criteria']:
-        trade_queue.add_criteria(args['open_criteria'])
-    if args['close_criteria']:
-        trade_queue.add_criteria(args['close_criteria'])
-    args.pop('open_criteria')
-    args.pop('close_criteria')
     identifier = trade_queue.send_trade({
         **args,
     })

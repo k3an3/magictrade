@@ -88,5 +88,14 @@ class TradeQueue:
     def send_trade(self, args: Dict) -> str:
         from magictrade.utils import generate_identifier
         identifier = generate_identifier(args['symbol'])
+        # Fix redis not accepting bool; False ~= ''
+        if isinstance(args['monthly'], bool):
+            args['monthly'] = '' if not args['monthly'] else 'true'
+        if args['open_criteria']:
+            self.add_criteria(identifier, 'open', args['open_criteria'])
+            args.pop('open_criteria')
+        if args['close_criteria']:
+            self.add_criteria(identifier, 'close', args['close_criteria'])
+            args.pop('close_criteria')
         self.add(identifier, args)
         return identifier
