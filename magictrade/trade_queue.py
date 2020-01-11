@@ -34,7 +34,8 @@ class TradeQueue:
 
     def add_criteria(self, identifier: str, open_close: str, criteria: List[str]):
         key = f"{self._data_name(identifier)}:{open_close}_criteria"
-        storage.rpush(key, criteria)
+        for criterium in criteria:
+            storage.rpush(key, criterium)
 
     def add(self, identifier: str, trade: Dict):
         storage.lpush(self.queue_name, identifier)
@@ -91,10 +92,10 @@ class TradeQueue:
         # Fix redis not accepting bool; False ~= ''
         if isinstance(args['monthly'], bool):
             args['monthly'] = '' if not args['monthly'] else 'true'
-        if args['open_criteria']:
+        if ['open_criteria'] in args:
             self.add_criteria(identifier, 'open', args['open_criteria'])
             args.pop('open_criteria')
-        if args['close_criteria']:
+        if ['close_criteria'] in args:
             self.add_criteria(identifier, 'close', args['close_criteria'])
             args.pop('close_criteria')
         self.add(identifier, args)
