@@ -1,4 +1,5 @@
 import datetime
+import json
 from typing import Dict, List
 
 from magictrade import storage
@@ -32,10 +33,14 @@ class TradeQueue:
     def set_data(self, identifier: str, trade: Dict):
         storage.hmset(self._data_name(identifier), trade)
 
-    def add_criteria(self, identifier: str, open_close: str, criteria: List[str]):
+    def add_criteria(self, identifier: str, open_close: str, criteria: List[Dict]):
         key = f"{self._data_name(identifier)}:{open_close}_criteria"
         for criterium in criteria:
-            storage.rpush(key, criterium)
+            storage.rpush(key, json.dumps(criterium))
+
+    def get_criteria(self, identifier: str) -> (List[str], List[str]):
+        return [json.loads(c) for c in storage.lrange(f"{self._data_name(identifier)}:open_criteria", 0, -1)], \
+               [json.loads(c) for c in storage.lrange(f"{self._data_name(identifier)}:close_criteria", 0, -1)]
 
     def add(self, identifier: str, trade: Dict):
         storage.lpush(self.queue_name, identifier)

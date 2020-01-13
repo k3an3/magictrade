@@ -3,10 +3,10 @@ import logging
 import os
 import random
 from argparse import ArgumentParser, Namespace
+from time import sleep
 from typing import Dict
 
 from requests import HTTPError
-from time import sleep
 
 from magictrade.broker import brokers, load_brokers, Broker
 from magictrade.broker.papermoney import PaperMoneyBroker
@@ -97,6 +97,7 @@ class Runner:
 
         logging.info("Ingested trade: " + str(trade))
         normalize_trade(trade)
+        trade['open_criteria'], trade['close_criteria'] = self.trade_queue.get_criteria(identifier)
         return identifier, trade
 
     def run(self):

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 import os
+from argparse import ArgumentParser
+from datetime import datetime, timedelta
 
 import requests
-from argparse import ArgumentParser
 from bs4 import BeautifulSoup
-from datetime import datetime, timedelta
 
 from magictrade.trade_queue import TradeQueue
 
@@ -66,7 +66,7 @@ def main(args):
             'iv_rank': 100,
             'monthly': False,
             'allocation': ALLOCATION,
-            'open_criteria': [f'date >= {earning["date"].timestamp()}'],
+            'open_criteria': [{'expr': f'date >= {earning["date"].timestamp()}'}],
         })
     print("Placed", n + 1, "trades.")
 
