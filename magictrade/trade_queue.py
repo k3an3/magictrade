@@ -1,8 +1,13 @@
 import datetime
 import json
+from json import JSONDecodeError
 from typing import Dict, List
 
 from magictrade import storage
+
+
+class TradeQueueException:
+    pass
 
 
 class TradeQueue:
@@ -39,8 +44,11 @@ class TradeQueue:
             storage.rpush(key, json.dumps(criterium))
 
     def get_criteria(self, identifier: str) -> (List[str], List[str]):
-        return [json.loads(c) for c in storage.lrange(f"{self._data_name(identifier)}:open_criteria", 0, -1)], \
-               [json.loads(c) for c in storage.lrange(f"{self._data_name(identifier)}:close_criteria", 0, -1)]
+        try:
+            return [json.loads(c) for c in storage.lrange(f"{self._data_name(identifier)}:open_criteria", 0, -1)], \
+                   [json.loads(c) for c in storage.lrange(f"{self._data_name(identifier)}:close_criteria", 0, -1)]
+        except JSONDecodeError:
+            raise TradeQueueException(f"Unable to decode JSON in criteria for trade '{identifier}'")
 
     def add(self, identifier: str, trade: Dict):
         storage.lpush(self.queue_name, identifier)

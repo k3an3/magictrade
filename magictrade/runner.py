@@ -3,10 +3,10 @@ import logging
 import os
 import random
 from argparse import ArgumentParser, Namespace
-from time import sleep
 from typing import Dict
 
 from requests import HTTPError
+from time import sleep
 
 from magictrade.broker import brokers, load_brokers, Broker
 from magictrade.broker.papermoney import PaperMoneyBroker
@@ -107,42 +107,46 @@ class Runner:
         first_trade = False
 
         while True:
-            if not next_heartbeat:
-                self.trade_queue.heartbeat()
-                next_heartbeat = 60
-            if market_is_open() or self.args.debug:
-                if not self.args.debug and first_trade:
-                    logging.info("Sleeping to make sure market is open...")
-                    sleep(random.randint(min(58, self.args.market_open_delay),
-                                         self.args.market_open_delay))
-                    first_trade = False
-                if not next_maintenance:
-                    self.run_maintenance()
-                    next_maintenance = random.randint(*RAND_SLEEP)
-                    logging.info("Next check in {}s".format(next_maintenance))
-                elif not next_balance_check or self.trade_queue.pop_new_allocation():
-                    while len(self.trade_queue):
-                        next_balance_check = self.check_balance()
-                        if next_balance_check:
-                            break
-                        self.trade_queue.delete_current_usage()
+            try:
+                if not next_heartbeat:
+                    self.trade_queue.heartbeat()
+                    next_heartbeat = 60
+                if market_is_open() or self.args.debug:
+                    if not self.args.debug and first_trade:
+                        logging.info("Sleeping to make sure market is open...")
+                        sleep(random.randint(min(58, self.args.market_open_delay),
+                                             self.args.market_open_delay))
+                        first_trade = False
+                    if not next_maintenance:
+                        self.run_maintenance()
+                        next_maintenance = random.randint(*RAND_SLEEP)
+                        logging.info("Next check in {}s".format(next_maintenance))
+                    elif not next_balance_check or self.trade_queue.pop_new_allocation():
+                        while len(self.trade_queue):
+                            next_balance_check = self.check_balance()
+                            if next_balance_check:
+                                break
+                            self.trade_queue.delete_current_usage()
 
-                        identifier, trade = self.get_next_trade()
-                        result = self.make_trade(trade, identifier)
-                        if result:
-                            logging.info("Processed trade: " + str(trade))
-                            self.handle_results(result, identifier, trade)
-                    self.trade_queue.staged_to_queue()
+                            identifier, trade = self.get_next_trade()
+                            result = self.make_trade(trade, identifier)
+                            if result:
+                                logging.info("Processed trade: " + str(trade))
+                                self.handle_results(result, identifier, trade)
+                        self.trade_queue.staged_to_queue()
+                        if next_maintenance:
+                            next_maintenance -= 1
+                        if next_balance_check:
+                            next_balance_check -= 1
+                else:  # market not open
                     if next_maintenance:
-                        next_maintenance -= 1
-                    if next_balance_check:
-                        next_balance_check -= 1
-            else:  # market not open
-                if next_maintenance:
-                    next_maintenance = 0
-                first_trade = True
-            sleep(1)
-            next_heartbeat -= 1
+                        next_maintenance = 0
+                    first_trade = True
+                sleep(1)
+                next_heartbeat -= 1
+            except Exception as e:
+                # Catch-all exception handler
+                handle_error(e, self.args.debug)
 
 
 def parse_args() -> Namespace:
