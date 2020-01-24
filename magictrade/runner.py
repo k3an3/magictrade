@@ -114,7 +114,7 @@ class Runner:
                         sleep(random.randint(min(58, self.args.market_open_delay),
                                              self.args.market_open_delay))
                         first_trade = False
-                    if not next_maintenance:
+                    if not next_maintenance or self.trade_queue.should_run_maintenance():
                         self.run_maintenance()
                         next_maintenance = random.randint(*RAND_SLEEP)
                         logging.info("Next check in {}s".format(next_maintenance))

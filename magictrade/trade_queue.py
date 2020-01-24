@@ -110,3 +110,12 @@ class TradeQueue:
             args.pop('close_criteria')
         self.add(identifier, args)
         return identifier
+
+    def run_maintenance(self):
+        storage.set(self.queue_name + ":maintenance", 1)
+
+    def should_run_maintenance(self) -> bool:
+        should = storage.get(self.queue_name + ":maintenance")
+        if should:
+            storage.delete(self.queue_name + ":maintenance")
+        return should
