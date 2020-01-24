@@ -33,10 +33,9 @@ class Runner:
 
     def handle_results(self, result: Dict, identifier: str, trade: Dict):
         self.trade_queue.set_status(identifier, result.get('status', 'unknown'))
-        # check if status is deferred, add a counter back to the original trade that the main loop will check and
-        # decrement
+        # check if status is deferred, add a target time back to the original trade that the main loop will check and
         if result.get('status') == 'deferred':
-            trade['timeout'] = result.get('timeout', DEFAULT_TIMEOUT)
+            trade['start'] = result.get('start', self.broker.date().timestamp() + DEFAULT_TIMEOUT)
             self.trade_queue.add(identifier, trade)
 
     def run_maintenance(self) -> None:
@@ -83,22 +82,20 @@ class Runner:
             handle_error(e, self.args.debug)
 
     def get_next_trade(self) -> (str, Dict):
-        while True:
+        while len(self.trade_queue):
             identifier, trade = self.trade_queue.pop()
-            if 'timeout' in trade and int(trade['timeout']):
-                trade['timeout'] = int(trade['timeout']) - 1
-                self.trade_queue.stage_trade(identifier, trade)
-                self.trade_queue.set_data(identifier, trade)
-            elif 'target_date' in trade and datetime.datetime.fromtimestamp(
-                    float(trade['target_date'])) > datetime.datetime.now():
+            if 'end' in trade and datetime.datetime.fromtimestamp(
+                    float(trade['end'])) <= self.broker.date:
+                # Trade not re-added to queue since it is expired
+                continue
+            elif 'start' in trade and datetime.datetime.fromtimestamp(
+                    float(trade['start'])) > self.broker.date:
                 self.trade_queue.stage_trade(identifier)
             else:
-                break
-
-        logging.info("Ingested trade: " + str(trade))
-        normalize_trade(trade)
-        trade['open_criteria'], trade['close_criteria'] = self.trade_queue.get_criteria(identifier)
-        return identifier, trade
+                logging.info("Ingested trade: " + str(trade))
+                normalize_trade(trade)
+                trade['open_criteria'], trade['close_criteria'] = self.trade_queue.get_criteria(identifier)
+                return identifier, trade
 
     def run(self):
         next_maintenance = 0
@@ -129,10 +126,11 @@ class Runner:
                             self.trade_queue.delete_current_usage()
 
                             identifier, trade = self.get_next_trade()
-                            result = self.make_trade(trade, identifier)
-                            if result:
-                                logging.info("Processed trade: " + str(trade))
-                                self.handle_results(result, identifier, trade)
+                            if trade:
+                                result = self.make_trade(trade, identifier)
+                                if result:
+                                    logging.info("Processed trade: " + str(trade))
+                                    self.handle_results(result, identifier, trade)
                         self.trade_queue.staged_to_queue()
                         if next_maintenance:
                             next_maintenance -= 1

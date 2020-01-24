@@ -1,25 +1,28 @@
 import json
-from os.path import join, dirname
-
-import pytest
+import os
 import subprocess
 import uuid
-from data import quotes, human_quotes_1, reactive_quotes, rh_options_1, exp_dates, td_account_json
 from datetime import datetime
+from os.path import join, dirname
 from typing import Dict
 from unittest.mock import patch
+
+import pytest
+from data import quotes, human_quotes_1, reactive_quotes, rh_options_1, exp_dates, td_account_json
 
 from magictrade import storage
 from magictrade.broker import InsufficientFundsError, NonexistentAssetError, InvalidOptionError, Broker
 from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.broker.robinhood import RHOption
 from magictrade.broker.td_ameritrade import TDAmeritradeBroker, TDOption
+from magictrade.runner import Runner
 from magictrade.strategy import TradeConfigException, TradeDateException, TradeCriteriaException
 from magictrade.strategy.buyandhold import BuyandHoldStrategy
 from magictrade.strategy.human import HumanTradingStrategy, DEFAULT_CONFIG
 from magictrade.strategy.longoption import LongOptionTradingStrategy
 from magictrade.strategy.optionalpha import OptionAlphaTradingStrategy, strategies, TradeException, high_iv
 from magictrade.strategy.reactive import ReactiveStrategy
+from magictrade.trade_queue import TradeQueue
 from magictrade.utils import get_account_history, get_percentage_change, get_allocation, calculate_percent_otm, get_risk
 
 date = datetime.strptime("2019-03-31", "%Y-%m-%d")
@@ -1161,8 +1164,211 @@ class TestTDAmeritradeBroker:
 
 
 class TestRunner:
-    def test_entry_point(self):
-        assert subprocess.run(['magictrade-daemon']).returncode == 2
+    if not os.environ.get('SKIP_SLOW_TESTS'):
+        def test_entry_point(self):
+            assert subprocess.run(['magictrade-daemon']).returncode == 2
 
-    def test_lint(self):
-        assert not subprocess.run(['pylint', '-E', 'magictrade']).returncode
+        def test_lint(self):
+            assert not subprocess.run(['pylint', '-E', 'magictrade']).returncode
+
+    @pytest.fixture
+    def trade_queue(self):
+        storage.delete('test-runner-queue')
+        return TradeQueue('test-runner-queue')
+
+    @pytest.fixture
+    def identifier(self):
+        return str(uuid.uuid4())
+
+    def test_get_next_trade(self, trade_queue, identifier):
+        runner = Runner(None, trade_queue,
+                        PaperMoneyBroker('test-runner',
+                                         date=datetime(
+                                             year=2020,
+                                             month=1,
+                                             day=23,
+                                             hour=15,
+                                             minute=13
+                                         )),
+                        None)
+        trade = {'blah': 'abcdef', 'test_data': 'garbage'}
+        identifier = str(uuid.uuid4())
+        trade_queue.add(identifier, trade)
+        assert runner.get_next_trade()[0] == identifier
+
+    def test_get_next_trade_before_start(self, trade_queue, identifier):
+        runner = Runner(None, trade_queue,
+                        PaperMoneyBroker('test-runner',
+                                         date=datetime(
+                                             year=2020,
+                                             month=1,
+                                             day=23,
+                                             hour=15,
+                                             minute=14
+                                         )),
+                        None)
+        trade = {'blah': 'abcde', 'test_data': 'garbage',
+                 'start': datetime(
+                     year=2020,
+                     month=1,
+                     day=23,
+                     hour=15,
+                     minute=15
+                 ).timestamp()}
+        trade_queue.add(identifier, trade)
+        assert not runner.get_next_trade()
+        trade_queue.staged_to_queue()
+        assert len(trade_queue) == 1
+
+    def test_get_next_trade_after_start(self, trade_queue, identifier):
+        runner = Runner(None, trade_queue,
+                        PaperMoneyBroker('test-runner',
+                                         date=datetime(
+                                             year=2020,
+                                             month=1,
+                                             day=23,
+                                             hour=15,
+                                             minute=15
+                                         )),
+                        None)
+        trade = {'blah': 'abcde', 'test_data': 'garbage',
+                 'start': datetime(
+                     year=2020,
+                     month=1,
+                     day=23,
+                     hour=15,
+                     minute=15
+                 ).timestamp()}
+        trade_queue.add(identifier, trade)
+        assert runner.get_next_trade()[0] == identifier
+
+    def test_get_next_trade_before_end(self, trade_queue, identifier):
+        runner = Runner(None, trade_queue,
+                        PaperMoneyBroker('test-runner',
+                                         date=datetime(
+                                             year=2020,
+                                             month=1,
+                                             day=22,
+                                             hour=14,
+                                             minute=15
+                                         )),
+                        None)
+        trade = {'blah': 'abcde', 'test_data': 'garbage',
+                 'end': datetime(
+                     year=2020,
+                     month=1,
+                     day=23,
+                     hour=15,
+                     minute=00
+                 ).timestamp()}
+        trade_queue.add(identifier, trade)
+        assert runner.get_next_trade()[0] == identifier
+
+    def test_get_next_trade_after_end(self, trade_queue, identifier):
+        runner = Runner(None, trade_queue,
+                        PaperMoneyBroker('test-runner',
+                                         date=datetime(
+                                             year=2020,
+                                             month=1,
+                                             day=24,
+                                             hour=9,
+                                             minute=45
+                                         )),
+                        None)
+        trade = {'blah': 'abcde', 'test_data': 'garbage',
+                 'end': datetime(
+                     year=2020,
+                     month=1,
+                     day=23,
+                     hour=15,
+                     minute=00
+                 ).timestamp()}
+        trade_queue.add(identifier, trade)
+        assert not runner.get_next_trade()
+
+    def test_get_next_trade_before_start_end(self, trade_queue, identifier):
+        runner = Runner(None, trade_queue,
+                        PaperMoneyBroker('test-runner',
+                                         date=datetime(
+                                             year=2020,
+                                             month=1,
+                                             day=23,
+                                             hour=9,
+                                             minute=30
+                                         )),
+                        None)
+        trade = {'blah': 'abcde', 'test_data': 'garbage',
+                 'start': datetime(
+                     year=2020,
+                     month=1,
+                     day=23,
+                     hour=15,
+                     minute=15
+                 ).timestamp(),
+                 'end': datetime(
+                     year=2020,
+                     month=1,
+                     day=23,
+                     hour=16,
+                     minute=00
+                 ).timestamp()}
+        trade_queue.add(identifier, trade)
+        assert not runner.get_next_trade()
+
+    def test_get_next_trade_after_start_end(self, trade_queue, identifier):
+        runner = Runner(None, trade_queue,
+                        PaperMoneyBroker('test-runner',
+                                         date=datetime(
+                                             year=2020,
+                                             month=1,
+                                             day=24,
+                                             hour=9,
+                                             minute=30
+                                         )),
+                        None)
+        trade = {'blah': 'abcde', 'test_data': 'garbage',
+                 'start': datetime(
+                     year=2020,
+                     month=1,
+                     day=23,
+                     hour=15,
+                     minute=15
+                 ).timestamp(),
+                 'end': datetime(
+                     year=2020,
+                     month=1,
+                     day=23,
+                     hour=16,
+                     minute=00
+                 ).timestamp()}
+        trade_queue.add(identifier, trade)
+        assert not runner.get_next_trade()
+
+    def test_get_next_trade_inside_start_end(self, trade_queue, identifier):
+        runner = Runner(None, trade_queue,
+                        PaperMoneyBroker('test-runner',
+                                         date=datetime(
+                                             year=2020,
+                                             month=1,
+                                             day=23,
+                                             hour=15,
+                                             minute=30
+                                         )),
+                        None)
+        trade = {'blah': 'abcde', 'test_data': 'garbage',
+                 'start': datetime(
+                     year=2020,
+                     month=1,
+                     day=23,
+                     hour=15,
+                     minute=15
+                 ).timestamp(),
+                 'end': datetime(
+                     year=2020,
+                     month=1,
+                     day=23,
+                     hour=16,
+                     minute=00
+                 ).timestamp()}
+        trade_queue.add(identifier, trade)
+        assert runner.get_next_trade()[0] == identifier

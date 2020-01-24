@@ -6,7 +6,7 @@ from typing import Dict, List
 from magictrade import storage
 
 
-class TradeQueueException:
+class TradeQueueException(Exception):
     pass
 
 
@@ -31,9 +31,6 @@ class TradeQueue:
 
     def __len__(self):
         return storage.llen(self.queue_name)
-
-    def __repr__(self):
-        return self.__iter__()
 
     def set_data(self, identifier: str, trade: Dict):
         storage.hmset(self._data_name(identifier), trade)

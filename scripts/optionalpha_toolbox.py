@@ -15,10 +15,11 @@ HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; rv:68.0) Gecko/20100101 Firefox/68.0',
 
 }
+MINUTES_BEFORE_CLOSE = 45
 
 trade_time = {
-    'Before Open': timedelta(hours=-8, minutes=-30),
-    'After Close': timedelta(hours=15, minutes=30),
+    'Before Open': timedelta(hours=-8, minutes=-1 * MINUTES_BEFORE_CLOSE),
+    'After Close': timedelta(hours=15, minutes=60 - MINUTES_BEFORE_CLOSE),
 }
 
 
@@ -66,7 +67,8 @@ def main(args):
             'iv_rank': 100,
             'monthly': False,
             'allocation': ALLOCATION,
-            'open_criteria': [{'expr': f'date >= {earning["date"].timestamp()}'}],
+            'start': earning['date'].timestamp(),
+            'end': earning['date'].timestamp() + MINUTES_BEFORE_CLOSE,
         })
     print("Placed", n + 1, "trades.")
 
