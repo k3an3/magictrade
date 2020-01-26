@@ -125,10 +125,12 @@ if __name__ == "__main__":
     subparsers = parser.add_subparsers(dest='cmd', help='Valid subcommands:', required=True)
     earnings_parser = subparsers.add_parser('earnings')
     earnings_parser.set_defaults(func=fetch_earnings)
-    earnings_parser.add_argument('-t', '--trade', help='Place trades from received data instead of just printing out.')
+    earnings_parser.add_argument('-t', '--trade', action='store_true', help='Place trades from received data instead '
+                                                                            'of just printing out.')
     watchlist_parser = subparsers.add_parser('watchlist')
     watchlist_parser.set_defaults(func=fetch_watchlist)
-    watchlist_parser.add_argument('-t', '--trade', help='Place trades from received data instead of just printing out.')
+    watchlist_parser.add_argument('-t', '--trade', action='store_true', help='Place trades from received data instead '
+                                                                             'of just printing out.')
     watchlist_parser.add_argument('-a', '--account-id', help='If set, will check existing trades to avoid securities '
                                                              'with active trades.')
     main(parser.parse_args())
