@@ -1,13 +1,14 @@
 import calendar
 import logging
 import subprocess
+from ast import literal_eval
 from datetime import datetime, time, timedelta
 from glob import glob
+from math import erf, sqrt, log
 from os.path import join, dirname, basename
 from typing import List, Tuple, Dict
 
 import pkg_resources
-from math import erf, sqrt, log
 from pytz import timezone
 from requests import HTTPError
 
@@ -124,3 +125,17 @@ def handle_error(e: Exception, debug: bool = False):
 
 def get_offset_date(broker: Broker, days: int) -> str:
     return (broker.date + timedelta(days=days)).strftime("%Y-%m-%d")
+
+
+def get_all_trades(account_name: str):
+    positions = storage.lrange(account_name + ":positions", 0, -1)
+    trades = []
+    if positions:
+        for p in positions:
+            try:
+                raw = literal_eval(storage.get("{}:raw:{}".format(account_name, p)))
+            except ValueError:
+                raw = []
+            trades.append({'instrument': raw,
+                           'data': storage.hgetall('{}:{}'.format(account_name, p))})
+    return trades
