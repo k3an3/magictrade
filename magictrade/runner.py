@@ -35,7 +35,8 @@ class Runner:
         self.trade_queue.set_status(identifier, result.get('status', 'unknown'))
         # check if status is deferred, add a target time back to the original trade that the main loop will check and
         if result.get('status') == 'deferred':
-            trade['start'] = result.get('start', self.broker.date().timestamp() + DEFAULT_TIMEOUT)
+            timeout = int(result.get('timeout', DEFAULT_TIMEOUT))
+            trade['start'] = result.get('start', self.broker.date().timestamp() + timeout)
             self.trade_queue.add(identifier, trade)
 
     def run_maintenance(self) -> None:
@@ -92,6 +93,9 @@ class Runner:
                     float(trade['start'])) > self.broker.date:
                 self.trade_queue.stage_trade(identifier)
             else:
+                # Clean up these keys since they aren't used later on
+                for key in ('start', 'end'):
+                    trade.pop(key, None)
                 logging.info("Ingested trade: " + str(trade))
                 normalize_trade(trade)
                 trade['open_criteria'], trade['close_criteria'] = self.trade_queue.get_criteria(identifier)
