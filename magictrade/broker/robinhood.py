@@ -4,6 +4,7 @@ from typing import Tuple, Any, List, Dict
 
 from fast_arrow import Client, Stock, OptionChain, Option, OptionOrder, OptionPosition, StockMarketdata, Portfolio
 from fast_arrow.resources.account import Account
+from retry import retry
 
 from magictrade import Broker
 from magictrade.broker import InvalidOptionError
@@ -81,10 +82,12 @@ class RobinhoodBroker(Broker):
     def get_value(self) -> float:
         raise NotImplementedError()
 
+    @retry(TypeError, tries=5, backoff=2, max_delay=60, jitter=(0, 3))
     @property
     def balance(self, update: bool = True) -> float:
         return float(Portfolio.fetch(self.client, self.account_id)["equity"])
 
+    @retry(TypeError, tries=5, backoff=2, max_delay=60, jitter=(0, 3))
     @property
     def buying_power(self) -> float:
         return float(Account.all(self.client)[0]["buying_power"])

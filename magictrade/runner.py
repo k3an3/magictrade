@@ -16,7 +16,7 @@ from magictrade.strategy import strategies, load_strategies, TradingStrategy, No
 from magictrade.trade_queue import TradeQueue
 from magictrade.utils import market_is_open, get_version, normalize_trade, handle_error
 
-RAND_SLEEP = 1800, 6400
+RAND_SLEEP = 1800, 5500
 DEFAULT_TIMEOUT = 1800
 
 load_brokers()
