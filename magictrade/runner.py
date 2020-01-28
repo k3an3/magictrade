@@ -100,6 +100,7 @@ class Runner:
                 normalize_trade(trade)
                 trade['open_criteria'], trade['close_criteria'] = self.trade_queue.get_criteria(identifier)
                 return identifier, trade
+        return None, None
 
     def run(self):
         next_maintenance = 0
