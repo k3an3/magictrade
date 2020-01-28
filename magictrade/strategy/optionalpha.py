@@ -237,6 +237,8 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             return {'status': 'deferred'}
 
         options = self.broker.get_options(symbol)
+        if not options:
+            raise NoTradeException(f"No options found for {symbol}.")
 
         blacklist_dates = set()
 
