@@ -16,7 +16,7 @@ from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.broker.robinhood import RHOption
 from magictrade.broker.td_ameritrade import TDAmeritradeBroker, TDOption
 from magictrade.runner import Runner
-from magictrade.strategy import TradeConfigException, TradeDateException, TradeCriteriaException
+from magictrade.strategy import TradeConfigException, TradeDateException, TradeCriteriaException, NoTradeException
 from magictrade.strategy.buyandhold import BuyandHoldStrategy
 from magictrade.strategy.human import HumanTradingStrategy, DEFAULT_CONFIG
 from magictrade.strategy.longoption import LongOptionTradingStrategy
@@ -672,7 +672,7 @@ class TestOAStrategy:
                                options_data=rh_options_1,
                                exp_dates=exp_dates)
         oab = OptionAlphaTradingStrategy(pmb)
-        with pytest.raises(TradeException):
+        with pytest.raises(NoTradeException):
             strategy, legs, q, p, _ = oab.make_trade('MU', 'bearish', high_iv)
 
 
@@ -1216,7 +1216,7 @@ class TestRunner:
                      minute=15
                  ).timestamp()}
         trade_queue.add(identifier, trade)
-        assert not runner.get_next_trade()
+        assert runner.get_next_trade() == (None, None)
         trade_queue.staged_to_queue()
         assert len(trade_queue) == 1
 
@@ -1284,7 +1284,7 @@ class TestRunner:
                      minute=00
                  ).timestamp()}
         trade_queue.add(identifier, trade)
-        assert not runner.get_next_trade()
+        assert runner.get_next_trade() == (None, None)
 
     def test_get_next_trade_before_start_end(self, trade_queue, identifier):
         runner = Runner(None, trade_queue,
@@ -1313,7 +1313,7 @@ class TestRunner:
                      minute=00
                  ).timestamp()}
         trade_queue.add(identifier, trade)
-        assert not runner.get_next_trade()
+        assert runner.get_next_trade() == (None, None)
 
     def test_get_next_trade_after_start_end(self, trade_queue, identifier):
         runner = Runner(None, trade_queue,
@@ -1342,7 +1342,7 @@ class TestRunner:
                      minute=00
                  ).timestamp()}
         trade_queue.add(identifier, trade)
-        assert not runner.get_next_trade()
+        assert runner.get_next_trade() == (None, None)
 
     def test_get_next_trade_inside_start_end(self, trade_queue, identifier):
         runner = Runner(None, trade_queue,
