@@ -12,7 +12,7 @@ from magictrade.broker import brokers, load_brokers, Broker
 from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.broker.robinhood import RobinhoodBroker
 from magictrade.broker.td_ameritrade import TDAmeritradeBroker
-from magictrade.strategy import strategies, load_strategies, TradingStrategy
+from magictrade.strategy import strategies, load_strategies, TradingStrategy, NoTradeException
 from magictrade.trade_queue import TradeQueue
 from magictrade.utils import market_is_open, get_version, normalize_trade, handle_error
 
@@ -72,13 +72,17 @@ class Runner:
         try:
             return self.strategy.make_trade(**trade)
         except Exception as e:
-            self.strategy.log(f"Fatal error making trade '{trade}'.")
-            logging.error("Error while making trade '{}': {}".format(trade, e))
             if isinstance(e, HTTPError):
                 # pylint: disable=no-member
                 result = e.response.text
+            elif isinstance(e, NoTradeException):
+                self.strategy.log(f"Error making trade '{trade}': {str(e)}.")
+                logging.warning("Non-application error while making trade '{}': {}".format(trade, e))
+                return
             else:
                 result = str(e)
+            self.strategy.log(f"Fatal error making trade '{trade}': {str(e)}.")
+            logging.error("Error while making trade '{}': {}".format(trade, e))
             self.trade_queue.add_failed(identifier, result)
             handle_error(e, self.args.debug)
 

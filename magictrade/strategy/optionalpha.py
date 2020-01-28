@@ -4,7 +4,7 @@ from typing import List, Dict, Tuple
 from magictrade import Broker, storage
 from magictrade.broker import Option
 from magictrade.strategy import TradingStrategy, NoValidLegException, TradeException, \
-    TradeConfigException
+    TradeConfigException, NoTradeException
 from magictrade.strategy.registry import register_strategy
 from magictrade.utils import get_percentage_change, get_allocation, date_format, get_monthly_option, get_risk
 
@@ -274,8 +274,8 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             spread_width = self._butterfly_spread_width(legs)
         quantity = self._get_quantity(allocation, spread_width, price)
         if not quantity:
-            raise TradeException("Trade quantity equals 0. Ensure allocation is high enough, or enough capital is "
-                                 "available.")
+            raise NoTradeException("Trade quantity equals 0. Ensure allocation is high enough, or enough capital is "
+                                   "available.")
         option_order = self.broker.options_transact(legs, 'credit', price,
                                                     quantity, 'open', strategy=strategy)
         self.save_order(option_order, legs, {}, strategy=strategy, price=price,

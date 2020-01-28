@@ -1,9 +1,9 @@
 import json
 from abc import ABC, abstractmethod
-
 from datetime import datetime
-from py_expression_eval import Parser
 from typing import List, Dict
+
+from py_expression_eval import Parser
 
 from magictrade import storage
 from magictrade.broker import Broker, OptionOrder
@@ -118,6 +118,17 @@ def filter_option_type(options: List, o_type: str):
 
 
 class TradeException(Exception):
+    """
+    General exception class for all exceptions raised during processing and making of trades.
+    """
+    pass
+
+
+class NoTradeException(Exception):
+    """
+    Exceptions during processing and making of trades that are beyond the application's control, and should not be
+    treated as an error.
+    """
     pass
 
 
