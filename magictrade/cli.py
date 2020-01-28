@@ -9,8 +9,8 @@ def handle_trade(args: argparse.Namespace, trade_queue: TradeQueue):
         raise SystemExit
 
     args = vars(args)
-    args.pop('func')
-    args.pop('queue_name')
+    for key in ('func', 'cmd', 'queue_name'):
+        args.pop(key, None)
     identifier = trade_queue.send_trade({
         **args,
     })
@@ -30,7 +30,7 @@ def handle_list(args: argparse.Namespace, trade_queue: TradeQueue):
 def cli():
     parser = argparse.ArgumentParser(description='Talk to magictrade daemon.',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    subparsers = parser.add_subparsers(help='Valid subcommands:', required=True)
+    subparsers = parser.add_subparsers(help='Valid subcommands:', dest='cmd', required=True)
     list_parser = subparsers.add_parser('list', aliases=['l'], help='List pending trades.')
     trade_parser = subparsers.add_parser('trade', aliases=['t'], help='Place a trade',
                                          formatter_class=argparse.ArgumentDefaultsHelpFormatter)

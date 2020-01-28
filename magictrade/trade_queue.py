@@ -33,6 +33,8 @@ class TradeQueue:
         return storage.llen(self.queue_name)
 
     def set_data(self, identifier: str, trade: Dict):
+        for key in ('open', 'close'):
+            trade.pop(f"{key}_criteria", None)
         storage.hmset(self._data_name(identifier), trade)
 
     def add_criteria(self, identifier: str, open_close: str, criteria: List[Dict]):

@@ -82,13 +82,13 @@ class RobinhoodBroker(Broker):
     def get_value(self) -> float:
         raise NotImplementedError()
 
-    @retry(TypeError, tries=5, backoff=2, max_delay=60, jitter=(0, 3))
     @property
+    @retry(TypeError, tries=5, backoff=2, max_delay=60, jitter=(0, 3))
     def balance(self, update: bool = True) -> float:
         return float(Portfolio.fetch(self.client, self.account_id)["equity"])
 
-    @retry(TypeError, tries=5, backoff=2, max_delay=60, jitter=(0, 3))
     @property
+    @retry(TypeError, tries=5, backoff=2, max_delay=60, jitter=(0, 3))
     def buying_power(self) -> float:
         return float(Account.all(self.client)[0]["buying_power"])
 
