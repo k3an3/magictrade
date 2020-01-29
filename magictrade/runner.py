@@ -1,12 +1,12 @@
-import datetime
-import logging
 import os
 import random
-from argparse import ArgumentParser, Namespace
-from typing import Dict
 
+import datetime
+import logging
+from argparse import ArgumentParser, Namespace
 from requests import HTTPError
 from time import sleep
+from typing import Dict, Tuple
 
 from magictrade.broker import brokers, load_brokers, Broker
 from magictrade.broker.papermoney import PaperMoneyBroker
@@ -16,7 +16,7 @@ from magictrade.strategy import strategies, load_strategies, TradingStrategy, No
 from magictrade.trade_queue import TradeQueue
 from magictrade.utils import market_is_open, get_version, normalize_trade, handle_error
 
-RAND_SLEEP = 1800, 5500
+DEFAULT_MAINTENANCE_SLEEP = 1800, 5500
 DEFAULT_TIMEOUT = 1800
 
 load_brokers()
@@ -25,11 +25,12 @@ load_strategies()
 
 class Runner:
     def __init__(self, args: Namespace, trade_queue: TradeQueue, broker: Broker,
-                 strategy: TradingStrategy):
+                 strategy: TradingStrategy, maintenance_sleep: Tuple[int, int] = DEFAULT_MAINTENANCE_SLEEP):
         self.args = args
         self.trade_queue = trade_queue
         self.broker = broker
         self.strategy = strategy
+        self.maintenance_sleep = maintenance_sleep
 
     def handle_results(self, result: Dict, identifier: str, trade: Dict):
         self.trade_queue.set_status(identifier, result.get('status', 'unknown'))
@@ -51,7 +52,7 @@ class Runner:
             logging.info("Completed {} tasks.".format(len(results)))
 
     def check_balance(self) -> int:
-        next_balance_check = random.randint(*RAND_SLEEP)
+        next_balance_check = random.randint(*self.maintenance_sleep)
         try:
             buying_power = self.broker.buying_power
             balance = self.broker.balance
@@ -125,7 +126,7 @@ class Runner:
                         first_trade = False
                     if not next_maintenance or self.trade_queue.should_run_maintenance():
                         self.run_maintenance()
-                        next_maintenance = random.randint(*RAND_SLEEP)
+                        next_maintenance = random.randint(*self.maintenance_sleep)
                         logging.info("Next check in {}s".format(next_maintenance))
                     elif not next_balance_check or self.trade_queue.pop_new_allocation():
                         while len(self.trade_queue):
@@ -178,6 +179,10 @@ def parse_args() -> Namespace:
     parser.add_argument('-s', '--market-open-delay', type=int, default=600, help='Max time in seconds to sleep after '
                                                                                  'market opens.')
     parser.add_argument('-q', '--queue-name', help='Queue name to store data in.')
+    parser.add_argument('-t', '--maintenance-timeout', type=int, nargs=2, metavar=('lower_bound', 'upper_bound'),
+                        default=DEFAULT_MAINTENANCE_SLEEP,
+                        help='A range for the amount of time to wait between maintenance checks, '
+                             'in seconds. The actual timeout will be randomly chosen from this range.')
     parser.add_argument('broker', choices=brokers.keys(), help='Broker to use.')
     parser.add_argument('strategy', choices=strategies.keys(), help='Strategy to use.')
     return parser.parse_args()
