@@ -3,7 +3,7 @@ import random
 
 import datetime
 import logging
-from argparse import ArgumentParser, Namespace
+from argparse import ArgumentParser, Namespace, ArgumentDefaultsHelpFormatter
 from requests import HTTPError
 from time import sleep
 from typing import Dict, Tuple
@@ -158,7 +158,7 @@ class Runner:
 
 
 def parse_args() -> Namespace:
-    parser = ArgumentParser(description="Daemon to make automated trades.")
+    parser = ArgumentParser(description="Daemon to make automated trades.", formatter_class=ArgumentDefaultsHelpFormatter)
     parser.add_argument('-k', '--oauth-keyfile', dest='keyfile', help='Path to keyfile containing access and refresh '
                                                                       'tokens.')
     parser.add_argument('-x', '--authenticate-only', action='store_true', dest='authonly',

@@ -23,7 +23,9 @@ setup(
     entry_points={
         'console_scripts': [
             'magictrade-daemon=magictrade.runner:main',
-            'magictrade-cli=magictrade.cli:cli'
+            'magictrade-cli=magictrade.cli:cli',
+            'robinhood-authenticator=magictrade.misc.robinhood_authenticator:main',
+            'optionalpha-toolbox=magictrade.misc.optionalpha_toolbox:cli'
         ]
     }
 )

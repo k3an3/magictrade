@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import os
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from datetime import datetime, timedelta
 from pprint import pprint
 
@@ -118,8 +118,9 @@ def main(args):
         print("Placed", n + 1, "trades.")
 
 
-if __name__ == "__main__":
-    parser = ArgumentParser()
+def cli():
+    parser = ArgumentParser(description="OptionAlpha toolbox integration for magictrade.",
+                            formatter_class=ArgumentDefaultsHelpFormatter)
     parser.add_argument('-c', '--cookie', help="{COOKIE_NAME} cookie value for optionalpha.com")
     parser.add_argument('-q', '--trade-queue', required=False, help="Name of the magictrade queue to add trades to")
     subparsers = parser.add_subparsers(dest='cmd', help='Valid subcommands:', required=True)
@@ -134,3 +135,7 @@ if __name__ == "__main__":
     watchlist_parser.add_argument('-a', '--account-id', help='If set, will check existing trades to avoid securities '
                                                              'with active trades.')
     main(parser.parse_args())
+
+
+if __name__ == "__main__":
+    cli()
