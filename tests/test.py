@@ -994,7 +994,7 @@ class TestTradingStrategyBase:
             }
         ], price=100, date=current_time.timestamp())
 
-    def test_butterfly_spread_width(self):
+    def test_calc_spread_width_butterfly(self):
         pmb = PaperMoneyBroker('test-balance')
         oab = OptionAlphaTradingStrategy(pmb)
         legs = (
@@ -1003,9 +1003,9 @@ class TestTradingStrategyBase:
             (RHOption({'strike_price': 52, 'type': 'put'}), 'sell'),
             (RHOption({'strike_price': 47, 'type': 'put'}), 'buy'),
         )
-        assert oab._butterfly_spread_width(legs) == 7
+        assert oab._calc_spread_width(legs) == 7
 
-    def test_butterfly_spread_width_1(self):
+    def test_calc_spread_width_butterfly_1(self):
         pmb = PaperMoneyBroker('test-balance')
         oab = OptionAlphaTradingStrategy(pmb)
         legs = (
@@ -1014,8 +1014,47 @@ class TestTradingStrategyBase:
             (RHOption({'strike_price': 52, 'type': 'put'}), 'sell'),
             (RHOption({'strike_price': 42, 'type': 'put'}), 'buy'),
         )
-        assert oab._butterfly_spread_width(legs) == 10
+        assert oab._calc_spread_width(legs) == 10
 
+    def test_calc_spread_width_iron_condor(self):
+        pmb = PaperMoneyBroker('test-balance')
+        oab = OptionAlphaTradingStrategy(pmb)
+        legs = (
+            (RHOption({'strike_price': 64, 'type': 'call'}), 'sell'),
+            (RHOption({'strike_price': 65, 'type': 'call'}), 'buy'),
+            (RHOption({'strike_price': 50, 'type': 'put'}), 'sell'),
+            (RHOption({'strike_price': 45, 'type': 'put'}), 'buy'),
+        )
+        assert oab._calc_spread_width(legs) == 5
+
+    def test_calc_spread_width_iron_condor_1(self):
+        pmb = PaperMoneyBroker('test-balance')
+        oab = OptionAlphaTradingStrategy(pmb)
+        legs = (
+            (RHOption({'strike_price': 100, 'type': 'call'}), 'sell'),
+            (RHOption({'strike_price': 110, 'type': 'call'}), 'buy'),
+            (RHOption({'strike_price': 90, 'type': 'put'}), 'sell'),
+            (RHOption({'strike_price': 85, 'type': 'put'}), 'buy'),
+        )
+        assert oab._calc_spread_width(legs) == 10
+
+    def test_calc_spread_width_vertical_call(self):
+        pmb = PaperMoneyBroker('test-balance')
+        oab = OptionAlphaTradingStrategy(pmb)
+        legs = (
+            (RHOption({'strike_price': 100, 'type': 'call'}), 'sell'),
+            (RHOption({'strike_price': 105, 'type': 'call'}), 'buy'),
+        )
+        assert oab._calc_spread_width(legs) == 5
+
+    def test_calc_spread_width_vertical_put(self):
+        pmb = PaperMoneyBroker('test-balance')
+        oab = OptionAlphaTradingStrategy(pmb)
+        legs = (
+            (RHOption({'strike_price': 105, 'type': 'put'}), 'sell'),
+            (RHOption({'strike_price': 100, 'type': 'put'}), 'buy'),
+        )
+        assert oab._calc_spread_width(legs) == 5
 
 class TestBroker:
     def test_parse_leg(self):

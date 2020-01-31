@@ -146,14 +146,17 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         return int(allocation / get_risk(spread_width, price))
 
     @staticmethod
-    def _butterfly_spread_width(legs: List[Tuple[Option, str]]):
+    def _calc_spread_width(legs: List[Tuple[Option, str]]):
         leg_map = {}
         map_format = "{}:{}"
         for leg, side in legs:
             leg_map[map_format.format(side, leg.option_type)] = leg.strike_price
         widths = []
         for t in ('call', 'put'):
-            widths.append(abs(leg_map[map_format.format('sell', t)] - leg_map[map_format.format('buy', t)]))
+            try:
+                widths.append(abs(leg_map[map_format.format('sell', t)] - leg_map[map_format.format('buy', t)]))
+            except KeyError:
+                pass
         return max(widths)
 
     def log(self, msg: str) -> None:
@@ -272,8 +275,8 @@ class OptionAlphaTradingStrategy(TradingStrategy):
 
         price = self._get_price(legs)
         allocation = get_allocation(self.broker, allocation)
-        if strategy == 'iron_butterfly':
-            spread_width = self._butterfly_spread_width(legs)
+        # Get actual spread width--the stock may only offer options at a larger interval than specified.
+        spread_width = self._calc_spread_width(legs)
         quantity = self._get_quantity(allocation, spread_width, price)
         if not quantity:
             raise NoTradeException("Trade quantity equals 0. Ensure allocation is high enough, or enough capital is "
