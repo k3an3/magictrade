@@ -1056,6 +1056,7 @@ class TestTradingStrategyBase:
         )
         assert oab._calc_spread_width(legs) == 5
 
+
 class TestBroker:
     def test_parse_leg(self):
         leg = {'side': 'buy'}

@@ -6,23 +6,40 @@ from magictrade.broker.registry import brokers
 
 
 def load_brokers():
+    """
+    Load all registered brokers.
+    :return: None
+    """
     from magictrade.utils import import_modules
     import_modules(__file__, 'broker')
 
 
 class InsufficientFundsError(Exception):
+    """
+    Exception to be raised when a trade is placed, but cannot be fulfilled due to an insufficient account balance.
+    """
     pass
 
 
 class NonexistentAssetError(Exception):
+    """
+    Exception to be raised when a trade is placed that depends on ownership of a security not currently owned.
+    """
     pass
 
 
 class InvalidOptionError(Exception):
+    """
+    Exception to be raised when invalid arguments are provided for an option trade.
+    """
     pass
 
 
 class Option(dict, ABC):
+    """
+    Base class representing data for a particular options contract.
+    """
+
     def __init__(self, option_data: Dict):
         super().__init__(option_data)
         self.data = option_data
@@ -34,41 +51,73 @@ class Option(dict, ABC):
     @property
     @abstractmethod
     def id(self):
+        """
+        Return the option's unique identifier.
+        :return: Broker-provided unique identifier.
+        """
         pass
 
     @property
     @abstractmethod
     def option_type(self) -> str:
+        """
+        Returns whether the option is a 'call' or 'put'
+        :return: 'call' or 'put'
+        """
         pass
 
     @property
     @abstractmethod
     def probability_otm(self) -> float:
+        """
+        Return the percentage probability that the option will be out-of-the money at expiration.
+        :return: Probability OTM
+        """
         pass
 
     @property
     @abstractmethod
     def strike_price(self) -> float:
+        """
+        Return the option's strike price.
+        :return: Option strike price
+        """
         pass
 
     @property
     @abstractmethod
     def mark_price(self) -> float:
+        """
+        Return the option's last trade price.
+        :return: Option price
+        """
         pass
 
 
 class OptionOrder(ABC):
+    """
+    Base class representing data for an option order.
+    """
+
     def __init__(self, order_data: Dict):
         self.data = order_data
 
     @property
     @abstractmethod
     def id(self) -> str:
+        """
+        Return the unique id representing the order.
+        :return: Order id
+        """
         pass
 
     @property
     @abstractmethod
-    def legs(self):
+    def legs(self) -> List[Option]:
+        """
+        Return a list of options in this order.
+        :return: Options in order
+        """
         pass
 
 
