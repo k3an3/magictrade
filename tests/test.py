@@ -11,7 +11,7 @@ import pytest
 from data import quotes, human_quotes_1, reactive_quotes, rh_options_1, exp_dates, td_account_json
 
 from magictrade import storage
-from magictrade.broker import InsufficientFundsError, NonexistentAssetError, InvalidOptionError, Broker
+from magictrade.broker import InsufficientFundsError, NonexistentAssetError, InvalidOptionError, Broker, DummyOption
 from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.broker.robinhood import RHOption
 from magictrade.broker.td_ameritrade import TDAmeritradeBroker, TDOption
@@ -675,6 +675,33 @@ class TestOAStrategy:
         with pytest.raises(NoTradeException):
             strategy, legs, q, p, _ = oab.make_trade('MU', 'bearish', high_iv)
 
+    def test_get_fair_credit_vertical(self):
+        pmb = PaperMoneyBroker()
+        legs = [
+            (DummyOption(probability_otm=0.70), 'sell'),
+            (DummyOption(probability_otm=0.76), 'buy')
+        ]
+        assert round(OptionAlphaTradingStrategy(pmb)._get_fair_credit(legs, 5), 2) == 1.5
+
+    def test_get_fair_credit_iron_condor(self):
+        pmb = PaperMoneyBroker()
+        legs = [
+            (DummyOption(probability_otm=0.85), 'sell'),
+            (DummyOption(probability_otm=0.90), 'buy'),
+            (DummyOption(probability_otm=0.86), 'sell'),
+            (DummyOption(probability_otm=0.91), 'buy'),
+        ]
+        assert round(OptionAlphaTradingStrategy(pmb)._get_fair_credit(legs, 3), 2) == 0.87
+
+    def test_get_fair_credit_iron_condor_1(self):
+        pmb = PaperMoneyBroker()
+        legs = [
+            (DummyOption(probability_otm=0.90), 'sell'),
+            (DummyOption(probability_otm=0.95), 'buy'),
+            (DummyOption(probability_otm=0.90), 'sell'),
+            (DummyOption(probability_otm=0.95), 'buy'),
+        ]
+        assert round(OptionAlphaTradingStrategy(pmb)._get_fair_credit(legs, 1), 2) == 0.2
 
 class TestLongOption:
     def test_config_validation(self):

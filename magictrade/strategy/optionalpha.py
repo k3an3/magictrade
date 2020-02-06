@@ -163,6 +163,14 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         storage.lpush(self.get_name() + ":log", "{} {}".format(datetime.now().timestamp(), msg))
 
     @staticmethod
+    def _get_fair_credit(legs: List[Tuple[Option, str]], spread_width: float) -> float:
+        probability_itm = 0
+        for option, side in legs:
+            if side == 'sell':
+                probability_itm += option.probability_itm
+        return spread_width * probability_itm
+
+    @staticmethod
     def invert_action(legs: List) -> None:
         for leg in legs:
             if leg['side'] == 'buy':
@@ -273,17 +281,21 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             raise TradeException("Could not find a valid expiration date with suitable strikes, "
                                  "or supplied expiration date has no options.")
 
-        price = self._get_price(legs)
+        credit = self._get_price(legs)
         allocation = get_allocation(self.broker, allocation)
         # Get actual spread width--the stock may only offer options at a larger interval than specified.
         spread_width = self._calc_spread_width(legs)
-        quantity = self._get_quantity(allocation, spread_width, price)
+        if not credit >= (min_credit := self._get_fair_credit(legs, spread_width)):
+            self.log(f"Trade isn't fair; credit would need to be at least {min_credit} but is only {credit}. Placing "
+                     f"anyway, for now.")
+            # TODO: cancel trade
+        quantity = self._get_quantity(allocation, spread_width, credit)
         if not quantity:
             raise NoTradeException("Trade quantity equals 0. Ensure allocation is high enough, or enough capital is "
                                    "available.")
-        option_order = self.broker.options_transact(legs, 'credit', price,
+        option_order = self.broker.options_transact(legs, 'credit', credit,
                                                     quantity, 'open', strategy=strategy)
-        self.save_order(option_order, legs, {}, strategy=strategy, price=price,
+        self.save_order(option_order, legs, {}, strategy=strategy, price=credit,
                         quantity=quantity, expires=target_date, symbol=symbol,
                         close_criteria=close_criteria)
         self.log("[{}]: Opened {} in {} for direction {} with quantity {} and price {}.".format(
@@ -292,6 +304,6 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             symbol,
             direction,
             quantity,
-            round(price * 100, 2)))
+            round(credit * 100, 2)))
         return {'status': 'placed', 'strategy': strategy, 'legs': legs, 'quantity': quantity,
-                'price': quantity * price, 'order': option_order}
+                'price': quantity * credit, 'order': option_order}

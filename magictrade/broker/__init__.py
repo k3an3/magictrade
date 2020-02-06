@@ -76,6 +76,14 @@ class Option(dict, ABC):
         pass
 
     @property
+    def probability_itm(self) -> float:
+        """
+        Return the percentage probability that the option will be in-the money at expiration.
+        :return: Probability ITM
+        """
+        return 1 - self.probability_otm
+
+    @property
     @abstractmethod
     def strike_price(self) -> float:
         """
@@ -119,6 +127,38 @@ class OptionOrder(ABC):
         :return: Options in order
         """
         pass
+
+
+class DummyOption(Option):
+    """
+    Dummy class for tests.
+    """
+    def __init__(self, id: str = None, option_type: str = None, probability_otm: float = None, strike_price: float = None, mark_price: float = None):
+        self._id = id
+        self._option_type = option_type
+        self._probability_otm = probability_otm
+        self._strike_price = strike_price
+        self._mark_price = mark_price
+
+    @property
+    def id(self):
+        return self._id
+
+    @property
+    def option_type(self) -> str:
+        return self._option_type
+
+    @property
+    def probability_otm(self) -> float:
+        return self._probability_otm
+
+    @property
+    def strike_price(self) -> float:
+        return self._strike_price
+
+    @property
+    def mark_price(self) -> float:
+        return self._mark_price
 
 
 class Broker(ABC):
