@@ -286,7 +286,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         # Get actual spread width--the stock may only offer options at a larger interval than specified.
         spread_width = self._calc_spread_width(legs)
         if not credit >= (min_credit := self._get_fair_credit(legs, spread_width)):
-            self.log(f"Trade isn't fair; credit would need to be at least {min_credit} but is only {credit}. Placing "
+            self.log(f"Trade isn't fair; credit would need to be at least {round(min_credit, 2)} but is only {round(credit, 2)}. Placing "
                      f"anyway, for now.")
             # TODO: cancel trade
         quantity = self._get_quantity(allocation, spread_width, credit)
