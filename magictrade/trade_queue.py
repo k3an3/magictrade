@@ -20,7 +20,7 @@ class TradeQueue:
         return "{}:{}".format(self.queue_name, identifer)
 
     def __iter__(self):
-        return self.all()
+        return iter(self.all())
 
     def __next__(self):
         if self.index >= self.__len__():
