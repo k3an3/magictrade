@@ -59,6 +59,8 @@ docs/_build/
 # PyBuilder
 target/
 
+# misc
 .idea/
 .oauth2*
 dump.rdb*
+.oa-cookie

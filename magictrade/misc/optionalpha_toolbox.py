@@ -1,16 +1,29 @@
 #!/usr/bin/env python3
 import os
+import random
+import shutil
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from datetime import datetime, timedelta
 from pprint import pprint
 
 import requests
-from bs4 import BeautifulSoup
+
+try:
+    from bs4 import BeautifulSoup
+except ImportError:
+    raise SystemExit("This module requires BeautifulSoup4.")
+try:
+    from selenium import webdriver
+    from selenium.webdriver.firefox.options import Options
+except ImportError:
+    raise SystemExit("This module requires selenium.")
+from time import sleep
 
 from magictrade.trade_queue import TradeQueue
 from magictrade.utils import get_all_trades
 
 COOKIE_NAME = 'wordpress_logged_in_0e339d0792c43f894b0e59fcb8d3fb24'
+COOKIE_FILE = '.oa-cookie'
 EARNINGS_DAYS_EXP = 3
 EARNINGS_ALLOCATION = 3
 EARNINGS_IV = 52
@@ -55,6 +68,32 @@ def earnings_process_day(day):
     return earnings
 
 
+def authenticate(username: str, password: str) -> str:
+    options = Options()
+    options.add_argument('-headless')
+    browser = webdriver.Firefox(options=options)
+    browser.get('https://optionalpha.com/')
+    if 'Options' not in browser.title:
+        browser.quit()
+        raise SystemExit("Can't reach OptionAlpha.")
+
+    sleep(random.randint(121, 2347) * .01)
+    browser.find_element_by_css_selector(".fa-sign-in").click()
+    sleep(random.randint(606, 1209) * .01)
+    browser.find_element_by_id('log').send_keys(username)
+    sleep(random.randint(140, 420) * .01)
+    browser.find_element_by_id('pwd').send_keys(password)
+    sleep(random.randint(45, 399) * .01)
+    browser.find_element_by_id('mm-login-button').click()
+    sleep(10)
+    if not browser.current_url == 'https://optionalpha.com/members':
+        browser.quit()
+        raise SystemExit("Invalid credentials.")
+    cookie = browser.get_cookie(COOKIE_NAME)['value']
+    browser.quit()
+    return cookie
+
+
 def fetch_earnings(cookie):
     r = request('members/earnings-calendar', cookie)
     soup = BeautifulSoup(r.text, features="html.parser")
@@ -89,23 +128,41 @@ def fetch_watchlist(cookie):
 
 
 def main(args):
-    if args.cookie:
-        cookie = args.cookie
+    if not (shutil.which("geckodriver") and shutil.which('firefox')):
+        raise SystemExit("'geckodriver' and 'firefox' must be installed and in PATH.")
+    username = os.environ.get('LOGIN')
+    password = os.environ.get('PASSWORD')
+    if not (username and password):
+        raise SystemExit("Must provide LOGIN and PASSWORD environment variables.")
+    if args.random:
+        seconds = random.randint(*args.random)
+        print(f"Sleeping for {seconds}s.")
+        sleep(seconds)
+    if os.path.isfile(COOKIE_FILE):
+        print("Using saved cookie.")
+        with open(COOKIE_FILE) as f:
+            cookie = f.read()
     else:
-        try:
-            cookie = os.environ['COOKIE']
-        except KeyError:
-            print("Error: Must specify cookie value in argument or environment variable!")
-            raise SystemExit
+        print(f"Using credentials for '{username}'.")
+        cookie = authenticate(username, password)
+        print("Successful authentication with credentials.")
+        with open(COOKIE_FILE, 'w') as f:
+            f.write(cookie)
+
     if args.trade and not args.trade_queue:
-        print("Error: --trade-queue is required with --trade!!")
-        raise SystemExit
+        raise SystemExit("Error: --trade-queue is required with --trade!!")
     if args.trade:
         tq = TradeQueue(args.trade_queue)
+    if request('members', cookie).url == 'https://optionalpha.com/member-login':
+        print("Cookie expired, re-authenticating.")
+        cookie = authenticate()
+        with open(COOKIE_FILE, 'w') as f:
+            f.write(cookie)
     positions = set()
     try:
         if args.account_id:
             positions = set([t['data']['symbol'] for t in get_all_trades(args.account_id)])
+            positions |= set([tq.get_data(t)['symbol'] for t in tq])
     except AttributeError:
         pass
     for n, trade in enumerate(args.func(cookie)):
@@ -121,8 +178,9 @@ def main(args):
 def cli():
     parser = ArgumentParser(description="OptionAlpha toolbox integration for magictrade.",
                             formatter_class=ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-c', '--cookie', help="{COOKIE_NAME} cookie value for optionalpha.com")
     parser.add_argument('-q', '--trade-queue', required=False, help="Name of the magictrade queue to add trades to")
+    parser.add_argument('-r', '--random-sleep', type=int, nargs=2, metavar=('min', 'max'),
+                        help="Range of seconds to randomly sleep before running.")
     subparsers = parser.add_subparsers(dest='cmd', help='Valid subcommands:', required=True)
     earnings_parser = subparsers.add_parser('earnings')
     earnings_parser.set_defaults(func=fetch_earnings)

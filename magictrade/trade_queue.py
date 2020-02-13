@@ -20,7 +20,7 @@ class TradeQueue:
         return "{}:{}".format(self.queue_name, identifer)
 
     def __iter__(self):
-        return storage.lrange(self.queue_name, 0, -1)
+        return iter(self.all())
 
     def __next__(self):
         if self.index >= self.__len__():
@@ -31,6 +31,9 @@ class TradeQueue:
 
     def __len__(self):
         return storage.llen(self.queue_name)
+
+    def all(self):
+        return storage.lrange(self.queue_name, 0, -1)
 
     def set_data(self, identifier: str, trade: Dict):
         for key in ('open', 'close'):
