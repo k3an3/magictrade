@@ -155,7 +155,7 @@ def main(args):
         tq = TradeQueue(args.trade_queue)
     if request('members', cookie).url == 'https://optionalpha.com/member-login':
         print("Cookie expired, re-authenticating.")
-        cookie = authenticate()
+        cookie = authenticate(username, password)
         with open(COOKIE_FILE, 'w') as f:
             f.write(cookie)
     positions = set()

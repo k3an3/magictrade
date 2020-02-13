@@ -6,16 +6,16 @@ robinhood_authenticator.py
 chown to root, chmod to 700 so it's kept safe.
 """
 import base64
+import datetime
 import hashlib
 import hmac
 import os
 import random
 import struct
-
-import datetime
 import subprocess
-import time
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+
+import time
 
 
 def get_hotp_token(secret, intervals_no):
@@ -50,7 +50,7 @@ def main():
         print("Sleeping {} seconds before reauth.".format(t))
         time.sleep(t)
 
-    token = get_totp_token()
+    token = get_totp_token(otp_secret)
     subprocess.run([args.path + '/venv/bin/magictrade-daemon', '-x', 'papermoney', '-k',
                     args.path + 'magictrade/.oauth2-token'], env={'username': username,
                                                                   'password': password,
