@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import random
+import shutil
 from argparse import ArgumentParser
 from datetime import datetime, timedelta
 from pprint import pprint
@@ -120,10 +121,16 @@ def fetch_watchlist(cookie):
 
 
 def main(args):
+    if not (shutil.which("geckodriver") and shutil.which('firefox')):
+        raise SystemExit("'geckodriver' and 'firefox' must be installed and in PATH.")
     username = os.environ.get('LOGIN')
     password = os.environ.get('PASSWORD')
     if not (username and password):
         raise SystemExit("Must provide LOGIN and PASSWORD environment variables.")
+    if args.random:
+        seconds = random.randint(*args.random)
+        print(f"Sleeping for {seconds}s.")
+        sleep(seconds)
     if os.path.isfile(COOKIE_FILE):
         print("Using saved cookie.")
         with open(COOKIE_FILE) as f:
@@ -164,6 +171,8 @@ def main(args):
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument('-q', '--trade-queue', required=False, help="Name of the magictrade queue to add trades to")
+    parser.add_argument('-r', '--random-sleep', type=int, nargs=2, metavar=('min', 'max'),
+                        help="Range of seconds to randomly sleep before running.")
     subparsers = parser.add_subparsers(dest='cmd', help='Valid subcommands:', required=True)
     earnings_parser = subparsers.add_parser('earnings')
     earnings_parser.set_defaults(func=fetch_earnings)
