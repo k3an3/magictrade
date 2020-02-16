@@ -163,9 +163,9 @@ def main(args):
     try:
         if args.account_id:
             positions = set([t['data']['symbol'] for t in get_all_trades(args.account_id)])
-            positions |= set([tq.get_data(t)['symbol'] for t in tq])
     except AttributeError:
         pass
+    positions |= set([tq.get_data(t)['symbol'] for t in tq])
     for n, trade in enumerate(args.func(cookie, args)):
         if args.trade:
             if trade['symbol'] not in positions:
