@@ -184,6 +184,10 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         for position, data, legs in self.get_current_positions():
             legs = self.broker.options_positions_data(legs)
             value = self._get_price(legs)
+            if value <= 0:
+                self.log(f"Calculated negative credit ({value:.2f}) during maintenance "
+                         f"on {data['symbol']}-{data['strategy']}, skipping...")
+                continue
             change = get_percentage_change(float(data['price']), value)
             data['last_price'] = value
             data['last_change'] = change * -1
@@ -282,6 +286,8 @@ class OptionAlphaTradingStrategy(TradingStrategy):
                                  "or supplied expiration date has no options.")
         # Calculate net credit
         credit = self._get_price(legs)
+        if credit <= 0:
+            raise TradeException(f"Calculated negative credit ({credit:.2f}), bailing.")
         allocation = get_allocation(self.broker, allocation)
         # Get actual spread width--the stock may only offer options at a larger interval than specified.
         spread_width = self._calc_spread_width(legs)
