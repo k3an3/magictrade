@@ -180,7 +180,7 @@ def cli():
     parser = ArgumentParser(description="OptionAlpha toolbox integration for magictrade.",
                             formatter_class=ArgumentDefaultsHelpFormatter)
     parser.add_argument('-q', '--trade-queue', help="Name of the magictrade queue to add trades to")
-    parser.add_argument('-a', '--allocation', type=int, default=DEFAULT_ALLOCATION, help="Name of the magictrade "
+    parser.add_argument('-l', '--allocation', type=int, default=DEFAULT_ALLOCATION, help="Name of the magictrade "
                                                                                          "queue to add trades to")
     parser.add_argument('-r', '--random-sleep', type=int, nargs=2, metavar=('min', 'max'),
                         help="Range of seconds to randomly sleep before running.")

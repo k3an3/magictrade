@@ -2,7 +2,7 @@ import uuid
 from typing import Tuple, Any, List, Dict
 
 from tdameritrade import TDClient
-from tdameritrade.auth import refresh_token
+from tdameritrade.auth import refresh_token as do_refresh
 
 from magictrade.broker import Broker, InvalidOptionError, Option, OptionOrder
 from magictrade.broker.registry import register_broker
@@ -65,7 +65,7 @@ class TDAmeritradeBroker(Broker):
         self._account_id = account_id
 
     def refresh(self):
-        self.client._token = refresh_token(self.client.refresh_token, self.client.client_id)['access_token']
+        self.client._token = do_refresh(self.client.refresh_token, self.client.client_id)['access_token']
 
     def get_quote(self, symbol: str) -> float:
         return self.client.quote(symbol)[symbol]['lastPrice']
@@ -88,7 +88,7 @@ class TDAmeritradeBroker(Broker):
     def get_value(self) -> float:
         raise NotImplementedError()
 
-    def options_positions(self) -> List:
+    def options_positions(self) -> Dict:
         return {p['instrument']['symbol']: p for p in self._get_account(positions=True)['positions'] if
                 p['instrument']['assetType'] == 'OPTION'}
 
@@ -111,7 +111,7 @@ class TDAmeritradeBroker(Broker):
         }
 
     @staticmethod
-    def filter_options(options: Dict, exp_dates: List = [], option_type: str = None) -> List:
+    def filter_options(options: Dict, exp_dates: List = [], option_type: str = None):
         if exp_dates:
             puts = {}
             calls = {}
@@ -126,7 +126,8 @@ class TDAmeritradeBroker(Broker):
             return [TDOption(option[0]) for option in options[option_type.lower()].values()]
 
     def options_transact(self, legs: List[Dict], direction: str, price: float,
-                         quantity: int, effect: str = 'open', time_in_force: str = 'gfd', **kwargs) -> Tuple[Any, Any]:
+                         quantity: int, effect: str = 'open', time_in_force: str = 'GOOD TILL CANCEL',
+                         **kwargs) -> OptionOrder:
         if effect not in ('open', 'close'):
             raise InvalidOptionError()
 
@@ -157,7 +158,8 @@ class TDAmeritradeBroker(Broker):
 
         return TDOptionOrder(self.client.trade_options(self._account_id, new_legs,
                                                        quantity, round(price, ndigits=2),
-                                                       order_type=order_type, strategy=strategy))
+                                                       order_type=order_type, duration=time_in_force,
+                                                       strategy=strategy))
 
     def buy(self, symbol: str, quantity: int) -> Tuple[str, Any]:
         raise NotImplementedError
