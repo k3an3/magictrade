@@ -25,7 +25,6 @@ from magictrade.utils import get_all_trades
 COOKIE_NAME = 'wordpress_logged_in_0e339d0792c43f894b0e59fcb8d3fb24'
 COOKIE_FILE = '.oa-cookie'
 EARNINGS_DAYS_EXP = 3
-EARNINGS_ALLOCATION = 3
 EARNINGS_IV = 52
 DEFAULT_ALLOCATION = 3
 HEADERS = {
@@ -48,7 +47,7 @@ def request(url: str, cookie: str):
     return r
 
 
-def earnings_process_day(day):
+def earnings_process_day(day, allocation):
     date = datetime.strptime(day.h3.text.split()[1], '%m/%d/%Y')
     earnings = []
     for stock in day.find_all(class_='earning-stock'):
@@ -59,7 +58,7 @@ def earnings_process_day(day):
                 'symbol': stock.h3.text,
                 'monthly': False,
                 'iv_rank': EARNINGS_IV,
-                'allocation': EARNINGS_ALLOCATION,
+                'allocation': allocation,
                 'days_out': EARNINGS_DAYS_EXP,
                 'direction': 'neutral',
             })
@@ -94,35 +93,37 @@ def authenticate(username: str, password: str) -> str:
     return cookie
 
 
-def fetch_earnings(cookie):
+# noinspection PyUnusedLocal
+def fetch_earnings(cookie, args):
     r = request('members/earnings-calendar', cookie)
     soup = BeautifulSoup(r.text, features="html.parser")
     earnings = []
     for day in soup.find_all(class_='day'):
-        if day_earnings := earnings_process_day(day):
+        if day_earnings := earnings_process_day(day, args.allocation):
             earnings.extend(day_earnings)
     return earnings
 
 
-def watchlist_process_stock(stock):
+def watchlist_process_stock(stock, allocation):
     if stock.find(class_='earningcornercontainer'):
+        # Don't place if earnings coming up.
         return
     return {
         'symbol': stock.h1.text,
         'iv_rank': int(stock.find(class_='bar-percentage').text.split()[2]),
         'monthly': True,
-        'allocation': DEFAULT_ALLOCATION,
+        'allocation': allocation,
         'direction': 'neutral',
         'end': datetime.now().replace(hour=16, minute=0, second=0, microsecond=0).timestamp()
     }
 
 
-def fetch_watchlist(cookie):
+def fetch_watchlist(cookie, args):
     r = request('members/watch-list', cookie)
     soup = BeautifulSoup(r.text, features="html.parser")
     trades = []
     for stock in soup.find_all(class_='oagrid-item highiv'):
-        if trade := watchlist_process_stock(stock):
+        if trade := watchlist_process_stock(stock, args.allocation):
             trades.append(trade)
     return trades
 
@@ -165,7 +166,7 @@ def main(args):
             positions |= set([tq.get_data(t)['symbol'] for t in tq])
     except AttributeError:
         pass
-    for n, trade in enumerate(args.func(cookie)):
+    for n, trade in enumerate(args.func(cookie, args)):
         if args.trade:
             if trade['symbol'] not in positions:
                 tq.send_trade(trade)
@@ -178,7 +179,9 @@ def main(args):
 def cli():
     parser = ArgumentParser(description="OptionAlpha toolbox integration for magictrade.",
                             formatter_class=ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-q', '--trade-queue', required=False, help="Name of the magictrade queue to add trades to")
+    parser.add_argument('-q', '--trade-queue', help="Name of the magictrade queue to add trades to")
+    parser.add_argument('-a', '--allocation', type=int, default=DEFAULT_ALLOCATION, help="Name of the magictrade "
+                                                                                         "queue to add trades to")
     parser.add_argument('-r', '--random-sleep', type=int, nargs=2, metavar=('min', 'max'),
                         help="Range of seconds to randomly sleep before running.")
     subparsers = parser.add_subparsers(dest='cmd', help='Valid subcommands:', required=True)
