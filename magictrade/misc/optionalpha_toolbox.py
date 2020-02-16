@@ -134,8 +134,8 @@ def main(args):
     password = os.environ.get('PASSWORD')
     if not (username and password):
         raise SystemExit("Must provide LOGIN and PASSWORD environment variables.")
-    if args.random:
-        seconds = random.randint(*args.random)
+    if args.random_sleep:
+        seconds = random.randint(*args.random_sleep)
         print(f"Sleeping for {seconds}s.")
         sleep(seconds)
     if os.path.isfile(COOKIE_FILE):
