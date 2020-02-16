@@ -8,7 +8,8 @@ from typing import Dict
 from unittest.mock import patch
 
 import pytest
-from data import quotes, human_quotes_1, reactive_quotes, rh_options_1, exp_dates, td_account_json
+from data import quotes, human_quotes_1, reactive_quotes, rh_options_1, exp_dates, td_account_json, bad_options_1, \
+    bad_options_2
 
 from magictrade import storage
 from magictrade.broker import InsufficientFundsError, NonexistentAssetError, InvalidOptionError, Broker, DummyOption
@@ -25,7 +26,6 @@ from magictrade.strategy.reactive import ReactiveStrategy
 from magictrade.trade_queue import RedisTradeQueue
 from magictrade.utils import get_account_history, get_percentage_change, get_allocation, calculate_percent_otm, \
     get_risk, from_date_format
-from tests.data import bad_options_1, bad_options_2
 
 date = datetime.strptime("2019-03-31", "%Y-%m-%d")
 
