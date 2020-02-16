@@ -80,6 +80,10 @@ def date_format(date: datetime) -> str:
     return date.strftime("%Y-%m-%d")
 
 
+def from_date_format(date: str) -> str:
+    return datetime.strptime(date, "%Y-%m-%d")
+
+
 def get_monthly_option(start_date: datetime = None) -> str:
     month = start_date.month
     first_day_of_month = datetime(start_date.year, month, 1)

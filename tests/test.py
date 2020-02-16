@@ -23,7 +23,9 @@ from magictrade.strategy.longoption import LongOptionTradingStrategy
 from magictrade.strategy.optionalpha import OptionAlphaTradingStrategy, strategies, TradeException, high_iv
 from magictrade.strategy.reactive import ReactiveStrategy
 from magictrade.trade_queue import RedisTradeQueue
-from magictrade.utils import get_account_history, get_percentage_change, get_allocation, calculate_percent_otm, get_risk
+from magictrade.utils import get_account_history, get_percentage_change, get_allocation, calculate_percent_otm, \
+    get_risk, from_date_format
+from tests.data import bad_options_1, bad_options_2
 
 date = datetime.strptime("2019-03-31", "%Y-%m-%d")
 
@@ -702,6 +704,24 @@ class TestOAStrategy:
             (DummyOption(probability_otm=0.95), 'buy'),
         ]
         assert round(OptionAlphaTradingStrategy(pmb)._get_fair_credit(legs, 1), 2) == 0.2
+
+    def test_make_trade_negative_credit(self):
+        pmb = PaperMoneyBroker(account_id='test', date=from_date_format('2020-02-03'), data=quotes,
+                               options_data=bad_options_1, exp_dates=['2020-03-20'])
+        oab = OptionAlphaTradingStrategy(pmb)
+        with pytest.raises(TradeException):
+            oab.make_trade('MU', 'bearish', 52, exp_date='2020-03-20')
+
+    def test_maintenance_negative_price(self):
+        name = 'testmaint-' + str(uuid.uuid4())
+        pmb = PaperMoneyBroker(account_id=name, date=from_date_format('2020-02-03'), data=quotes,
+                               options_data=bad_options_2, exp_dates=['2020-03-20'])
+        oab = OptionAlphaTradingStrategy(pmb)
+        oab.make_trade('MU', 'bearish', high_iv, exp_date='2020-03-20')
+        pmb.options_data = bad_options_1
+        orders = oab.maintenance()
+        assert not orders
+
 
 class TestLongOption:
     def test_config_validation(self):
