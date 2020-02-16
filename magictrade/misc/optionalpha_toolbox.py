@@ -19,7 +19,7 @@ except ImportError:
     raise SystemExit("This module requires selenium.")
 from time import sleep
 
-from magictrade.trade_queue import TradeQueue
+from magictrade.trade_queue import RedisTradeQueue
 from magictrade.utils import get_all_trades
 
 COOKIE_NAME = 'wordpress_logged_in_0e339d0792c43f894b0e59fcb8d3fb24'
@@ -153,7 +153,7 @@ def main(args):
     if args.trade and not args.trade_queue:
         raise SystemExit("Error: --trade-queue is required with --trade!!")
     if args.trade:
-        tq = TradeQueue(args.trade_queue)
+        tq = RedisTradeQueue(args.trade_queue)
     if request('members', cookie).url == 'https://optionalpha.com/member-login':
         print("Cookie expired, re-authenticating.")
         cookie = authenticate(username, password)

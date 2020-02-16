@@ -1,9 +1,9 @@
 import argparse
 
-from magictrade.trade_queue import TradeQueue
+from magictrade.trade_queue import RedisTradeQueue
 
 
-def handle_trade(args: argparse.Namespace, trade_queue: TradeQueue):
+def handle_trade(args: argparse.Namespace, trade_queue: RedisTradeQueue):
     if args.days_out and args.timeline:
         print("Can't use timeline with days_out. Aborting.")
         raise SystemExit
@@ -17,12 +17,12 @@ def handle_trade(args: argparse.Namespace, trade_queue: TradeQueue):
     print("Placed trade {} with data:\n{}".format(identifier, args))
 
 
-def handle_check(args: argparse.Namespace, trade_queue: TradeQueue):
+def handle_check(args: argparse.Namespace, trade_queue: RedisTradeQueue):
     status = trade_queue.get_status(args.identifier)
     print("Returned status: '{}'".format(status))
 
 
-def handle_list(args: argparse.Namespace, trade_queue: TradeQueue):
+def handle_list(args: argparse.Namespace, trade_queue: RedisTradeQueue):
     for identifier in trade_queue:
         print(identifier, ":", trade_queue.get_data(identifier))
 
@@ -74,7 +74,7 @@ def cli():
                              'daemon is reading from')
 
     args = parser.parse_args()
-    trade_queue = TradeQueue(args.queue_name)
+    trade_queue = RedisTradeQueue(args.queue_name)
     args.func(args, trade_queue)
 
 

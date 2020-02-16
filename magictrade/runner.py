@@ -1,19 +1,19 @@
-import os
-import random
-
 import datetime
 import logging
+import os
+import random
 from argparse import ArgumentParser, Namespace, ArgumentDefaultsHelpFormatter
-from requests import HTTPError
 from time import sleep
 from typing import Dict, Tuple
+
+from requests import HTTPError
 
 from magictrade.broker import brokers, load_brokers, Broker
 from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.broker.robinhood import RobinhoodBroker
 from magictrade.broker.td_ameritrade import TDAmeritradeBroker
 from magictrade.strategy import strategies, load_strategies, TradingStrategy, NoTradeException
-from magictrade.trade_queue import TradeQueue
+from magictrade.trade_queue import RedisTradeQueue
 from magictrade.utils import market_is_open, get_version, normalize_trade, handle_error
 
 DEFAULT_MAINTENANCE_SLEEP = 1800, 5500
@@ -24,7 +24,7 @@ load_strategies()
 
 
 class Runner:
-    def __init__(self, args: Namespace, trade_queue: TradeQueue, broker: Broker,
+    def __init__(self, args: Namespace, trade_queue: RedisTradeQueue, broker: Broker,
                  strategy: TradingStrategy, maintenance_sleep: Tuple[int, int] = DEFAULT_MAINTENANCE_SLEEP):
         self.args = args
         self.trade_queue = trade_queue
@@ -50,6 +50,7 @@ class Runner:
             handle_error(e, self.args.debug)
         else:
             logging.info("Completed {} tasks.".format(len(results)))
+        self.trade_queue.last_maintenance = self.broker.date
 
     def check_balance(self) -> int:
         next_balance_check = random.randint(*self.maintenance_sleep)
@@ -77,12 +78,12 @@ class Runner:
                 # pylint: disable=no-member
                 result = e.response.text
             elif isinstance(e, NoTradeException):
-                self.strategy.log(f"Error making trade '{trade}': {str(e)}.")
+                self.strategy.log(f"Error making trade in '{trade['symbol']}': {str(e)}.")
                 logging.warning("Non-application error while making trade '{}': {}".format(trade, e))
                 return
             else:
                 result = str(e)
-            self.strategy.log(f"Fatal error making trade '{trade}': {str(e)}.")
+            self.strategy.log(f"Fatal error making trade in '{trade['symbol']}': {str(e)}.")
             logging.error("Error while making trade '{}': {}".format(trade, e))
             self.trade_queue.add_failed(identifier, result)
             handle_error(e, self.args.debug)
@@ -225,7 +226,7 @@ def main():
     queue_name = args.queue_name
     if not queue_name:
         raise SystemExit("Must provide queue name.")
-    trade_queue = TradeQueue(queue_name)
+    trade_queue = RedisTradeQueue(queue_name)
     strategy = strategies[args.strategy](broker)
     logging.info("Magictrade daemon {} starting with queue name '{}'.".format(get_version(), queue_name))
     try:

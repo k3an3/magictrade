@@ -280,16 +280,16 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         else:
             raise TradeException("Could not find a valid expiration date with suitable strikes, "
                                  "or supplied expiration date has no options.")
-
+        # Calculate net credit
         credit = self._get_price(legs)
         allocation = get_allocation(self.broker, allocation)
         # Get actual spread width--the stock may only offer options at a larger interval than specified.
         spread_width = self._calc_spread_width(legs)
         if not credit >= (min_credit := self._get_fair_credit(legs, spread_width)):
+            # TODO: decide what to do
             self.log(
-                f"Trade isn't fair; credit would need to be at least {round(min_credit, 2)} but is only {round(credit, 2)}. Placing "
-                f"anyway, for now.")
-            # TODO: cancel trade
+                f"Trade isn't fair; received credit {credit:.2f} < {min_credit:.2f}. Placing anyway.")
+        # Calculate what quantity is appropriate for the given allocation and risk.
         quantity = self._get_quantity(allocation, spread_width, credit)
         if not quantity:
             raise NoTradeException("Trade quantity equals 0. Ensure allocation is high enough, or enough capital is "
@@ -299,7 +299,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         self.save_order(option_order, legs, {}, strategy=strategy, price=credit,
                         quantity=quantity, expires=target_date, symbol=symbol,
                         close_criteria=close_criteria)
-        self.log("[{}]: Opened {} in {} for direction {} with quantity {} and price {}.".format(
+        self.log("[{}]: Opened {} in {} with direction {} with quantity {} and price {}.".format(
             option_order.id,
             strategy,
             symbol,

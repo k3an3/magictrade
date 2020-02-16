@@ -22,7 +22,7 @@ from magictrade.strategy.human import HumanTradingStrategy, DEFAULT_CONFIG
 from magictrade.strategy.longoption import LongOptionTradingStrategy
 from magictrade.strategy.optionalpha import OptionAlphaTradingStrategy, strategies, TradeException, high_iv
 from magictrade.strategy.reactive import ReactiveStrategy
-from magictrade.trade_queue import TradeQueue
+from magictrade.trade_queue import RedisTradeQueue
 from magictrade.utils import get_account_history, get_percentage_change, get_allocation, calculate_percent_otm, get_risk
 
 date = datetime.strptime("2019-03-31", "%Y-%m-%d")
@@ -1241,7 +1241,7 @@ class TestRunner:
     @pytest.fixture
     def trade_queue(self):
         storage.delete('test-runner-queue')
-        return TradeQueue('test-runner-queue')
+        return RedisTradeQueue('test-runner-queue')
 
     @pytest.fixture
     def identifier(self):

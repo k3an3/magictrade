@@ -1,5 +1,6 @@
 import datetime
 import json
+from abc import ABC, abstractmethod
 from json import JSONDecodeError
 from typing import Dict, List
 
@@ -10,7 +11,97 @@ class TradeQueueException(Exception):
     pass
 
 
-class TradeQueue:
+class TradeQueue(ABC):
+    @abstractmethod
+    def all(self) -> List:
+        pass
+
+    @abstractmethod
+    def set_data(self, identifier: str, trade: Dict):
+        pass
+
+    @abstractmethod
+    def add_criteria(self, identifier: str, open_close: str, criteria: List[Dict]):
+        pass
+
+    @abstractmethod
+    def get_criteria(self, identifier: str) -> (List[str], List[str]):
+        pass
+
+    @abstractmethod
+    def add(self, identifier: str, trade: Dict):
+        pass
+
+    @abstractmethod
+    def set_status(self, identifier: str, status: str):
+        pass
+
+    @abstractmethod
+    def get_status(self, identifier: str) -> str:
+        pass
+
+    @abstractmethod
+    def add_failed(self, identifier: str, error: str):
+        pass
+
+    @abstractmethod
+    def stage_trade(self, identifier: str):
+        pass
+
+    @abstractmethod
+    def pop(self) -> Dict:
+        pass
+
+    @abstractmethod
+    def get_data(self, identifier: str):
+        pass
+
+    @abstractmethod
+    def get_allocation(self, new: bool = False) -> int:
+        pass
+
+    @abstractmethod
+    def pop_new_allocation(self) -> int:
+        pass
+
+    @abstractmethod
+    def set_current_usage(self, buying_power: float, balance: float):
+        pass
+
+    @abstractmethod
+    def delete_current_usage(self):
+        pass
+
+    @abstractmethod
+    def heartbeat(self):
+        pass
+
+    @abstractmethod
+    def staged_to_queue(self):
+        pass
+
+    @abstractmethod
+    def send_trade(self, args: Dict) -> str:
+        pass
+
+    @abstractmethod
+    def run_maintenance(self):
+        pass
+
+    @abstractmethod
+    def should_run_maintenance(self) -> bool:
+        pass
+
+    @property
+    def last_maintenance(self) -> datetime.datetime:
+        pass
+
+    @last_maintenance.setter
+    def last_maintenance(self, when: datetime.datetime):
+        pass
+
+
+class RedisTradeQueue(TradeQueue):
     def __init__(self, queue_name: str):
         self.queue_name = queue_name
         self.index = 0
@@ -124,3 +215,11 @@ class TradeQueue:
         if should:
             storage.delete(self.queue_name + ":maintenance")
         return should
+
+    @property
+    def last_maintenance(self) -> datetime.datetime:
+        return datetime.datetime.fromtimestamp(storage.get(self.queue_name + ":last_maintenance"))
+
+    @last_maintenance.setter
+    def last_maintenance(self, when: datetime.datetime):
+        storage.set(self.queue_name + ":last_maintenance", when.timestamp())
