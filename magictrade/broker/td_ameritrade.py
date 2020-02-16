@@ -126,10 +126,15 @@ class TDAmeritradeBroker(Broker):
             return [TDOption(option[0]) for option in options[option_type.lower()].values()]
 
     def options_transact(self, legs: List[Dict], direction: str, price: float,
-                         quantity: int, effect: str = 'open', time_in_force: str = 'GOOD TILL CANCEL',
+                         quantity: int, effect: str = 'open', time_in_force: str = 'DAY',
                          **kwargs) -> OptionOrder:
         if effect not in ('open', 'close'):
             raise InvalidOptionError()
+
+        time_in_force = {
+            'gtc': 'GOOD TILL CANCEL',
+            'gfd': 'DAY',
+        }.get(time_in_force, time_in_force)
 
         order_type, effect = {
             'open': ('NET_CREDIT', 'TO_OPEN'),
