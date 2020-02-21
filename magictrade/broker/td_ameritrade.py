@@ -132,8 +132,9 @@ class TDAmeritradeBroker(Broker):
             raise InvalidOptionError()
 
         time_in_force = {
-            'gtc': 'GOOD TILL CANCEL',
+            'gtc': 'GOOD_TILL_CANCEL',
             'gfd': 'DAY',
+            'fok': 'FILL_OR_KILL'
         }.get(time_in_force, time_in_force)
 
         order_type, effect = {
