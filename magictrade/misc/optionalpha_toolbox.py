@@ -152,8 +152,6 @@ def main(args):
 
     if args.trade and not args.trade_queue:
         raise SystemExit("Error: --trade-queue is required with --trade!!")
-    if args.trade:
-        tq = RedisTradeQueue(args.trade_queue)
     if request('members', cookie).url == 'https://optionalpha.com/member-login':
         print("Cookie expired, re-authenticating.")
         cookie = authenticate(username, password)
@@ -165,7 +163,9 @@ def main(args):
             positions = set([t['data']['symbol'] for t in get_all_trades(args.account_id)])
     except AttributeError:
         pass
-    positions |= set([tq.get_data(t)['symbol'] for t in tq])
+    if args.trade:
+        tq = RedisTradeQueue(args.trade_queue)
+        positions |= set([tq.get_data(t)['symbol'] for t in tq])
     for n, trade in enumerate(args.func(cookie, args)):
         if args.trade:
             if trade['symbol'] not in positions:
