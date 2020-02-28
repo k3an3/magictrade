@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 import os
 import random
-import shutil
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-from datetime import datetime, timedelta
 from pprint import pprint
 
 import requests
+import shutil
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+from datetime import datetime, timedelta
 
 try:
     from bs4 import BeautifulSoup
@@ -167,6 +167,8 @@ def main(args):
         tq = RedisTradeQueue(args.trade_queue)
         positions |= set([tq.get_data(t)['symbol'] for t in tq])
     for n, trade in enumerate(args.func(cookie, args)):
+        if args.trade_count and n + 1 > args.trade_count:
+            break
         if args.trade:
             if trade['symbol'] not in positions:
                 tq.send_trade(trade)
@@ -179,9 +181,10 @@ def main(args):
 def cli():
     parser = ArgumentParser(description="OptionAlpha toolbox integration for magictrade.",
                             formatter_class=ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-q', '--trade-queue', help="Name of the magictrade queue to add trades to")
+    parser.add_argument('-q', '--trade-queue', help="Name of the magictrade queue to add trades to.")
+    parser.add_argument('-c', '--trade-count', type=int, help="Max number of trades to place.")
     parser.add_argument('-l', '--allocation', type=int, default=DEFAULT_ALLOCATION, help="Name of the magictrade "
-                                                                                         "queue to add trades to")
+                                                                                         "queue to add trades to.")
     parser.add_argument('-r', '--random-sleep', type=int, nargs=2, metavar=('min', 'max'),
                         help="Range of seconds to randomly sleep before running.")
     subparsers = parser.add_subparsers(dest='cmd', help='Valid subcommands:', required=True)
