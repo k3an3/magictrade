@@ -1,12 +1,12 @@
-import datetime
-import logging
 import os
 import random
+
+import datetime
+import logging
 from argparse import ArgumentParser, Namespace, ArgumentDefaultsHelpFormatter
+from requests import HTTPError
 from time import sleep
 from typing import Dict, Tuple
-
-from requests import HTTPError
 
 from magictrade.broker import brokers, load_brokers, Broker
 from magictrade.broker.papermoney import PaperMoneyBroker
@@ -88,17 +88,23 @@ class Runner:
             self.trade_queue.add_failed(identifier, result)
             handle_error(e, self.args.debug)
 
-    def get_next_trade(self) -> (str, Dict):
+    def check_trade_expired(self, trade: Dict) -> bool:
+        return 'end' in trade and datetime.datetime.fromtimestamp(
+            float(trade['end'])) <= self.broker.date
+
+    def get_next_trade(self, clean_only: bool = False) -> (str, Dict):
         while len(self.trade_queue):
             identifier, trade = self.trade_queue.pop()
-            if 'end' in trade and datetime.datetime.fromtimestamp(
-                    float(trade['end'])) <= self.broker.date:
+            if self.check_trade_expired():
                 # Trade not re-added to queue since it is expired
                 continue
             elif 'start' in trade and datetime.datetime.fromtimestamp(
                     float(trade['start'])) > self.broker.date:
                 self.trade_queue.stage_trade(identifier)
             else:
+                if clean_only:
+                    self.trade_queue.stage_trade(identifier)
+                    continue
                 # Clean up these keys since they aren't used later on
                 for key in ('start', 'end'):
                     trade.pop(key, None)
@@ -113,12 +119,13 @@ class Runner:
         next_balance_check = 0
         next_heartbeat = 0
         first_trade = False
+        cleanup_ran = False
 
         while True:
             try:
                 if not next_heartbeat:
                     self.trade_queue.heartbeat()
-                    next_heartbeat = 60
+                    next_heartbeat = 15
                 if market_is_open() or self.args.debug:
                     if not self.args.debug and first_trade:
                         logging.info("Sleeping to make sure market is open...")
@@ -147,9 +154,14 @@ class Runner:
                             next_maintenance -= 1
                         if next_balance_check:
                             next_balance_check -= 1
+                    cleanup_ran = False
                 else:  # market not open
                     if next_maintenance:
                         next_maintenance = 0
+                    if not cleanup_ran:
+                        cleanup_ran = True
+                        self.get_next_trade(clean_only=True)
+                        self.trade_queue.staged_to_queue()
                     first_trade = True
                 sleep(1)
                 next_heartbeat -= 1
