@@ -95,7 +95,7 @@ class Runner:
     def get_next_trade(self, clean_only: bool = False) -> (str, Dict):
         while len(self.trade_queue):
             identifier, trade = self.trade_queue.pop()
-            if self.check_trade_expired():
+            if self.check_trade_expired(trade):
                 # Trade not re-added to queue since it is expired
                 continue
             elif 'start' in trade and datetime.datetime.fromtimestamp(
