@@ -1,6 +1,6 @@
 from logging import getLogger
 from math import floor
-from typing import Dict
+from typing import Dict, List
 
 from magictrade import Broker
 from magictrade.strategy import TradingStrategy
@@ -33,3 +33,6 @@ class ReactiveStrategy(TradingStrategy):
         except KeyError:
             pass
         return 'sell', quantity
+
+    def maintenance(self) -> List:
+        pass

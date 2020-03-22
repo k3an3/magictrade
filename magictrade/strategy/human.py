@@ -1,5 +1,5 @@
 from math import floor
-from typing import Dict
+from typing import Dict, List
 
 try:
     from scipy.stats import linregress
@@ -114,3 +114,5 @@ class HumanTradingStrategy(TradingStrategy):
             return get_percentage_change(r[0], r[-1])
         return 0.0
 
+    def maintenance(self) -> List:
+        pass

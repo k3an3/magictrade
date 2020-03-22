@@ -165,7 +165,7 @@ class TDAmeritradeBroker(Broker):
             'iron_butterfly': 'CUSTOM',
         }
 
-        strategy = strategies.get(kwargs.get('strategy'), 'CUSTOM')
+        strategy = strategies.get(kwargs.get('strategy'), 'NONE')
 
         new_legs = []
         for leg in legs:

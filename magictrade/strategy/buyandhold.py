@@ -1,6 +1,6 @@
 from logging import getLogger
 from math import floor
-from typing import Dict
+from typing import Dict, List
 
 from magictrade import Broker
 from magictrade.broker import InsufficientFundsError
@@ -12,6 +12,9 @@ logger = getLogger('magictrade')
 
 @register_strategy
 class BuyandHoldStrategy(TradingStrategy):
+    """
+    Mainly for backtesting purposes.
+    """
     name = 'buyandhold'
 
     def __init__(self, broker: Broker, config: Dict = {}):
@@ -29,8 +32,10 @@ class BuyandHoldStrategy(TradingStrategy):
                 n_shares -= 1
             else:
                 pos = result[1]
-                logger.info("BuyandHold: Purchased {} shares for {} with result {}".format(pos.quantity, pos.cost, result[0]))
+                logger.info(
+                    "BuyandHold: Purchased {} shares for {} with result {}".format(pos.quantity, pos.cost, result[0]))
                 return result
         return False
 
-
+    def maintenance(self) -> List:
+        pass
