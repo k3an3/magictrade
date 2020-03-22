@@ -1,12 +1,12 @@
-import os
-import random
-
 import datetime
 import logging
+import os
+import random
 from argparse import ArgumentParser, Namespace, ArgumentDefaultsHelpFormatter
-from requests import HTTPError
 from time import sleep
 from typing import Dict, Tuple
+
+from requests import HTTPError
 
 from magictrade.broker import brokers, load_brokers, Broker
 from magictrade.broker.papermoney import PaperMoneyBroker
@@ -25,11 +25,11 @@ load_strategies()
 
 class Runner:
     def __init__(self, args: Namespace, trade_queue: RedisTradeQueue, broker: Broker,
-                 strategy: TradingStrategy, maintenance_sleep: Tuple[int, int] = DEFAULT_MAINTENANCE_SLEEP):
+                 enabled_strategies: TradingStrategy, maintenance_sleep: Tuple[int, int] = DEFAULT_MAINTENANCE_SLEEP):
         self.args = args
         self.trade_queue = trade_queue
         self.broker = broker
-        self.strategy = strategy
+        self.strategies = enabled_strategies
         self.maintenance_sleep = maintenance_sleep
 
     def handle_results(self, result: Dict, identifier: str, trade: Dict):
@@ -42,14 +42,15 @@ class Runner:
 
     def run_maintenance(self) -> None:
         logging.info("Running maintenance...")
-        try:
-            results = self.strategy.maintenance()
-        except Exception as e:
-            logging.error("Error while performing maintenance: {}".format(e))
-            self.strategy.log("Fatal error while performing maintenance.")
-            handle_error(e, self.args.debug)
-        else:
-            logging.info("Completed {} tasks.".format(len(results)))
+        for strategy in self.strategies:
+            try:
+                results = strategy.maintenance()
+            except Exception as e:
+                logging.error("Error while performing maintenance: {}".format(e))
+                strategy.log("Fatal error while performing maintenance.")
+                handle_error(e, self.args.debug)
+            else:
+                logging.info("Completed {} tasks.".format(len(results)))
         self.trade_queue.last_maintenance = self.broker.date
 
     def check_balance(self) -> int:
@@ -58,7 +59,7 @@ class Runner:
             buying_power = self.broker.buying_power
             balance = self.broker.balance
         except Exception as e:
-            self.strategy.log("Fatal error while getting balances.")
+            self.strategies.log("Fatal error while getting balances.")
             logging.error("Error while getting balances: {}, sleeping {}s".format(
                 e, next_balance_check))
             handle_error(e, self.args.debug)
@@ -71,19 +72,26 @@ class Runner:
             return next_balance_check
 
     def make_trade(self, trade: Dict, identifier: str) -> Dict:
+        if strategy := trade.get('strategy'):
+            try:
+                strategy = next([s for s in self.strategies if s.name == strategy])
+            except StopIteration:
+                raise Exception(f"Invalid strategy {strategy} specified.")
+        else:
+            strategy = self.strategies[0]
         try:
-            return self.strategy.make_trade(**trade)
+            return strategy.make_trade(**trade)
         except Exception as e:
             if isinstance(e, HTTPError):
                 # pylint: disable=no-member
                 result = e.response.text
             elif isinstance(e, NoTradeException):
-                self.strategy.log(f"Error making trade in '{trade['symbol']}': {str(e)}.")
+                self.strategies.log(f"Error making trade in '{trade['symbol']}': {str(e)}.")
                 logging.warning("Non-application error while making trade '{}': {}".format(trade, e))
                 return
             else:
                 result = str(e)
-            self.strategy.log(f"Fatal error making trade in '{trade['symbol']}': {str(e)}.")
+            self.strategies.log(f"Fatal error making trade in '{trade['symbol']}': {str(e)}.")
             logging.error("Error while making trade '{}': {}".format(trade, e))
             self.trade_queue.add_failed(identifier, result)
             handle_error(e, self.args.debug)
@@ -197,7 +205,9 @@ def parse_args() -> Namespace:
                         help='A range for the amount of time to wait between maintenance checks, '
                              'in seconds. The actual timeout will be randomly chosen from this range.')
     parser.add_argument('broker', choices=brokers.keys(), help='Broker to use.')
-    parser.add_argument('strategy', choices=strategies.keys(), help='Strategy to use.')
+    parser.add_argument('strategy', choices=strategies.keys(), nargs="+", help='Strategies to use. The first one will '
+                                                                               'be the default for any untagged '
+                                                                               'trades.')
     return parser.parse_args()
 
 
@@ -239,7 +249,9 @@ def main():
     if not queue_name:
         raise SystemExit("Must provide queue name.")
     trade_queue = RedisTradeQueue(queue_name)
-    strategy = strategies[args.strategy](broker)
+    enabled_strategies = []
+    for strategy in args.strategies:
+        enabled_strategies.append(strategies[args.strategy](broker))
     logging.info("Magictrade daemon {} starting with queue name '{}'.".format(get_version(), queue_name))
     try:
         import sentry_sdk
