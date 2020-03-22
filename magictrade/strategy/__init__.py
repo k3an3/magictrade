@@ -18,6 +18,8 @@ def load_strategies():
 
 
 class TradingStrategy(ABC):
+    name = 'tradingstrategy'
+   
     def __init__(self, broker: Broker):
         self.broker = broker
 
