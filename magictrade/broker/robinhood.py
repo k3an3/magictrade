@@ -2,15 +2,14 @@ import json
 import os
 from typing import Tuple, Any, List, Dict
 
-from fast_arrow import Client, Stock, OptionChain, Option, OptionOrder, OptionPosition, StockMarketdata, Portfolio
+from fast_arrow import Client, Stock, OptionChain, Option, OptionOrder, OptionPosition, StockMarketdata, Portfolio, \
+    StockPosition
 from fast_arrow.resources.account import Account
 from retry import retry
 
 from magictrade import Broker
-from magictrade.broker import InvalidOptionError
-from magictrade.broker import Option as OptionBase
-from magictrade.broker import OptionOrder as OptionBaseOrder
 from magictrade.broker.registry import register_broker
+from magictrade.securities import InvalidOptionError, Option as OptionBase, OptionOrder as OptionBaseOrder
 
 token_filename = '.oauth2-token'
 
@@ -98,6 +97,9 @@ class RobinhoodBroker(Broker):
     def options_positions_data(self, options: List) -> List:
         return [RHOption(o) for o in
                 self._normalize_options_data(OptionPosition.mergein_marketdata_list(self.client, options))]
+
+    def stock_positions(self) -> List:
+        return StockPosition.all(self.client)
 
     @staticmethod
     def _normalize_options_data(options):

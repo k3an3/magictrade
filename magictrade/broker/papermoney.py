@@ -6,9 +6,10 @@ from typing import Tuple, Dict, List, Any
 import requests
 
 from magictrade import Position
-from magictrade.broker import Broker, InsufficientFundsError, NonexistentAssetError, InvalidOptionError
+from magictrade.broker import Broker, InsufficientFundsError, NonexistentAssetError
 from magictrade.broker.registry import register_broker
 from magictrade.broker.robinhood import RobinhoodBroker, RHOption, RHOptionOrder
+from magictrade.securities import InvalidOptionError
 
 API_KEY = "3KODWEPB1ZR37OT7"
 
@@ -66,6 +67,9 @@ class PaperMoneyBroker(Broker):
                         break
             return options
         return self.rb.options_positions_data(options)
+
+    def stock_positions(self) -> List:
+        pass
 
     def get_options(self, symbol: str, actually_work: bool = False) -> List:
         if actually_work:

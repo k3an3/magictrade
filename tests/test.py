@@ -12,11 +12,12 @@ from data import quotes, human_quotes_1, reactive_quotes, rh_options_1, exp_date
     bad_options_2
 
 from magictrade import storage
-from magictrade.broker import InsufficientFundsError, NonexistentAssetError, InvalidOptionError, Broker, DummyOption
+from magictrade.broker import InsufficientFundsError, NonexistentAssetError, Broker
 from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.broker.robinhood import RHOption
 from magictrade.broker.td_ameritrade import TDAmeritradeBroker, TDOption
 from magictrade.runner import Runner
+from magictrade.securities import InvalidOptionError, DummyOption
 from magictrade.strategy import TradeConfigException, TradeDateException, TradeCriteriaException, NoTradeException
 from magictrade.strategy.buyandhold import BuyandHoldStrategy
 from magictrade.strategy.human import HumanTradingStrategy, DEFAULT_CONFIG
@@ -25,7 +26,7 @@ from magictrade.strategy.optionalpha import OptionAlphaTradingStrategy, strategi
 from magictrade.strategy.reactive import ReactiveStrategy
 from magictrade.trade_queue import RedisTradeQueue
 from magictrade.utils import get_account_history, get_percentage_change, get_allocation, calculate_percent_otm, \
-    get_risk, from_date_format
+    get_risk, from_date_format, find_option_with_probability
 
 date = datetime.strptime("2019-03-31", "%Y-%m-%d")
 
@@ -220,6 +221,21 @@ class TestLogging:
 
 
 class TestUtils:
+    def test_find_probability_call_short(self):
+        pmb = PaperMoneyBroker(account_id='test', )
+        calls = pmb.filter_options(rh_options_1, option_type='call')
+        assert find_option_with_probability(calls, 70, 'short').id == '9d870f5d-bd44-4750-8ff6-7aee58249b9f'
+
+    def test_find_probability_call_long(self):
+        pmb = PaperMoneyBroker(account_id='test', )
+        calls = pmb.filter_options(rh_options_1, option_type='call')
+        assert find_option_with_probability(calls, 48, 'long').id == '03facad1-959d-4674-85d5-79d50ff75ea6'
+
+    def test_find_probability_put_short(self):
+        pmb = PaperMoneyBroker(account_id='test', )
+        puts = pmb.filter_options(rh_options_1, option_type='put')
+        assert find_option_with_probability(puts, 72, 'short').id == 'f3acdb4d-82da-417b-ad13-5255613745bd'
+
     def test_get_percentage_change(self):
         assert get_percentage_change(100, 200) == 100
         assert round(get_percentage_change(100, 100.57), 2) == 0.57
@@ -351,23 +367,6 @@ class TestHumanStrategy:
 
 
 class TestOAStrategy:
-    def test_find_probability_call_short(self):
-        pmb = PaperMoneyBroker(account_id='test', )
-        oab = OptionAlphaTradingStrategy(pmb)
-        calls = pmb.filter_options(rh_options_1, option_type='call')
-        assert oab._find_option_with_probability(calls, 70, 'short').id == '9d870f5d-bd44-4750-8ff6-7aee58249b9f'
-
-    def test_find_probability_call_long(self):
-        pmb = PaperMoneyBroker(account_id='test', )
-        oab = OptionAlphaTradingStrategy(pmb)
-        calls = pmb.filter_options(rh_options_1, option_type='call')
-        assert oab._find_option_with_probability(calls, 48, 'long').id == '03facad1-959d-4674-85d5-79d50ff75ea6'
-
-    def test_find_probability_put_short(self):
-        pmb = PaperMoneyBroker(account_id='test', )
-        oab = OptionAlphaTradingStrategy(pmb)
-        puts = pmb.filter_options(rh_options_1, option_type='put')
-        assert oab._find_option_with_probability(puts, 72, 'short').id == 'f3acdb4d-82da-417b-ad13-5255613745bd'
 
     def test_get_long_leg_put(self):
         pmb = PaperMoneyBroker(account_id='test', )
@@ -1180,16 +1179,14 @@ class TestTDAmeritradeBroker:
             broker.options_transact([], None, 0.0, 1, 'buy')
 
     def test_find_probability_call_short(self, broker: TDAmeritradeBroker, options: Dict):
-        oab = OptionAlphaTradingStrategy(broker)
         options_by_date = broker.filter_options(options, ['2019-12-04'])
         calls = broker.filter_options(options_by_date, option_type='call')
-        assert oab._find_option_with_probability(calls, 70, 'short').id == 'SPY_120419C315'
+        assert find_option_with_probability(calls, 70, 'short').id == 'SPY_120419C315'
 
     def test_find_probability_put_short(self, broker: TDAmeritradeBroker, options: Dict):
-        oab = OptionAlphaTradingStrategy(broker)
         options_by_date = broker.filter_options(options, ['2019-12-04'])
         puts = broker.filter_options(options_by_date, option_type='put')
-        assert oab._find_option_with_probability(puts, 70, 'short').id == 'SPY_120419P308'
+        assert find_option_with_probability(puts, 70, 'short').id == 'SPY_120419P308'
 
     def test_get_long_leg_put(self, broker: TDAmeritradeBroker, options: Dict):
         oab = OptionAlphaTradingStrategy(broker)

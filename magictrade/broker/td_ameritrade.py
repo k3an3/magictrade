@@ -1,11 +1,12 @@
 import uuid
-from typing import Tuple, Any, List, Dict
+from typing import Tuple, Any, List, Dict, Callable
 
 from tdameritrade import TDClient
 from tdameritrade.auth import refresh_token as do_refresh
 
-from magictrade.broker import Broker, InvalidOptionError, Option, OptionOrder
+from magictrade.broker import Broker
 from magictrade.broker.registry import register_broker
+from magictrade.securities import InvalidOptionError, Option, OptionOrder, Position
 
 
 class TDOption(Option):
@@ -50,6 +51,16 @@ class TDOptionOrder(OptionOrder):
         return new_legs
 
 
+class TDPosition(Position):
+    @property
+    def quantity(self) -> int:
+        return self.data['longQuantity']
+
+    @property
+    def symbol(self) -> str:
+        return self.data['instrument']['symbol']
+
+
 @register_broker
 class TDAmeritradeBroker(Broker):
     name = 'tdameritrade'
@@ -88,12 +99,18 @@ class TDAmeritradeBroker(Broker):
     def get_value(self) -> float:
         raise NotImplementedError()
 
-    def options_positions(self) -> Dict:
-        return {p['instrument']['symbol']: p for p in self._get_account(positions=True)['positions'] if
-                p['instrument']['assetType'] == 'OPTION'}
+    def _get_positions_of_type(self, position_type: str, wrapper: Callable = lambda x: x):
+        return [wrapper(p) for p in self._get_account(positions=True)['positions'] if
+                p['instrument']['assetType'] == position_type]
+
+    def options_positions(self) -> List:
+        return self._get_positions_of_type('OPTION')
 
     def options_positions_data(self, options: List) -> List:
         return [TDOption({**o, **self.client.quote(o['symbol'])[o['symbol']]}) for o in options]
+
+    def stock_positions(self) -> List:
+        return self._get_positions_of_type('EQUITY', lambda x: TDPosition(x))
 
     @staticmethod
     def _strip_exp(options: Any) -> Any:
@@ -184,4 +201,12 @@ class TDAmeritradeBroker(Broker):
 
     @staticmethod
     def leg_in_options(leg: Dict, options: Dict) -> bool:
-        return leg['symbol'] in options
+        for option in options:
+            for field in ('expirationDate', 'strikePrice', 'putCall'):
+                if not option[field] == leg[field]:
+                    match = False
+                    break
+                match = True
+            if match:
+                return True
+        return False

@@ -1,13 +1,15 @@
 import json
 from abc import ABC, abstractmethod
-from datetime import datetime
-from typing import List, Dict
+from datetime import datetime, timedelta
+from typing import List, Dict, Tuple
 
 from py_expression_eval import Parser
 
 from magictrade import storage
-from magictrade.broker import Broker, OptionOrder
+from magictrade.broker import Broker
+from magictrade.securities import OptionOrder
 from magictrade.strategy.registry import strategies
+from magictrade.utils import get_monthly_option, date_format
 
 
 def load_strategies():
@@ -16,9 +18,75 @@ def load_strategies():
 
 
 class TradingStrategy(ABC):
-    def __init__(self, broker: Broker, name: str = None):
+    def __init__(self, broker: Broker):
         self.broker = broker
-        self.name = name
+
+    def init_strategy(self, symbol: str, open_criteria: List = []) -> Tuple:
+        symbol = symbol.upper()
+        quote = self.broker.get_quote(symbol)
+        if not quote:
+            raise TradeException("Error getting quote for " + symbol)
+
+        if open_criteria and not self.evaluate_criteria(open_criteria,
+                                                        date=self.broker.date.timestamp(),
+                                                        price=quote):
+            return quote, [], {'status': 'deferred'}
+
+        options = self.broker.get_options(symbol)
+        if not options:
+            raise NoTradeException(f"No options found for {symbol}.")
+
+        return quote, options, None
+
+    def _get_target_date(self, config: Dict, options: List, timeline: int = 0, days_out: int = 0,
+                         blacklist_dates: set = set(), monthly: bool = False):
+        if not days_out:
+            timeline_range = config['timeline'][1] - config['timeline'][0]
+            timeline = config['timeline'][0] + timeline_range * timeline / 100
+        else:
+            timeline = days_out
+
+        if monthly:
+            return get_monthly_option(self.broker.date + timedelta(days=timeline))
+
+        target_date = None
+        offset = 0
+        if isinstance(options, list):
+            dates = self.broker.exp_dates
+        else:
+            dates = options['expiration_dates']
+        while not target_date:
+            td1 = date_format(self.broker.date + timedelta(days=timeline + offset))
+            td2 = date_format(self.broker.date + timedelta(days=timeline - offset))
+            if td1 in dates and td1 not in blacklist_dates:
+                target_date = td1
+            elif td2 in dates and td2 not in blacklist_dates:
+                target_date = td2
+            offset += 1
+        return target_date
+
+    def find_exp_date(self, config: Dict, options: List, timeline: int = 0, days_out: int = 0, monthly: bool = False,
+                      exp_date: str = None):
+        blacklist_dates = set()
+
+        attempts = 0
+        while attempts <= 7:
+            # Only try the specified date once.
+            if exp_date:
+                target_date = exp_date
+                attempts = 7
+            else:
+                target_date = self._get_target_date(config, options, timeline, days_out, blacklist_dates,
+                                                    monthly=monthly)
+                # Only try one monthly option
+                if monthly:
+                    attempts = 7
+            blacklist_dates.add(target_date)
+            attempts += 1
+
+            if not (options_on_date := self.broker.filter_options(options, [target_date])):
+                continue
+            yield target_date, self.broker.get_options_data(options_on_date)
 
     def get_name(self):
         return "{}-{}".format(self.name, self.broker.account_id)

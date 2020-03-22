@@ -143,3 +143,9 @@ def get_all_trades(account_name: str):
             trades.append({'instrument': raw,
                            'data': storage.hgetall('{}:{}'.format(account_name, p))})
     return trades
+
+
+def find_option_with_probability(options: List, probability: int, ttype: str = 'short'):
+    for option in sorted(options, key=lambda o: o.probability_otm):
+        if option.probability_otm * 100 >= probability:
+            return option
