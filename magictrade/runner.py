@@ -179,7 +179,8 @@ class Runner:
 
 
 def parse_args() -> Namespace:
-    parser = ArgumentParser(description="Daemon to make automated trades.", formatter_class=ArgumentDefaultsHelpFormatter)
+    parser = ArgumentParser(description="Daemon to make automated trades.",
+                            formatter_class=ArgumentDefaultsHelpFormatter)
     parser.add_argument('-k', '--oauth-keyfile', dest='keyfile', help='Path to keyfile containing access and refresh '
                                                                       'tokens.')
     parser.add_argument('-x', '--authenticate-only', action='store_true', dest='authonly',
@@ -205,9 +206,10 @@ def parse_args() -> Namespace:
                         help='A range for the amount of time to wait between maintenance checks, '
                              'in seconds. The actual timeout will be randomly chosen from this range.')
     parser.add_argument('broker', choices=brokers.keys(), help='Broker to use.')
-    parser.add_argument('strategy', choices=strategies.keys(), nargs="+", help='Strategies to use. The first one will '
-                                                                               'be the default for any untagged '
-                                                                               'trades.')
+    parser.add_argument('strategies', metavar='strategy', choices=strategies.keys(), nargs="+",
+                        help='Strategies to use. The first one will '
+                             'be the default for any untagged '
+                             'trades.')
     return parser.parse_args()
 
 
@@ -251,7 +253,7 @@ def main():
     trade_queue = RedisTradeQueue(queue_name)
     enabled_strategies = []
     for strategy in args.strategies:
-        enabled_strategies.append(strategies[args.strategy](broker))
+        enabled_strategies.append(strategies[strategy](broker))
     logging.info("Magictrade daemon {} starting with queue name '{}'.".format(get_version(), queue_name))
     try:
         import sentry_sdk
@@ -261,7 +263,7 @@ def main():
     except ImportError:
         pass
     logging.info("Authenticated with account " + broker.account_id)
-    runner = Runner(args, trade_queue, broker, strategy)
+    runner = Runner(args, trade_queue, broker, enabled_strategies)
     try:
         runner.run()
     except KeyboardInterrupt:
