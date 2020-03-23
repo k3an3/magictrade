@@ -74,7 +74,7 @@ class Runner:
     def make_trade(self, trade: Dict, identifier: str) -> Dict:
         if strategy := trade.get('strategy'):
             try:
-                strategy = next([s for s in self.strategies if s.name == strategy])
+                strategy = next(s for s in self.strategies if s.name == strategy)
             except StopIteration:
                 raise Exception(f"Invalid strategy {strategy} specified.")
         else:
