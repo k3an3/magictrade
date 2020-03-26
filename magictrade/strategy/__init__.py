@@ -94,7 +94,7 @@ class TradingStrategy(ABC):
         return "{}-{}".format(self.name, self.broker.account_id)
 
     @abstractmethod
-    def _maintenance(self) -> List:
+    def _maintenance(self, position: str, data: Dict, legs: List) -> List:
         pass
 
     @abstractmethod

@@ -154,7 +154,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         self.delete_position(position)
         return option_order
 
-    def _maintenance(self, position, data, legs) -> List:
+    def _maintenance(self, position: str, data: Dict, legs: List) -> List:
         legs = self.broker.options_positions_data(legs)
         value = self._get_price(legs)
         if value <= 0:
