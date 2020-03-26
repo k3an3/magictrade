@@ -19,7 +19,7 @@ def load_strategies():
 
 class TradingStrategy(ABC):
     name = 'tradingstrategy'
-   
+
     def __init__(self, broker: Broker):
         self.broker = broker
 
@@ -94,8 +94,31 @@ class TradingStrategy(ABC):
         return "{}-{}".format(self.name, self.broker.account_id)
 
     @abstractmethod
-    def maintenance(self) -> List:
+    def _maintenance(self) -> List:
         pass
+
+    @abstractmethod
+    def close_position(self, position: str, data: Dict, legs: List, reason: str):
+        pass
+
+    def maintenance(self) -> List:
+        orders = []
+
+        for position, data, legs in self.get_current_positions():
+            legs = self.broker.options_positions_data(legs)
+            if data.get('close_now'):
+                orders.append(self.close_position(position, data, legs))
+                continue
+            if data.get('close_criteria'):
+                quote = self.broker.get_quote(data['symbol'])
+                if self.evaluate_criteria(data['close_criteria'],
+                                          date=self.broker.date.timestamp(),
+                                          price=quote):
+                    orders.append(self.close_position(position, data, legs))
+                    continue
+
+            orders.append(self._maintenance(position, data, legs))
+        return orders
 
     @abstractmethod
     def make_trade(self, symbol: str, *args, **kwargs):

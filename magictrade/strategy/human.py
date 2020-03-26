@@ -114,5 +114,9 @@ class HumanTradingStrategy(TradingStrategy):
             return get_percentage_change(r[0], r[-1])
         return 0.0
 
-    def maintenance(self) -> List:
+    def _maintenance(self) -> List:
         pass
+
+    def close_position(self, position: str, data: Dict, legs: List, reason: str):
+        pass
+

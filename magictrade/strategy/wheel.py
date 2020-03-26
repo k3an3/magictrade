@@ -77,5 +77,5 @@ class WheelTradingStrategy(TradingStrategy):
         return {'status': 'placed', 'strategy': 'wheel', 'legs': [option], 'quantity': quantity,
                 'price': quantity * credit, 'order': option_order}
 
-    def maintenance(self):
+    def _maintenance(self):
         return []

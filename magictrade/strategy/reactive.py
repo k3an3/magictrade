@@ -34,5 +34,9 @@ class ReactiveStrategy(TradingStrategy):
             pass
         return 'sell', quantity
 
-    def maintenance(self) -> List:
+    def _maintenance(self) -> List:
         pass
+
+    def close_position(self, position: str, data: Dict, legs: List, reason: str):
+        pass
+

@@ -143,42 +143,44 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             else:
                 leg['side'] = 'buy'
 
-    def maintenance(self) -> List:
-        orders = []
+    def close_position(self, position: str, data: Dict, legs: List, close_price: float = 0.0):
+        if not close_price:
+            close_price = self._get_price(legs)
+        self.invert_action(legs)
+        option_order = self.broker.options_transact(legs, 'debit', close_price,
+                                                    int(data['quantity']),
+                                                    'close', time_in_force="gtc",
+                                                    )
+        self.delete_position(position)
+        return option_order
 
-        for position, data, legs in self.get_current_positions():
-            legs = self.broker.options_positions_data(legs)
-            value = self._get_price(legs)
-            if value <= 0:
-                self.log(f"Calculated negative credit ({value:.2f}) during maintenance "
-                         f"on {data['symbol']}-{data['strategy']}, skipping...")
-                continue
-            change = get_percentage_change(float(data['price']), value)
-            data['last_price'] = value
-            data['last_change'] = change * -1
-            storage.hmset("{}:{}".format(self.get_name(), position), data)
-            if value and -1 * change >= strategies[data['strategy']]['target']:
-                # legs that were originally bought now need to be sold
-                self.invert_action(legs)
-                self.log("[{}]: Closing {}-{} due to change of {:.2f}%."
-                         " Was {:.2f}, now {:.2f}.".format(position,
-                                                           data['symbol'],
-                                                           data['strategy'],
-                                                           change,
-                                                           float(data['price']),
-                                                           value))
-                option_order = self.broker.options_transact(legs, 'debit', value,
-                                                            int(data['quantity']),
-                                                            'close', time_in_force="gtc",
-                                                            )
-                self.delete_position(position)
-                orders.append(option_order)
-                self.log("[{}]: Closed {}-{} with quantity {} and price {:.2f}.".format(position,
-                                                                                        data['symbol'],
-                                                                                        data['strategy'],
-                                                                                        data['quantity'],
-                                                                                        value))
-        return orders
+    def _maintenance(self, position, data, legs) -> List:
+        legs = self.broker.options_positions_data(legs)
+        value = self._get_price(legs)
+        if value <= 0:
+            self.log(f"Calculated negative credit ({value:.2f}) during maintenance "
+                     f"on {data['symbol']}-{data['strategy']}, skipping...")
+            return
+        change = get_percentage_change(float(data['price']), value)
+        data['last_price'] = value
+        data['last_change'] = change * -1
+        storage.hmset("{}:{}".format(self.get_name(), position), data)
+        if value and -1 * change >= strategies[data['strategy']]['target']:
+            # legs that were originally bought now need to be sold
+            self.log("[{}]: Closing {}-{} due to change of {:.2f}%."
+                     " Was {:.2f}, now {:.2f}.".format(position,
+                                                       data['symbol'],
+                                                       data['strategy'],
+                                                       change,
+                                                       float(data['price']),
+                                                       value))
+            option_order = self.close_position(position, data, legs, value)
+            self.log("[{}]: Closed {}-{} with quantity {} and price {:.2f}.".format(position,
+                                                                                    data['symbol'],
+                                                                                    data['strategy'],
+                                                                                    data['quantity'],
+                                                                                    value))
+            return option_order
 
     def make_trade(self, symbol: str, direction: str, iv_rank: int = 50, allocation: int = 3, timeline: int = 50,
                    spread_width: int = 3, days_out: int = 0, monthly: bool = False, exp_date: str = None,

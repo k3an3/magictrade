@@ -22,7 +22,7 @@ class LongOptionTradingStrategy(TradingStrategy):
     def __init__(self, broker: Broker):
         self.broker = broker
 
-    def maintenance(self) -> List:
+    def _maintenance(self) -> List:
         pass
 
     @staticmethod
@@ -119,3 +119,7 @@ class LongOptionTradingStrategy(TradingStrategy):
             quantity,
             round(price * 100, 2)))
         return {'status': 'placed', 'quantity': quantity, 'price': round(price * 100, 2)}
+
+    def close_position(self, position: str, data: Dict, legs: List, reason: str):
+        pass
+
