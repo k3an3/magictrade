@@ -81,4 +81,4 @@ class WheelTradingStrategy(TradingStrategy):
         return []
 
     def close_position(self, position: str, data: Dict, legs: List):
-        raise NotImplemented
+        raise NotImplementedError()
