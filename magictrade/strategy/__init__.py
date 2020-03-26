@@ -98,7 +98,7 @@ class TradingStrategy(ABC):
         pass
 
     @abstractmethod
-    def close_position(self, position: str, data: Dict, legs: List, reason: str):
+    def close_position(self, position: str, data: Dict, legs: List):
         pass
 
     def maintenance(self) -> List:
