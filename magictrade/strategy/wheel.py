@@ -79,3 +79,6 @@ class WheelTradingStrategy(TradingStrategy):
 
     def _maintenance(self):
         return []
+
+    def close_position(self, position: str, data: Dict, legs: List):
+        raise NotImplemented
