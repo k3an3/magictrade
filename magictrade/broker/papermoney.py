@@ -200,5 +200,5 @@ class PaperMoneyBroker(Broker):
         raise NotImplementedError
 
     @staticmethod
-    def leg_in_options(leg: Dict, options: Dict) -> bool:
+    def leg_in_options(leg: Dict, options: Dict, data: Dict = {}) -> bool:
         return RobinhoodBroker.leg_in_options(leg, options)

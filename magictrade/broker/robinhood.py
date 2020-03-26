@@ -165,5 +165,5 @@ class RobinhoodBroker(Broker):
         return OptionOrder.get(self.client, ref_id)
 
     @staticmethod
-    def leg_in_options(leg: Dict, options: Dict) -> bool:
+    def leg_in_options(leg: Dict, options: Dict, data: Dict = {}) -> bool:
         return leg['option'] in options
