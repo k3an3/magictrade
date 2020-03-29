@@ -202,11 +202,6 @@ class TDAmeritradeBroker(Broker):
     @staticmethod
     def leg_in_options(leg: Dict, options: Dict) -> bool:
         for option in options:
-            for field in ('expirationDate', 'strikePrice', 'putCall'):
-                if not option[field] == leg[field]:
-                    match = False
-                    break
-                match = True
-            if match:
+            if option['instrument']['symbol'] == leg['symbol']:
                 return True
         return False
