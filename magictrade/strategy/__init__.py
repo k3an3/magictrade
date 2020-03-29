@@ -135,9 +135,9 @@ class TradingStrategy(ABC):
         # consider not deleting this one for archival purposes
         storage.delete("{}:{}".format(self.get_name(), trade_id))
 
-    def check_positions(self, legs: List, options: List, data: Dict) -> Dict:
+    def check_positions(self, legs: List, options: Dict) -> Dict:
         for leg in legs:
-            if not self.broker.leg_in_options(leg, options, data):
+            if not self.broker.leg_in_options(leg, options):
                 return leg
 
     def get_current_positions(self):
@@ -164,7 +164,7 @@ class TradingStrategy(ABC):
             for leg in leg_ids:
                 legs.append(self.broker.option(storage.hgetall("{}:leg:{}".format(self.get_name(), leg))))
             # Make sure we still own all legs, else abandon management of this position.
-            if self.check_positions(legs, owned_options, data):
+            if self.check_positions(legs, owned_options):
                 self.delete_position(position)
                 self.log("[{}]: Orphaned position {}-{} due to missing leg.".format(position, data['symbol'],
                                                                                     data['strategy'], ))

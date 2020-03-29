@@ -119,5 +119,5 @@ class Broker(ABC):
 
     @staticmethod
     @abstractmethod
-    def leg_in_options(leg: Dict, options: Dict, data: Dict = {}):
+    def leg_in_options(leg: Dict, options: Dict):
         pass
