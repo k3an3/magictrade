@@ -3,10 +3,10 @@ import logging
 import os
 import random
 from argparse import ArgumentParser, Namespace, ArgumentDefaultsHelpFormatter
-from time import sleep
 from typing import Dict, Tuple
 
 from requests import HTTPError
+from time import sleep
 
 from magictrade.broker import brokers, load_brokers, Broker
 from magictrade.broker.papermoney import PaperMoneyBroker
@@ -59,7 +59,6 @@ class Runner:
             buying_power = self.broker.buying_power
             balance = self.broker.balance
         except Exception as e:
-            self.strategies.log("Fatal error while getting balances.")
             logging.error("Error while getting balances: {}, sleeping {}s".format(
                 e, next_balance_check))
             handle_error(e, self.args.debug)
@@ -86,12 +85,11 @@ class Runner:
                 # pylint: disable=no-member
                 result = e.response.text
             elif isinstance(e, NoTradeException):
-                self.strategies.log(f"Error making trade in '{trade['symbol']}': {str(e)}.")
                 logging.warning("Non-application error while making trade '{}': {}".format(trade, e))
                 return
             else:
                 result = str(e)
-            self.strategies.log(f"Fatal error making trade in '{trade['symbol']}': {str(e)}.")
+            strategy.log(f"Fatal error making trade in '{trade['symbol']}': {str(e)}.")
             logging.error("Error while making trade '{}': {}".format(trade, e))
             self.trade_queue.add_failed(identifier, result)
             handle_error(e, self.args.debug)
