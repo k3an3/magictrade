@@ -7,7 +7,7 @@ from magictrade.strategy import TradingStrategy, NoValidLegException, TradeExcep
     TradeConfigException, NoTradeException
 from magictrade.strategy.registry import register_strategy
 from magictrade.utils import get_percentage_change, get_allocation, get_risk, \
-    find_option_with_probability
+    find_option_with_probability, get_price_from_change
 
 strategies = {
     'iron_condor': {
@@ -143,7 +143,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             else:
                 leg['side'] = 'buy'
 
-    def close_position(self, position: str, data: Dict, legs: List, close_price: float = 0.0):
+    def close_position(self, position: str, data: Dict, legs: List, close_price: float = 0.0, delete: bool = True):
         if not close_price:
             close_price = self._get_price(legs)
         self.invert_action(legs)
@@ -151,7 +151,8 @@ class OptionAlphaTradingStrategy(TradingStrategy):
                                                     int(data['quantity']),
                                                     'close', time_in_force="gtc",
                                                     )
-        self.delete_position(position)
+        if delete:
+            self.delete_position(position)
         return option_order
 
     def _maintenance(self, position: str, data: Dict, legs: List) -> List:
@@ -184,7 +185,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
 
     def make_trade(self, symbol: str, direction: str, iv_rank: int = 50, allocation: int = 3, timeline: int = 50,
                    spread_width: int = 3, days_out: int = 0, monthly: bool = False, exp_date: str = None,
-                   open_criteria: List = [], close_criteria: List = []):
+                   open_criteria: List = [], close_criteria: List = [], immediate_closing_order: bool = False):
         if direction not in valid_directions:
             raise TradeConfigException("Invalid direction. Must be in " + str(valid_directions))
 
@@ -249,5 +250,9 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             direction,
             quantity,
             round(credit * 100, 2)))
+        if immediate_closing_order:
+            close_price = get_price_from_change(credit, strategy['target'])
+            self.close_position(None, {'quantity': quantity}, legs, close_price, delete=False)
+            self.log(f"[{option_order.id}] Placing closing order with debit {round(close_price, 2)}.")
         return {'status': 'placed', 'strategy': strategy, 'legs': legs, 'quantity': quantity,
                 'price': quantity * credit, 'order': option_order}

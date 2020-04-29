@@ -4,11 +4,11 @@ import subprocess
 from ast import literal_eval
 from datetime import datetime, time, timedelta
 from glob import glob
-from math import erf, sqrt, log
 from os.path import join, dirname, basename
 from typing import List, Tuple, Dict
 
 import pkg_resources
+from math import erf, sqrt, log
 from pytz import timezone
 from requests import HTTPError
 
@@ -44,6 +44,11 @@ def get_account_history(account_id: str) -> Tuple[List[str], List[float]]:
 def get_percentage_change(start: float, end: float) -> float:
     chg = end - start
     return chg / start * 100
+
+
+def get_price_from_change(start: float, change: float) -> float:
+    chg = (start * change / 100)
+    return start + chg
 
 
 def market_is_open() -> bool:

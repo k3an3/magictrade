@@ -26,7 +26,7 @@ from magictrade.strategy.optionalpha import OptionAlphaTradingStrategy, strategi
 from magictrade.strategy.reactive import ReactiveStrategy
 from magictrade.trade_queue import RedisTradeQueue
 from magictrade.utils import get_account_history, get_percentage_change, get_allocation, calculate_percent_otm, \
-    get_risk, from_date_format, find_option_with_probability
+    get_risk, from_date_format, find_option_with_probability, get_price_from_change
 
 date = datetime.strptime("2019-03-31", "%Y-%m-%d")
 
@@ -240,6 +240,10 @@ class TestUtils:
         assert get_percentage_change(100, 200) == 100
         assert round(get_percentage_change(100, 100.57), 2) == 0.57
         assert get_percentage_change(100, 50) == -50
+
+    def test_get_price_from_change(self):
+        assert get_price_from_change(100, 100) == 200
+        assert round(get_price_from_change(19.65, -25), 2) == 14.74
 
     def test_prob_otm(self):
         assert calculate_percent_otm(311.79, 313, 7.45, 4) == 0.69
