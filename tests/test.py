@@ -244,6 +244,7 @@ class TestUtils:
     def test_get_price_from_change(self):
         assert get_price_from_change(100, 100) == 200
         assert round(get_price_from_change(19.65, -25), 2) == 14.74
+        assert get_price_from_change(100, -50) == 50
 
     def test_prob_otm(self):
         assert calculate_percent_otm(311.79, 313, 7.45, 4) == 0.69

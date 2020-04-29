@@ -251,7 +251,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             quantity,
             round(credit * 100, 2)))
         if immediate_closing_order:
-            close_price = get_price_from_change(credit, strategy['target'])
+            close_price = get_price_from_change(credit, config['target'])
             self.close_position(None, {'quantity': quantity}, legs, close_price, delete=False)
             self.log(f"[{option_order.id}] Placing closing order with debit {round(close_price, 2)}.")
         return {'status': 'placed', 'strategy': strategy, 'legs': legs, 'quantity': quantity,
