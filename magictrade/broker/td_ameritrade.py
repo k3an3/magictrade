@@ -1,8 +1,7 @@
 import uuid
-from typing import Tuple, Any, List, Dict, Callable
-
 from tdameritrade import TDClient
 from tdameritrade.auth import refresh_token as do_refresh
+from typing import Tuple, Any, List, Dict, Callable
 
 from magictrade.broker import Broker
 from magictrade.broker.registry import register_broker
@@ -143,7 +142,7 @@ class TDAmeritradeBroker(Broker):
             return [TDOption(option[0]) for option in options[option_type.lower()].values()]
 
     def options_transact(self, legs: List[Dict], direction: str, price: float,
-                         quantity: int, effect: str = 'open', time_in_force: str = 'DAY',
+                         quantity: int, effect: str = 'open', order_type: str = "credit", time_in_force: str = 'DAY',
                          **kwargs) -> OptionOrder:
         if effect not in ('open', 'close'):
             raise InvalidOptionError()
@@ -154,18 +153,23 @@ class TDAmeritradeBroker(Broker):
             'fok': 'FILL_OR_KILL'
         }.get(time_in_force, time_in_force)
 
-        order_type, effect = {
-            'open': ('NET_CREDIT', 'TO_OPEN'),
-            'close': ('NET_DEBIT', 'TO_CLOSE'),
-        }[effect]
+        order_type = {
+            'credit': 'NET_CREDIT',
+            'debit': 'NET_DEBIT',
+            'limit': 'LIMIT',
+            'market': 'MARKET'
+        }.get(order_type, order_type)
 
-        strategies = {
+        effect = {
+            'open': 'TO_OPEN',
+            'close': 'TO_CLOSE'
+        }.get(effect, effect)
+
+        strategy = {
             'credit_spread': 'VERTICAL',
             'iron_condor': 'IRON_CONDOR',
             'iron_butterfly': 'CUSTOM',
-        }
-
-        strategy = strategies.get(kwargs.get('strategy'), 'NONE')
+        }.get(kwargs.get('strategy'), 'NONE')
 
         new_legs = []
         for leg in legs:
