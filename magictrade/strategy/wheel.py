@@ -68,7 +68,7 @@ class WheelTradingStrategy(TradingStrategy):
         option_order = self.broker.options_transact([option], 'credit', credit,
                                                     quantity, 'open')
         self.save_order(option_order, [option], {}, strategy='wheel', price=credit,
-                        quantity=quantity, expires=target_date, symbol=symbol,
+                        quantity=quantity, expires=target_date, effect='open', symbol=symbol,
                         close_criteria=close_criteria)
         self.log("[{}]: Opened {} in {} for wheel. Received credit {}.".format(
             option_order.id,
