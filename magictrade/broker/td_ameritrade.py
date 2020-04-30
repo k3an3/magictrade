@@ -159,6 +159,9 @@ class TDAmeritradeBroker(Broker):
             'close': ('NET_DEBIT', 'TO_CLOSE'),
         }[effect]
 
+        if len(legs) == 1:
+            order_type = 'LIMIT'
+
         strategies = {
             'credit_spread': 'VERTICAL',
             'iron_condor': 'IRON_CONDOR',
