@@ -55,6 +55,7 @@ class WheelTradingStrategy(TradingStrategy):
             raise TradeException("Could not find a valid expiration date with a suitable strike, "
                                  "or supplied expiration date has no options.")
         credit = option.mark_price
+        option['side'] = 'sell'
         quantity = 1
         if credit <= 0:
             raise TradeException(f"Calculated negative credit ({credit:.2f}), bailing.")
