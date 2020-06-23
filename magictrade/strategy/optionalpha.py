@@ -75,7 +75,8 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         options = self.broker.filter_options(options, option_type=o_type)
         if not options:
             raise TradeException("No options found.")
-        short_leg = find_option_with_probability(options, config['probability'])
+        short_leg = find_option_with_probability(options, config['probability'],
+                                                 max_probability=config.get('max_probability'))
         if not short_leg:
             raise NoValidLegException("Failed to find a suitable short leg for the trade with probability in range.")
         long_leg = None
@@ -127,13 +128,14 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             else:
                 leg['side'] = 'buy'
 
-    def close_position(self, position: str, data: Dict, legs: List, close_price: float = 0.0, delete: bool = True):
+    def close_position(self, position: str, data: Dict, legs: List, close_price: float = 0.0, delete: bool = True,
+                       time_in_force: str = "gtc"):
         if not close_price:
             close_price = self._get_price(legs)
         self.invert_action(legs)
         option_order = self.broker.options_transact(legs, 'debit', close_price,
                                                     int(data['quantity']),
-                                                    'close', time_in_force="gtc",
+                                                    'close', time_in_force=time_in_force,
                                                     )
         if delete:
             self.delete_position(position)
@@ -197,15 +199,8 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         if defer:
             return defer
 
-        for target_date, options_on_date in self.find_exp_date(config, options, timeline, days_out, monthly, exp_date):
-            try:
-                legs = method(config, options_on_date, quote=quote, direction=direction, width=spread_width)
-                break
-            except NoValidLegException:
-                continue
-        else:
-            raise TradeException("Could not find a valid expiration date with suitable strikes, "
-                                 "or supplied expiration date has no options.")
+        legs, target_date = self.find_legs(self.credit_spread, config, options, timeline, days_out, monthly, exp_date,
+                                           quote=quote, direction=direction, width=spread_width)
 
         credit, quantity, spread_width = self.prepare_trade(legs, allocation)
         option_order = self.broker.options_transact(legs, 'credit', credit,

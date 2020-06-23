@@ -150,7 +150,7 @@ def get_all_trades(account_name: str):
     return trades
 
 
-def find_option_with_probability(options: List, probability: int, ttype: str = 'short'):
+def find_option_with_probability(options: List, probability: int, max_probability: int = 100):
     for option in sorted(options, key=lambda o: o.probability_otm):
-        if option.probability_otm * 100 >= probability:
+        if probability <= option.probability_otm * 100 < max_probability:
             return option

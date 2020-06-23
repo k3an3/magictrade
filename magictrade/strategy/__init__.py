@@ -1,7 +1,7 @@
 import json
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Callable
 
 from py_expression_eval import Parser
 
@@ -82,6 +82,18 @@ class TradingStrategy(ABC):
             elif action == 'buy':
                 price -= leg_price
         return price
+
+    def find_legs(self, method: Callable, config: Dict, options: List[Dict], timeline: int = 0, days_out: int = 0, monthly: bool = False, exp_date: str = None, *args, **kwargs):
+        for target_date, options_on_date in self.find_exp_date(config, options, timeline, days_out, monthly, exp_date):
+            try:
+                legs = method(config, options_on_date, *args, **kwargs)
+                break
+            except NoValidLegException:
+                continue
+        else:
+            raise TradeException("Could not find a valid expiration date with suitable strikes, "
+                                 "or supplied expiration date has no options.")
+        return legs, target_date
 
     def prepare_trade(self, legs: List, allocation: int):
         credit = self._get_price(legs)
