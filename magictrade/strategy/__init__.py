@@ -9,7 +9,7 @@ from magictrade import storage
 from magictrade.broker import Broker
 from magictrade.securities import OptionOrder
 from magictrade.strategy.registry import strategies
-from magictrade.utils import get_monthly_option, date_format
+from magictrade.utils import get_monthly_option, date_format, get_allocation
 
 
 def load_strategies():
@@ -66,6 +66,40 @@ class TradingStrategy(ABC):
                 target_date = td2
             offset += 1
         return target_date
+
+    @staticmethod
+    def _get_price(legs: List) -> float:
+        price = 0
+        for leg in legs:
+            if len(leg) == 2:
+                action = leg[1]
+                leg_price = leg[0].mark_price
+            else:
+                action = leg['side']
+                leg_price = leg.mark_price
+            if action == 'sell':
+                price += leg_price
+            elif action == 'buy':
+                price -= leg_price
+        return price
+
+    def prepare_trade(self, legs: List, allocation: int):
+        credit = self._get_price(legs)
+        if credit <= 0:
+            raise TradeException(f"Calculated negative credit ({credit:.2f}), bailing.")
+        allocation = get_allocation(self.broker, allocation)
+        # Get actual spread width--the stock may only offer options at a larger interval than specified.
+        spread_width = self._calc_spread_width(legs)
+        if not credit >= (min_credit := self._get_fair_credit(legs, spread_width)):
+            # TODO: decide what to do
+            self.log(
+                f"Trade isn't fair; received credit {credit:.2f} < {min_credit:.2f}. Placing anyway.")
+        # Calculate what quantity is appropriate for the given allocation and risk.
+        quantity = self._get_quantity(allocation, spread_width, credit)
+        if not quantity:
+            raise NoTradeException("Trade quantity equals 0. Ensure allocation is high enough, or enough capital is "
+                                   "available.")
+        return credit, quantity, spread_width
 
     def find_exp_date(self, config: Dict, options: List, timeline: int = 0, days_out: int = 0, monthly: bool = False,
                       exp_date: str = None):

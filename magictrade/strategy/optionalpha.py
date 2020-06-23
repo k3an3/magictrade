@@ -66,9 +66,9 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         return call_wing[0], call_wing[1], put_wing[0], put_wing[1]
 
     def credit_spread(self, config: Dict, options: List, **kwargs):
-        width = kwargs['width']
-        direction = kwargs['direction']
-        if direction == 'bullish':
+        width = kwargs.get('width', config.get('width'))
+        direction = kwargs.get('direction', config.get('direction'))
+        if direction in ('bullish', 'put'):
             o_type = 'put'
         else:
             o_type = 'call'
@@ -89,22 +89,6 @@ class OptionAlphaTradingStrategy(TradingStrategy):
                                       f"{short_leg.strike_price} and expiration {short_leg.expiration_date}.")
 
         return (short_leg, 'sell'), (long_leg, 'buy')
-
-    @staticmethod
-    def _get_price(legs: List) -> float:
-        price = 0
-        for leg in legs:
-            if len(leg) == 2:
-                action = leg[1]
-                leg_price = leg[0].mark_price
-            else:
-                action = leg['side']
-                leg_price = leg.mark_price
-            if action == 'sell':
-                price += leg_price
-            elif action == 'buy':
-                price -= leg_price
-        return price
 
     @staticmethod
     def _get_quantity(allocation: float, spread_width: float, price: float = 0.0) -> int:
@@ -222,22 +206,8 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         else:
             raise TradeException("Could not find a valid expiration date with suitable strikes, "
                                  "or supplied expiration date has no options.")
-        # Calculate net credit
-        credit = self._get_price(legs)
-        if credit <= 0:
-            raise TradeException(f"Calculated negative credit ({credit:.2f}), bailing.")
-        allocation = get_allocation(self.broker, allocation)
-        # Get actual spread width--the stock may only offer options at a larger interval than specified.
-        spread_width = self._calc_spread_width(legs)
-        if not credit >= (min_credit := self._get_fair_credit(legs, spread_width)):
-            # TODO: decide what to do
-            self.log(
-                f"Trade isn't fair; received credit {credit:.2f} < {min_credit:.2f}. Placing anyway.")
-        # Calculate what quantity is appropriate for the given allocation and risk.
-        quantity = self._get_quantity(allocation, spread_width, credit)
-        if not quantity:
-            raise NoTradeException("Trade quantity equals 0. Ensure allocation is high enough, or enough capital is "
-                                   "available.")
+
+        credit, quantity, spread_width = self.prepare_trade(legs, allocation)
         option_order = self.broker.options_transact(legs, 'credit', credit,
                                                     quantity, 'open', strategy=strategy)
         self.save_order(option_order, legs, {}, strategy=strategy, price=credit,
@@ -251,6 +221,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
             quantity,
             round(credit * 100, 2)))
         if immediate_closing_order:
+            # TODO: Actually, this doesn't make sense since we haven't guaranteed to fill yet. Find a way to defer this.
             close_price = get_price_from_change(credit, config['target'])
             self.close_position(None, {'quantity': quantity}, legs, close_price, delete=False)
             self.log(f"[{option_order.id}] Placing closing order with debit {round(close_price, 2)}.")
