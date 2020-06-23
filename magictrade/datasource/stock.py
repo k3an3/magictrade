@@ -16,7 +16,7 @@ class Cache:
 
     def get(self, symbol: str, days: int) -> List[float]:
         if storage.get(f"{self.prefix}{symbol}:{days}:current") == date_format(datetime.datetime.now()):
-            return storage.lrange(f"{self.prefix}{symbol}:{days}")
+            return storage.lrange(f"{self.prefix}{symbol}:{days}", 0, -1)
         return []
 
     def save(self, symbol: str, days: int, data: List[float]):
@@ -42,10 +42,10 @@ def get_historic_close(symbol: str, days: int) -> List[float]:
     r = requests.get(FINNHUB_URL + 'stock/candle', params={
         'symbol': symbol,
         'resolution': 'D',
-        'from': start.timestamp(),
-        'to': end.timestamp(),
+        'from': round(start.timestamp()),
+        'to': round(end.timestamp()),
         'token': FINNHUB_TOKEN,
     })
     data = r.json()['c']
-    cache.set(symbol, days, data)
+    cache.save(symbol, days, data)
     return data

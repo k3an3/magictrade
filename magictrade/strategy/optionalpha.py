@@ -76,7 +76,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         if not options:
             raise TradeException("No options found.")
         short_leg = find_option_with_probability(options, config['probability'],
-                                                 max_probability=config.get('max_probability'))
+                                                 max_probability=config.get('max_probability', 100))
         if not short_leg:
             raise NoValidLegException("Failed to find a suitable short leg for the trade with probability in range.")
         long_leg = None
