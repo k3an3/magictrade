@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 from data import quotes, human_quotes_1, reactive_quotes, rh_options_1, exp_dates, td_account_json, bad_options_1, \
-    bad_options_2, YUM_20_close, CSCO_20_close, FB_20_close
+    bad_options_2, SBUX_20_close, CSCO_20_close, FB_20_close
 
 from magictrade import storage
 from magictrade.broker import InsufficientFundsError, NonexistentAssetError, Broker
@@ -1476,7 +1476,8 @@ class TestBB:
         return BollingerBendStrategy(broker)
 
     def test_check_signal_1(self, bbts):
-        assert bbts.check_signals(YUM_20_close) == (True, False, False)
+        # TODO: test currently fails, but may be right? odd.
+        assert bbts.check_signals(SBUX_20_close) == (True, False, False)
 
     def test_check_signal_2(self, bbts):
         assert bbts.check_signals(CSCO_20_close) == (False, True, False)

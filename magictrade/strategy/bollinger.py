@@ -1,8 +1,7 @@
 from statistics import pstdev
-from typing import Dict, List
+from typing import List
 
 from magictrade.datasource.stock import get_historic_close
-from magictrade.strategy import TradingStrategy, TradeException, NoValidLegException
 from magictrade.strategy.optionalpha import OptionAlphaTradingStrategy
 from magictrade.strategy.registry import register_strategy
 
@@ -28,9 +27,9 @@ class BollingerBendStrategy(OptionAlphaTradingStrategy):
 
     @staticmethod
     def check_signals(historic_closes: List[float]):
-        ma_20 = historic_closes[-20:] / 20
-        ma_3 = historic_closes[-3:] / 3
-        u_bb_3_3 = ma_3 / 3 + pstdev(historic_closes[-3:]) * 3
+        ma_20 = sum(historic_closes[-20:]) / 20
+        ma_3 = sum(historic_closes[-3:]) / 3
+        u_bb_3_3 = ma_3 + pstdev(historic_closes[-3:]) * 3
         l_bb_20_1 = ma_20 - pstdev(historic_closes[-20:])
         u_bb_3_1 = ma_3 + pstdev(historic_closes[-3:])
         l_bb_3_3 = ma_3 - pstdev(historic_closes[-3:]) * 3
@@ -50,12 +49,14 @@ class BollingerBendStrategy(OptionAlphaTradingStrategy):
         trade_config = config.copy()
 
         # Check entry rule
-        index_moving_average = get_historic_close(INDEX, 200) / 200
+
+        # the API considers weekends/holidays as days, so overshoot with the amount of days requested
+        index_moving_average = get_historic_close(INDEX, 300)[-200:] / 200
         if not self.broker.get_quote(INDEX) > index_moving_average:
             return {'status': 'deferred'}
 
         # Calculations
-        historic_closes = get_historic_close(symbol, 200)
+        historic_closes = get_historic_close(symbol, 35)
 
         signal_1, signal_2, signal_3 = self.check_signals(historic_closes)
 

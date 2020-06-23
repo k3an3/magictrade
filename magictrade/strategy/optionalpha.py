@@ -4,9 +4,9 @@ from typing import List, Dict, Tuple
 from magictrade import storage
 from magictrade.securities import Option
 from magictrade.strategy import TradingStrategy, NoValidLegException, TradeException, \
-    TradeConfigException, NoTradeException
+    TradeConfigException
 from magictrade.strategy.registry import register_strategy
-from magictrade.utils import get_percentage_change, get_allocation, get_risk, \
+from magictrade.utils import get_percentage_change, get_risk, \
     find_option_with_probability, get_price_from_change
 
 strategies = {
@@ -199,7 +199,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
         if defer:
             return defer
 
-        legs, target_date = self.find_legs(self.credit_spread, config, options, timeline, days_out, monthly, exp_date,
+        legs, target_date = self.find_legs(method, config, options, timeline, days_out, monthly, exp_date,
                                            quote=quote, direction=direction, width=spread_width)
 
         credit, quantity, spread_width = self.prepare_trade(legs, allocation)
