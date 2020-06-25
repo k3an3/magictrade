@@ -83,7 +83,8 @@ class TradingStrategy(ABC):
                 price -= leg_price
         return price
 
-    def find_legs(self, method: Callable, config: Dict, options: List[Dict], timeline: int = 0, days_out: int = 0, monthly: bool = False, exp_date: str = None, *args, **kwargs):
+    def find_legs(self, method: Callable, config: Dict, options: List[Dict], timeline: int = 0, days_out: int = 0,
+                  monthly: bool = False, exp_date: str = None, *args, **kwargs):
         for target_date, options_on_date in self.find_exp_date(config, options, timeline, days_out, monthly, exp_date):
             try:
                 legs = method(config, options_on_date, *args, **kwargs)
@@ -102,10 +103,6 @@ class TradingStrategy(ABC):
         allocation = get_allocation(self.broker, allocation)
         # Get actual spread width--the stock may only offer options at a larger interval than specified.
         spread_width = self._calc_spread_width(legs)
-        if not credit >= (min_credit := self._get_fair_credit(legs, spread_width)):
-            # TODO: decide what to do
-            self.log(
-                f"Trade isn't fair; received credit {credit:.2f} < {min_credit:.2f}. Placing anyway.")
         # Calculate what quantity is appropriate for the given allocation and risk.
         quantity = self._get_quantity(allocation, spread_width, credit)
         if not quantity:

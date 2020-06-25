@@ -124,6 +124,7 @@ class PaperMoneyBroker(Broker):
             except KeyError:
                 return 0
         else:
+            # TODO: use datasource
             data = requests.get('https://www.alphavantage.co/query', params={'function': 'GLOBAL_QUOTE',
                                                                              'symbol': symbol,
                                                                              'apikey': API_KEY

@@ -154,3 +154,19 @@ def find_option_with_probability(options: List, probability: int, max_probabilit
     for option in sorted(options, key=lambda o: o.probability_otm):
         if probability <= option.probability_otm * 100 < max_probability:
             return option
+
+
+def generate_trade_alert(action: str, quantity: int, trade_type: str, symbol: str, exp_date: str,
+                         legs: List[Dict], credit: float) -> str:
+    if action == 'sell':
+        action = 'SOLD'
+        quantity *= -1
+    else:
+        action = 'BOT'
+    if trade_type == 'credit_spread':
+        side = legs[0][0].option_type
+    trade_type = {'credit_spread': 'CREDIT SPREAD',
+                  'iron_condor': 'IRON CONDOR',
+                  'iron_butterfly': 'IRON BUTTERFLY'}[trade_type]
+    strikes = '/'.join([f"{'-' if side == 'sell' else ''}{leg.strike_price}" for leg, side in legs])
+    return ' '.join((action, quantity, trade_type, symbol, exp_date, strikes, side, credit)).upper().replace('  ', ' ')

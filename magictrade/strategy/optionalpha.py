@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import List, Dict, Tuple
 
 from magictrade import storage
@@ -109,9 +108,6 @@ class OptionAlphaTradingStrategy(TradingStrategy):
                 pass
         return max(widths)
 
-    def log(self, msg: str) -> None:
-        storage.lpush(self.get_name() + ":log", "{} {}".format(datetime.now().timestamp(), msg))
-
     @staticmethod
     def _get_fair_credit(legs: List[Tuple[Option, str]], spread_width: float) -> float:
         probability_itm = 0
@@ -203,6 +199,10 @@ class OptionAlphaTradingStrategy(TradingStrategy):
                                            quote=quote, direction=direction, width=spread_width)
 
         credit, quantity, spread_width = self.prepare_trade(legs, allocation)
+        if not credit >= (min_credit := self._get_fair_credit(legs, spread_width)):
+            # TODO: decide what to do
+            self.log(
+                f"Trade isn't fair; received credit {credit:.2f} < {min_credit:.2f}. Placing anyway.")
         option_order = self.broker.options_transact(legs, 'credit', credit,
                                                     quantity, 'open', strategy=strategy)
         self.save_order(option_order, legs, {}, strategy=strategy, price=credit,
