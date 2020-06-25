@@ -7,6 +7,8 @@ from py_expression_eval import Parser
 
 from magictrade import storage
 from magictrade.broker import Broker
+from magictrade.datasource import DataSource
+from magictrade.datasource.stock import FinnhubDataSource
 from magictrade.securities import OptionOrder
 from magictrade.strategy.registry import strategies
 from magictrade.utils import get_monthly_option, date_format, get_allocation
@@ -20,8 +22,9 @@ def load_strategies():
 class TradingStrategy(ABC):
     name = 'tradingstrategy'
 
-    def __init__(self, broker: Broker):
+    def __init__(self, broker: Broker, data_source: DataSource = FinnhubDataSource):
         self.broker = broker
+        self.data_source = data_source
 
     def init_strategy(self, symbol: str, open_criteria: List = []) -> Tuple:
         symbol = symbol.upper()

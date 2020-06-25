@@ -9,13 +9,14 @@ from unittest.mock import patch
 
 import pytest
 from data import quotes, human_quotes_1, reactive_quotes, rh_options_1, exp_dates, td_account_json, bad_options_1, \
-    bad_options_2, SBUX_20_close, CSCO_20_close, FB_20_close
+    bad_options_2, ULTA_20_close, TSN_20_close, SHOP_20_close, SPY_200_close
 
 from magictrade import storage
 from magictrade.broker import InsufficientFundsError, NonexistentAssetError, Broker
 from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.broker.robinhood import RHOption
 from magictrade.broker.td_ameritrade import TDAmeritradeBroker, TDOption
+from magictrade.datasource import DummyDataSource
 from magictrade.runner import Runner
 from magictrade.securities import InvalidOptionError, DummyOption
 from magictrade.strategy import TradeConfigException, TradeDateException, TradeCriteriaException, NoTradeException
@@ -1473,14 +1474,29 @@ class TestBB:
 
     @pytest.fixture
     def bbts(self, broker):
-        return BollingerBendStrategy(broker)
+        dds = DummyDataSource({'history': {}})
+        return BollingerBendStrategy(broker, dds)
 
     def test_check_signal_1(self, bbts):
         # TODO: test currently fails, but may be right? odd.
-        assert bbts.check_signals(SBUX_20_close) == (True, False, False)
+        assert bbts.check_signals(ULTA_20_close) == (True, False, False)
 
     def test_check_signal_2(self, bbts):
-        assert bbts.check_signals(CSCO_20_close) == (False, True, False)
+        assert bbts.check_signals(TSN_20_close) == (False, True, False)
 
     def test_check_signal_3(self, bbts):
-        assert bbts.check_signals(FB_20_close) == (False, False, True)
+        assert bbts.check_signals(SHOP_20_close) == (False, False, True)
+
+    def test_calc_risk_reward(self, bbts):
+        assert round(bbts._calc_risk_reward(0.30, 1), 2) == 0.43
+        assert round(bbts._calc_risk_reward(1.80, 5), 2) == 0.56
+
+    def test_calc_rr_over_delta(self, bbts):
+        assert round(bbts._calc_rr_over_delta(0.42, 0.3), 2) == 1.40
+        assert round(bbts._calc_rr_over_delta(0.25, 0.25), 2) == 1.00
+
+    def test_trade_fail_entry(self, bbts):
+        bbts.broker.data = {'SPY': {'price': 290.99}, 'SHOP': {'price': 910.01}}
+        bbts.broker.options_data = {'SHOP': []}
+        bbts.data_source['history'] = {'SPY': SPY_200_close, 'SHOP': SHOP_20_close}
+        assert bbts.make_trade('SHOP') == {'status': 'deferred', 'msg': 'entry rule fail'}

@@ -4,6 +4,7 @@ from typing import List
 import requests
 
 from magictrade import storage
+from magictrade.datasource import DataSource
 from magictrade.utils import date_format
 
 FINNHUB_URL = 'https://finnhub.io/api/v1/'
@@ -16,7 +17,7 @@ class Cache:
 
     def get(self, symbol: str, days: int) -> List[float]:
         if storage.get(f"{self.prefix}{symbol}:{days}:current") == date_format(datetime.datetime.now()):
-            return storage.lrange(f"{self.prefix}{symbol}:{days}", 0, -1)
+            return [float(v) for v in storage.lrange(f"{self.prefix}{symbol}:{days}", 0, -1)]
         return []
 
     def save(self, symbol: str, days: int, data: List[float]):
@@ -28,24 +29,22 @@ class Cache:
 cache = Cache()
 
 
-def get_historic_close(symbol: str, days: int) -> List[float]:
-    """
-    Use Finnhub APIs to retrieve historic close values for the provided ticker. Retrieved data is saved to a cache for the day.
-    :param symbol: Ticker symbol to look up.
-    :param days: Number of days to look back.
-    :return: A list of close prices.
-    """
-    if data := cache.get(symbol, days):
+class FinnhubDataSource(DataSource):
+    @staticmethod
+    def get_historic_close(symbol: str, days: int) -> List[float]:
+        if data := cache.get(symbol, days):
+            return data
+        end = datetime.datetime.now()
+        start = end - datetime.timedelta(days=days)
+        r = requests.get(FINNHUB_URL + 'stock/candle', params={
+            'symbol': symbol,
+            'resolution': 'D',
+            'from': round(start.timestamp()),
+            'to': round(end.timestamp()),
+            'token': FINNHUB_TOKEN,
+        })
+        data = r.json()['c']
+        cache.save(symbol, days, data)
+        if isinstance(data[0], str):
+            data = [float(v) for v in data]
         return data
-    end = datetime.datetime.now()
-    start = end - datetime.timedelta(days=days)
-    r = requests.get(FINNHUB_URL + 'stock/candle', params={
-        'symbol': symbol,
-        'resolution': 'D',
-        'from': round(start.timestamp()),
-        'to': round(end.timestamp()),
-        'token': FINNHUB_TOKEN,
-    })
-    data = r.json()['c']
-    cache.save(symbol, days, data)
-    return data

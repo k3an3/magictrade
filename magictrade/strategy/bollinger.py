@@ -1,7 +1,6 @@
 from statistics import pstdev
 from typing import List
 
-from magictrade.datasource.stock import get_historic_close
 from magictrade.strategy.optionalpha import OptionAlphaTradingStrategy
 from magictrade.strategy.registry import register_strategy
 
@@ -29,16 +28,18 @@ class BollingerBendStrategy(OptionAlphaTradingStrategy):
     @staticmethod
     def check_signals(historic_closes: List[float]):
         ma_20 = sum(historic_closes[-20:]) / 20
+        prev_ma_20 = sum(historic_closes[-21:-1]) / 20
         ma_3 = sum(historic_closes[-3:]) / 3
         u_bb_3_3 = ma_3 + pstdev(historic_closes[-3:]) * 3
         l_bb_20_1 = ma_20 - pstdev(historic_closes[-20:])
         u_bb_3_1 = ma_3 + pstdev(historic_closes[-3:])
+        prev_u_bb_3_1 = sum(historic_closes[-4:-1]) / 3 + pstdev(historic_closes[-4:-1])
         l_bb_3_3 = ma_3 - pstdev(historic_closes[-3:]) * 3
         u_bb_20_1 = ma_20 + pstdev(historic_closes[-20:])
 
         # Signals
         signal_1 = u_bb_3_3 < l_bb_20_1
-        signal_2 = u_bb_3_1 < ma_20 * 0.99
+        signal_2 = u_bb_3_1 < ma_20 * 0.99 and prev_u_bb_3_1 > prev_ma_20 * 0.99
         signal_3 = l_bb_3_3 > u_bb_20_1
 
         return signal_1, signal_2, signal_3
@@ -59,12 +60,14 @@ class BollingerBendStrategy(OptionAlphaTradingStrategy):
 
         # Check entry rule
         # the API considers weekends/holidays as days, so overshoot with the amount of days requested
-        index_moving_average = get_historic_close(INDEX, 300)[-200:] / 200
-        if not self.broker.get_quote(INDEX) > index_moving_average:
+        index_quote = self.broker.get_quote(INDEX)
+        index_200 = self.data_source.get_historic_close(INDEX, 300)[-200:]
+        index_200[-1] = index_quote  # ensure latest data is used
+        if index_quote < sum(index_200) / 200:
             return {'status': 'deferred', 'msg': 'entry rule fail'}
 
         # Calculations
-        historic_closes = get_historic_close(symbol, 35)
+        historic_closes = self.data_source.get_historic_close(symbol, 35)
 
         signal_1, signal_2, signal_3 = self.check_signals(historic_closes)
 
@@ -92,7 +95,7 @@ class BollingerBendStrategy(OptionAlphaTradingStrategy):
             if side == 'sell':
                 short_leg = leg
         if self._calc_rr_over_delta(rr, short_leg['delta']) < trade_config['rr_delta']:
-            return
+            return {'status': 'deferred', 'msg': 'risk reward/delta ratio too low'}
 
         option_order = self.broker.options_transact(legs, 'credit', credit,
                                                     quantity, 'open', strategy='VERTICAL')
