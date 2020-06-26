@@ -9,9 +9,9 @@ from magictrade import storage
 from magictrade.broker import Broker
 from magictrade.datasource import DataSource
 from magictrade.datasource.stock import FinnhubDataSource
-from magictrade.securities import OptionOrder
+from magictrade.securities import OptionOrder, Option
 from magictrade.strategy.registry import strategies
-from magictrade.utils import get_monthly_option, date_format, get_allocation
+from magictrade.utils import get_monthly_option, date_format, get_allocation, get_risk
 
 
 def load_strategies():
@@ -98,6 +98,24 @@ class TradingStrategy(ABC):
             raise TradeException("Could not find a valid expiration date with suitable strikes, "
                                  "or supplied expiration date has no options.")
         return legs, target_date
+
+    @staticmethod
+    def _get_quantity(allocation: float, spread_width: float, price: float = 0.0) -> int:
+        return int(allocation / get_risk(spread_width, price))
+
+    @staticmethod
+    def _calc_spread_width(legs: List[Tuple[Option, str]]):
+        leg_map = {}
+        map_format = "{}:{}"
+        for leg, side in legs:
+            leg_map[map_format.format(side, leg.option_type)] = leg.strike_price
+        widths = []
+        for t in ('call', 'put'):
+            try:
+                widths.append(abs(leg_map[map_format.format('sell', t)] - leg_map[map_format.format('buy', t)]))
+            except KeyError:
+                pass
+        return max(widths)
 
     def prepare_trade(self, legs: List, allocation: int):
         credit = self._get_price(legs)

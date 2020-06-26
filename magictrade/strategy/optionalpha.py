@@ -5,8 +5,7 @@ from magictrade.securities import Option
 from magictrade.strategy import TradingStrategy, NoValidLegException, TradeException, \
     TradeConfigException
 from magictrade.strategy.registry import register_strategy
-from magictrade.utils import get_percentage_change, get_risk, \
-    find_option_with_probability, get_price_from_change
+from magictrade.utils import get_percentage_change, find_option_with_probability, get_price_from_change
 
 strategies = {
     'iron_condor': {
@@ -90,23 +89,7 @@ class OptionAlphaTradingStrategy(TradingStrategy):
 
         return (short_leg, 'sell'), (long_leg, 'buy')
 
-    @staticmethod
-    def _get_quantity(allocation: float, spread_width: float, price: float = 0.0) -> int:
-        return int(allocation / get_risk(spread_width, price))
 
-    @staticmethod
-    def _calc_spread_width(legs: List[Tuple[Option, str]]):
-        leg_map = {}
-        map_format = "{}:{}"
-        for leg, side in legs:
-            leg_map[map_format.format(side, leg.option_type)] = leg.strike_price
-        widths = []
-        for t in ('call', 'put'):
-            try:
-                widths.append(abs(leg_map[map_format.format('sell', t)] - leg_map[map_format.format('buy', t)]))
-            except KeyError:
-                pass
-        return max(widths)
 
     @staticmethod
     def _get_fair_credit(legs: List[Tuple[Option, str]], spread_width: float) -> float:
