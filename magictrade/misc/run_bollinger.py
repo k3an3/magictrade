@@ -2,6 +2,7 @@
 import datetime
 import random
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+
 from time import sleep
 
 from magictrade.strategy.bollinger import BollingerBendStrategy
@@ -33,10 +34,8 @@ def main(args):
     except AttributeError:
         pass
 
-    close = datetime.datetime.now()
-    close.hour = 16
-    close.minute = 00
-    close.second = 00
+    now = datetime.datetime.now()
+    close = datetime.datetime(year=now.year, month=now.month, day=now.day, hour=16, minute=0, second=0, microsecond=0)
     tickers = random.sample(TICKERS, k=len(TICKERS))
     while not trade_count or trade_count < args.trade_count:
         ticker = tickers.pop()
