@@ -1,3 +1,4 @@
+import datetime
 from statistics import pstdev
 from typing import List
 
@@ -21,6 +22,12 @@ SIGNAL_3_DELTA = (15, 25)
 @register_strategy
 class BollingerBendStrategy(OptionSellerTradingStrategy):
     name = 'bollinger_bend'
+
+    def _maintenance(self, *args, **kwargs):
+        # Trades should only be placed in the last hour.
+        if datetime.datetime.now().hour < 15:
+            return
+        return super()._maintenance(*args, **kwargs)
 
     def close_position(self, *args, **kwargs):
         return super().close_position(*args, **kwargs, delete=False, time_in_force='day')
