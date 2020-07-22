@@ -4,6 +4,7 @@ import random
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from time import sleep
 
+from magictrade.strategy.bollinger import BollingerBendStrategy
 from magictrade.trade_queue import RedisTradeQueue
 from magictrade.utils import get_all_trades
 
@@ -46,6 +47,7 @@ def main(args):
             "end": close.timestamp(),
             "symbol": ticker,
             "allocation": args.allocation,
+            "strategy": BollingerBendStrategy.name
         })
         if trade_count:
             trade_count += 1
