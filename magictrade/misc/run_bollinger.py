@@ -27,7 +27,6 @@ def main(args):
 
     tq = RedisTradeQueue(args.trade_queue)
     positions = set()
-    trade_count = 0
     try:
         if args.account_id:
             positions = set([t['data']['symbol'] for t in get_all_trades(args.account_id)])
@@ -36,9 +35,7 @@ def main(args):
 
     now = datetime.datetime.now()
     close = datetime.datetime(year=now.year, month=now.month, day=now.day, hour=16, minute=0, second=0, microsecond=0)
-    tickers = random.sample(TICKERS, k=len(TICKERS))
-    while not trade_count or trade_count < args.trade_count:
-        ticker = tickers.pop()
+    for ticker in random.sample(TICKERS, k=args.trade_count or len(TICKERS)):
         if ticker in positions:
             continue
         tq.send_trade({
@@ -48,8 +45,6 @@ def main(args):
             "allocation": args.allocation,
             "strategy": BollingerBendStrategy.name
         })
-        if trade_count:
-            trade_count += 1
 
 
 def cli():
@@ -59,7 +54,8 @@ def cli():
     parser.add_argument('-d', '--dry-run', action="store_true", help="Set the dry run flag to tell the backend to "
                                                                      "check if trades are "
                                                                      "suitable, but shouldn't be placed.")
-    parser.add_argument('-c', '--trade-count', type=int, help="Max number of trades to place.")
+    parser.add_argument('-c', '--trade-count', default=0, type=int,
+                        help="Max number of trades to place. 0 for unlimited.")
     parser.add_argument('-l', '--allocation', type=int, default=1, help="Allocation percentage for each trade")
     parser.add_argument('-r', '--random-sleep', type=int, nargs=2, metavar=('min', 'max'),
                         help="Range of seconds to randomly sleep before running.")
