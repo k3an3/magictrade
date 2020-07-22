@@ -31,8 +31,8 @@ valid_directions = ('neutral', 'bullish', 'bearish')
 
 
 @register_strategy
-class OptionAlphaTradingStrategy(TradingStrategy):
-    name = 'optionalpha'
+class OptionSellerTradingStrategy(TradingStrategy):
+    name = 'optionseller'
 
     @staticmethod
     def _get_long_leg(options: List, short_leg: Dict, o_type: str, width: int):

@@ -54,7 +54,7 @@ def main(args):
 
 
 def cli():
-    parser = ArgumentParser(description="OptionAlpha toolbox integration for magictrade.",
+    parser = ArgumentParser(description="Place Bollinger Bend trades.",
                             formatter_class=ArgumentDefaultsHelpFormatter)
     parser.add_argument('-q', '--trade-queue', help="Name of the magictrade queue to add trades to.")
     parser.add_argument('-d', '--dry-run', action="store_true", help="Set the dry run flag to tell the backend to "

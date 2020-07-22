@@ -1,7 +1,7 @@
 from statistics import pstdev
 from typing import List
 
-from magictrade.strategy.optionalpha import OptionAlphaTradingStrategy
+from magictrade.strategy.optionseller import OptionSellerTradingStrategy
 from magictrade.strategy.registry import register_strategy
 
 # TODO: SPX instead?
@@ -19,7 +19,7 @@ SIGNAL_3_DELTA = (15, 25)
 
 
 @register_strategy
-class BollingerBendStrategy(OptionAlphaTradingStrategy):
+class BollingerBendStrategy(OptionSellerTradingStrategy):
     name = 'bollinger_bend'
 
     def close_position(self, *args, **kwargs):
