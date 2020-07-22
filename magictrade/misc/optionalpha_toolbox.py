@@ -183,8 +183,8 @@ def cli():
                             formatter_class=ArgumentDefaultsHelpFormatter)
     parser.add_argument('-q', '--trade-queue', help="Name of the magictrade queue to add trades to.")
     parser.add_argument('-c', '--trade-count', type=int, help="Max number of trades to place.")
-    parser.add_argument('-l', '--allocation', type=int, default=DEFAULT_ALLOCATION, help="Name of the magictrade "
-                                                                                         "queue to add trades to.")
+    parser.add_argument('-l', '--allocation', type=int, default=DEFAULT_ALLOCATION, help="Allocation percentage for "
+                                                                                         "each trade.")
     parser.add_argument('-r', '--random-sleep', type=int, nargs=2, metavar=('min', 'max'),
                         help="Range of seconds to randomly sleep before running.")
     subparsers = parser.add_subparsers(dest='cmd', help='Valid subcommands:', required=True)

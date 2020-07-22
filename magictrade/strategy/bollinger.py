@@ -23,7 +23,7 @@ class BollingerBendStrategy(OptionAlphaTradingStrategy):
     name = 'bollinger_bend'
 
     def close_position(self, *args, **kwargs):
-        return super().close_position(*args, **kwargs, time_in_force='day')
+        return super().close_position(*args, **kwargs, delete=False, time_in_force='day')
 
     @staticmethod
     def check_signals(historic_closes: List[float]):
@@ -71,7 +71,6 @@ class BollingerBendStrategy(OptionAlphaTradingStrategy):
 
         signal_1, signal_2, signal_3 = self.check_signals(historic_closes)
 
-        # TODO: determine correct priority if multiple signals fire
         # Note that "probability" is actually delta for our TD impl.
         if signal_1 or signal_2:
             trade_config['max_probability'], trade_config['probability'] = SIGNAL_1_2_DELTA

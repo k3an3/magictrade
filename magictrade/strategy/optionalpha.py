@@ -89,8 +89,6 @@ class OptionAlphaTradingStrategy(TradingStrategy):
 
         return (short_leg, 'sell'), (long_leg, 'buy')
 
-
-
     @staticmethod
     def _get_fair_credit(legs: List[Tuple[Option, str]], spread_width: float) -> float:
         probability_itm = 0

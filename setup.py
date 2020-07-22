@@ -18,14 +18,16 @@ setup(
         'retry',
         'scipy',
         'fast_arrow @ git+https://github.com/k3an3/fast_arrow@dev#egg=fast_arrow',
-        'tdameritrade @ git+https://github.com/k3an3/tdameritrade@add-option-trades#egg=tdameritrade', 'pytz'
+        'tdameritrade @ git+https://github.com/k3an3/tdameritrade@add-option-trades#egg=tdameritrade',
+        'pytz'
     ],
     entry_points={
         'console_scripts': [
             'magictrade-daemon=magictrade.runner:main',
             'magictrade-cli=magictrade.cli:cli',
             'robinhood-authenticator=magictrade.misc.robinhood_authenticator:main',
-            'optionalpha-toolbox=magictrade.misc.optionalpha_toolbox:cli'
+            'optionalpha-toolbox=magictrade.misc.optionalpha_toolbox:cli',
+            'run-bollinger=magictrade.misc.run_bollinger:cli'
         ]
     }
 )
