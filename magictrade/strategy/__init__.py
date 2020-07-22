@@ -180,10 +180,8 @@ class TradingStrategy(ABC):
                                           price=quote):
                     orders.append(self.close_position(position, data, legs))
                     continue
-            try:
-                orders.append(self._maintenance(position, data, legs))
-            except AttributeError:
-                pass
+            if order := self._maintenance(position, data, legs):
+                orders.append(order)
         return orders
 
     @abstractmethod
