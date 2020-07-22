@@ -42,7 +42,7 @@ def main(args):
         if ticker in positions:
             continue
         tq.send_trade({
-            "dry_run": args.dry_run,
+            "dry_run": str(args.dry_run),
             "end": close.timestamp(),
             "symbol": ticker,
             "allocation": args.allocation,
