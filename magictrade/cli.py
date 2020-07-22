@@ -57,7 +57,7 @@ def cli():
                               help='Percentage of portfolio, '
                                    'in whole numbers, '
                                    'to put up for the trade')
-    trade_parser.add_argument('-t', '--timeline', type=int, default=50,
+    trade_parser.add_argument('-t', '--timeline', type=int, default=0,
                               help="Percentage of strategy's "
                                    "time range to target for "
                                    "expiry")
