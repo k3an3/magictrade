@@ -60,9 +60,6 @@ class BollingerBendStrategy(OptionSellerTradingStrategy):
         return risk_reward / delta
 
     def make_trade(self, symbol: str, allocation: int = 3, dry_run: bool = False, *args, **kwargs):
-        quote, options, defer = self.init_strategy(symbol)
-        if defer:
-            return defer
         trade_config = config.copy()
 
         # Check entry rule
@@ -91,6 +88,10 @@ class BollingerBendStrategy(OptionSellerTradingStrategy):
             self.log(f"dry run: {symbol} has signals: " + ', '.join(
                 [f"signal{n + 1}" for n, s in enumerate((signal_1, signal_2, signal_3)) if s]))
             return {'status': 'skipped', 'msg': 'dry run'}
+
+        quote, options, defer = self.init_strategy(symbol)
+        if defer:
+            return defer
 
         legs, target_date = self.find_legs(self.credit_spread, trade_config, options)
 
