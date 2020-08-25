@@ -37,7 +37,7 @@ class Runner:
         # check if status is deferred, add a target time back to the original trade that the main loop will check and
         if result.get('status') == 'deferred':
             timeout = int(result.get('timeout', DEFAULT_TIMEOUT))
-            trade['start'] = result.get('start', self.broker.date().timestamp() + timeout)
+            trade['start'] = result.get('start', self.broker.date.timestamp() + timeout)
             self.trade_queue.add(identifier, trade)
 
     def run_maintenance(self) -> None:

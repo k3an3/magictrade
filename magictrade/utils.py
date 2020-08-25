@@ -170,3 +170,7 @@ def generate_trade_alert(action: str, quantity: int, trade_type: str, symbol: st
                   'iron_butterfly': 'IRON BUTTERFLY'}[trade_type]
     strikes = '/'.join([f"{'-' if side == 'sell' else ''}{leg.strike_price}" for leg, side in legs])
     return ' '.join((action, quantity, trade_type, symbol, exp_date, strikes, side, credit)).upper().replace('  ', ' ')
+
+
+def bool_as_str(b: bool) -> str:
+    return 'true' if b else ''

@@ -5,9 +5,10 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 from time import sleep
 
-from magictrade.strategy.bollinger import BollingerBendStrategy
+from magictrade.datasource.stock import FinnhubDataSource
+from magictrade.strategy.bollinger import BollingerBendStrategy, INDEX
 from magictrade.trade_queue import RedisTradeQueue
-from magictrade.utils import get_all_trades
+from magictrade.utils import get_all_trades, bool_as_str
 
 TICKERS = (
     "AAPL", "ABBV", "ADBE", "AMAT", "AMD", "AMGN", "AMZN", "ATVI", "AVGO", "AXP", "AZO", "BA", "BABA", "BAC", "BIDU",
@@ -33,18 +34,39 @@ def main(args):
     except AttributeError:
         pass
 
+    # Check entry rule
+    # the API considers weekends/holidays as days, so overshoot with the amount of days requested
+    index_quote = FinnhubDataSource.get_quote(INDEX)
+    index_200 = FinnhubDataSource.get_historic_close(INDEX, 300)[-200:]
+    index_200[-1] = index_quote  # ensure latest data is used
+    if index_quote < sum(index_200) / 200:
+        print(f"{INDEX} not above 200 MA; aborting...")
+        exit(0)
+
     now = datetime.datetime.now()
     close = datetime.datetime(year=now.year, month=now.month, day=now.day, hour=16, minute=0, second=0, microsecond=0)
     for ticker in random.sample(TICKERS, k=args.trade_count or len(TICKERS)):
         if ticker in positions:
             continue
-        tq.send_trade({
-            "dry_run": str(args.dry_run),
-            "end": close.timestamp(),
-            "symbol": ticker,
-            "allocation": args.allocation,
-            "strategy": BollingerBendStrategy.name
-        })
+
+        # Calculations
+        historic_closes = FinnhubDataSource.get_historic_close(ticker, 35)
+
+        signal_1, signal_2, signal_3 = BollingerBendStrategy.check_signals(historic_closes)
+
+        if signal_1 or signal_2 or signal_3:
+            tq.send_trade({
+                "dry_run": bool_as_str(args.dry_run),
+                "end": close.timestamp(),
+                "symbol": ticker,
+                "allocation": args.allocation,
+                "strategy": BollingerBendStrategy.name,
+                "signal_1": bool_as_str(signal_1),
+                "signal_2": bool_as_str(signal_2),
+                "signal_3": bool_as_str(signal_3),
+            })
+        # API has 60 calls/minute limit
+        sleep(1)
 
 
 def cli():

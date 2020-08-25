@@ -31,6 +31,11 @@ cache = Cache()
 
 class FinnhubDataSource(DataSource):
     @staticmethod
+    def get_quote(symbol: str) -> float:
+        r = requests.get(FINNHUB_URL + 'quote', params={'symbol': symbol})
+        return float(r.json()['c'])
+
+    @staticmethod
     def get_historic_close(symbol: str, days: int) -> List[float]:
         if data := cache.get(symbol, days):
             return data
@@ -43,7 +48,12 @@ class FinnhubDataSource(DataSource):
             'to': round(end.timestamp()),
             'token': FINNHUB_TOKEN,
         })
-        data = r.json()['c']
+        data = r.json()
+        try:
+            data = data['c']
+        except KeyError:
+            # TODO: better
+            return []
         cache.save(symbol, days, data)
         if isinstance(data[0], str):
             data = [float(v) for v in data]

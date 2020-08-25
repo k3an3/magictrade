@@ -59,21 +59,9 @@ class BollingerBendStrategy(OptionSellerTradingStrategy):
     def _calc_rr_over_delta(risk_reward: float, delta: float) -> float:
         return risk_reward / delta
 
-    def make_trade(self, symbol: str, allocation: int = 3, dry_run: bool = False, *args, **kwargs):
+    def make_trade(self, symbol: str, allocation: int = 3, signal_1: bool = False, signal_2: bool = False,
+                   signal_3: bool = False, dry_run: bool = False, *args, **kwargs):
         trade_config = config.copy()
-
-        # Check entry rule
-        # the API considers weekends/holidays as days, so overshoot with the amount of days requested
-        index_quote = self.broker.get_quote(INDEX)
-        index_200 = self.data_source.get_historic_close(INDEX, 300)[-200:]
-        index_200[-1] = index_quote  # ensure latest data is used
-        if index_quote < sum(index_200) / 200:
-            return {'status': 'deferred', 'msg': 'entry rule fail'}
-
-        # Calculations
-        historic_closes = self.data_source.get_historic_close(symbol, 35)
-
-        signal_1, signal_2, signal_3 = self.check_signals(historic_closes)
 
         # Note that "probability" is actually delta for our TD impl.
         if signal_1 or signal_2:
