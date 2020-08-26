@@ -1499,4 +1499,4 @@ class TestBB:
         bbts.broker.data = {'SPY': {'price': 290.99}, 'SHOP': {'price': 910.01}}
         bbts.broker.options_data = {'SHOP': []}
         bbts.data_source['history'] = {'SPY': SPY_200_close, 'SHOP': SHOP_20_close}
-        assert bbts.make_trade('SHOP') == {'status': 'deferred', 'msg': 'entry rule fail'}
+        assert bbts.make_trade('SHOP') == {'status': 'deferred', 'msg': 'no signal'}

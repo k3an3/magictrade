@@ -71,12 +71,6 @@ class BollingerBendStrategy(OptionSellerTradingStrategy):
         else:
             return {'status': 'deferred', 'msg': 'no signal'}
 
-        if dry_run:
-            # TODO: record in a machine-readable way
-            self.log(f"dry run: {symbol} has signals: " + ', '.join(
-                [f"signal{n + 1}" for n, s in enumerate((signal_1, signal_2, signal_3)) if s]))
-            return {'status': 'skipped', 'msg': 'dry run'}
-
         quote, options, defer = self.init_strategy(symbol)
         if defer:
             return defer
