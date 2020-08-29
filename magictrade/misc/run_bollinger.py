@@ -21,6 +21,7 @@ TICKERS = (
 
 
 def main(args):
+    print("Starting Bollinger Bend runner at", datetime.datetime.isoformat())
     if args.random_sleep:
         seconds = random.randint(*args.random_sleep)
         print(f"Sleeping for {seconds}s.")
@@ -57,7 +58,7 @@ def main(args):
             print(f"No ticker history for {ticker}; skipping...")
             continue
         signal_1, signal_2, signal_3 = BollingerBendStrategy.check_signals(historic_closes)
-        print(f"{ticker: <5}: {signal_1=}, {signal_2=}, {signal_3=}")
+        print(f"{ticker: <5}: {signal_1=: <5}, {signal_2=: <5}, {signal_3=: <5}")
 
         if not args.dry_run and (signal_1 or signal_2 or signal_3):
             tq.send_trade({
