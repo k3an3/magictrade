@@ -22,7 +22,10 @@ class TDOption(Option):
 
     @property
     def probability_otm(self) -> float:
-        return 1.0 - abs(self.data['delta'])
+        try:
+            return 1.0 - abs(self.data['delta'])
+        except TypeError:
+            return 0.0
 
     @property
     def strike_price(self) -> float:

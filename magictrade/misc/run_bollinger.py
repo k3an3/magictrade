@@ -17,11 +17,11 @@ TICKERS = (
     "JNJ", "JPM", "KMX", "KO", "LMT", "LOW", "LRCX", "LULU", "LVS", "LYFT", "MA", "MCD", "MELI", "MMM", "MRK", "MS",
     "MSFT", "MU", "NFLX", "NKE", "NOC", "NVDA", "NXPI", "PEP", "PFE", "PG", "PXD", "PYPL", "QCOM", "RH", "ROKU", "RTX",
     "SBUX", "SHOP", "SQ", "SWKS", "T", "TGT", "TRV", "TSLA", "TSN", "TTD", "TWLO", "TWTR", "TXN", "UBER", "ULTA", "UNH",
-    "UNP", "UPS", "URI", "UTX", "V", "VZ", "WBA", "WDAY", "WDC", "WMT", "WYNN", "XOM", "YUM")
+    "UNP", "UPS", "URI", "V", "VZ", "WBA", "WDAY", "WDC", "WMT", "WYNN", "XOM", "YUM")
 
 
 def main(args):
-    print("Starting Bollinger Bend runner at", datetime.datetime.isoformat())
+    print("Starting Bollinger Bend runner at", datetime.datetime.now().isoformat())
     if args.random_sleep:
         seconds = random.randint(*args.random_sleep)
         print(f"Sleeping for {seconds}s.")
@@ -53,12 +53,14 @@ def main(args):
 
         # Calculations
         historic_closes = FinnhubDataSource.get_historic_close(ticker, 35)
+        # TODO: update latest value with quote?
+        # historic_closes[-1] = FinnhubDataSource.get_quote(ticker)  # ensure latest data is used
 
         if not historic_closes:
             print(f"No ticker history for {ticker}; skipping...")
             continue
         signal_1, signal_2, signal_3 = BollingerBendStrategy.check_signals(historic_closes)
-        print(f"{ticker: <5}: {signal_1=: <5}, {signal_2=: <5}, {signal_3=: <5}")
+        print(f"{ticker: <5}: {signal_1=}, {signal_2=}, {signal_3=}")
 
         if not args.dry_run and (signal_1 or signal_2 or signal_3):
             tq.send_trade({
