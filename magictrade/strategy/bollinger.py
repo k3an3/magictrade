@@ -15,8 +15,8 @@ config = {
     'width': 1,
     'rr_delta': 1.00
 }
-SIGNAL_1_2_DELTA = (20, 30.9)
-SIGNAL_3_DELTA = (15, 25)
+SIGNAL_1_2_DELTA = (100 - 20, 100 - 30.9)
+SIGNAL_3_DELTA = (100 - 15, 100 - 25)
 
 
 @register_strategy
@@ -75,7 +75,7 @@ class BollingerBendStrategy(OptionSellerTradingStrategy):
         if defer:
             return defer
 
-        legs, target_date = self.find_legs(self.credit_spread, trade_config, options)
+        legs, target_date = self.find_legs(self.credit_spread, trade_config, options, max_spread_width=5)
 
         credit, quantity, spread_width = self.prepare_trade(legs, allocation)
 
@@ -84,7 +84,7 @@ class BollingerBendStrategy(OptionSellerTradingStrategy):
             if side == 'sell':
                 short_leg = leg
         if self._calc_rr_over_delta(rr, short_leg['delta']) < trade_config['rr_delta']:
-            return {'status': 'deferred', 'msg': 'risk reward/delta ratio too low'}
+            return {'status': 'rejected', 'msg': 'risk reward/delta ratio too low'}
 
         option_order = self.broker.options_transact(legs, 'credit', credit,
                                                     quantity, 'open', strategy='VERTICAL')

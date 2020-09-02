@@ -5,7 +5,7 @@ from ast import literal_eval
 from datetime import datetime, time, timedelta
 from glob import glob
 from os.path import join, dirname, basename
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Callable
 
 import pkg_resources
 from math import erf, sqrt, log
@@ -13,6 +13,7 @@ from pytz import timezone
 from requests import HTTPError
 
 from magictrade import storage, Broker
+from magictrade.securities import Option
 
 
 def safe_abs(x, /):
@@ -153,6 +154,12 @@ def get_all_trades(account_name: str):
 def find_option_with_probability(options: List, probability: int, max_probability: int = 100):
     for option in sorted(options, key=lambda o: o.probability_otm):
         if probability <= option.probability_otm * 100 < max_probability:
+            return option
+
+
+def find_option_with(options: List[Option], func: Callable, key: Callable, reverse: bool = False):
+    for option in sorted(options, key=key, reverse=reverse):
+        if func(option):
             return option
 
 

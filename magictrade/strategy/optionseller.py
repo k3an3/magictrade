@@ -82,7 +82,10 @@ class OptionSellerTradingStrategy(TradingStrategy):
             try:
                 long_leg = self._get_long_leg(options, short_leg, o_type, width)
             except TradeException:
-                width -= 1
+                if width < kwargs.get("max_spread_width", 0):
+                    width += 1
+                else:
+                    width -= 1
         if not long_leg:
             raise NoValidLegException(f"Failed to find a suitable long leg for the trade. Short leg strike at "
                                       f"{short_leg.strike_price} and expiration {short_leg.expiration_date}.")

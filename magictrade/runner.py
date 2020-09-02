@@ -39,6 +39,8 @@ class Runner:
             timeout = int(result.get('timeout', DEFAULT_TIMEOUT))
             trade['start'] = result.get('start', self.broker.date.timestamp() + timeout)
             self.trade_queue.add(identifier, trade)
+        elif result.get('status') == 'rejected':
+            self.trade_queue.add_failed(identifier, result.get('msg'))
 
     def run_maintenance(self) -> None:
         logging.info("Running maintenance...")
@@ -101,7 +103,7 @@ class Runner:
     def get_next_trade(self, clean_only: bool = False) -> (str, Dict):
         while len(self.trade_queue):
             identifier, trade = self.trade_queue.pop()
-            if self.check_trade_expired(trade):
+            if False and self.check_trade_expired(trade):
                 # Trade not re-added to queue since it is expired
                 continue
             elif 'start' in trade and datetime.datetime.fromtimestamp(
