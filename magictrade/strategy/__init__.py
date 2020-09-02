@@ -47,7 +47,7 @@ class TradingStrategy(ABC):
                          blacklist_dates: set = set(), monthly: bool = False):
         if not days_out:
             timeline_range = config['timeline'][1] - config['timeline'][0]
-            timeline = config['timeline'][0] + timeline_range * timeline / 100
+            timeline = config['timeline'][0] + timeline_range * config.get('target', timeline) / 100
         else:
             timeline = days_out
 
