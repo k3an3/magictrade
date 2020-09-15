@@ -99,10 +99,11 @@ class BollingerBendStrategy(OptionSellerTradingStrategy):
         for leg, side in legs:
             if side == 'sell':
                 short_leg = leg
-        if rr_delta := self._calc_rr_over_delta(
-                rr, short_leg['delta']) < trade_config['rr_delta']:
+        if (rr_delta := self._calc_rr_over_delta(
+                rr, short_leg['delta'])) < trade_config['rr_delta']:
             return {
-                'status': 'rejected',
+                'status':
+                'rejected',
                 'msg':
                 f'risk reward/delta ratio too low: {rr_delta}/{trade_config["rr_delta"]}'
             }
