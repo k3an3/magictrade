@@ -57,7 +57,7 @@ class BollingerBendStrategy(OptionSellerTradingStrategy):
 
     @staticmethod
     def _calc_rr_over_delta(risk_reward: float, delta: float) -> float:
-        return risk_reward / delta
+        return risk_reward / abs(delta)
 
     def make_trade(self, symbol: str, allocation: int = 3, signal_1: bool = False, signal_2: bool = False,
                    signal_3: bool = False, dry_run: bool = False, *args, **kwargs):
