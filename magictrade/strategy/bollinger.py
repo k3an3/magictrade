@@ -102,10 +102,8 @@ class BollingerBendStrategy(OptionSellerTradingStrategy):
         if (rr_delta := self._calc_rr_over_delta(
                 rr, short_leg['delta'])) < trade_config['rr_delta']:
             return {
-                'status':
-                'rejected',
-                'msg':
-                f'risk reward/delta ratio too low: {rr_delta}/{trade_config["rr_delta"]}'
+                'status': 'rejected',
+                'msg': f'risk reward/delta ratio too low: {rr_delta}/{round(trade_config["rr_delta"], 2)}'
             }
 
         option_order = self.broker.options_transact(legs,
@@ -120,3 +118,10 @@ class BollingerBendStrategy(OptionSellerTradingStrategy):
                         quantity=quantity,
                         symbol=symbol,
                         expires=target_date)
+        self.log("[{}]: Opened bollinger position in {} with quantity {} and price {}.".format(
+            option_order.id,
+            symbol,
+            quantity,
+            round(credit * 100, 2)))
+        return {'status': 'placed', 'strategy': 'credit_spread', 'legs': legs, 'quantity': quantity,
+                'price': quantity * credit, 'order': option_order}
