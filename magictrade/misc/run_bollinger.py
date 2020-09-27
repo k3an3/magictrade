@@ -3,6 +3,7 @@ import datetime
 import random
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
+import sys
 from time import sleep
 
 from magictrade.datasource.stock import FinnhubDataSource
@@ -27,6 +28,10 @@ TICKERS = ("AAPL", "ABBV", "ADBE", "AMAT", "AMD", "AMGN", "AMZN", "ATVI",
 def main(args):
     print("Starting Bollinger Bend runner at",
           datetime.datetime.now().isoformat())
+    if args.run_probability:
+        if random.randint(0, 100) > args.run_probability:
+            print("Randomly deciding to not trade today.")
+            sys.exit(0)
     if args.random_sleep:
         seconds = random.randint(*args.random_sleep)
         print(f"Sleeping for {seconds}s.")
@@ -48,7 +53,7 @@ def main(args):
     index_200[-1] = index_quote  # ensure latest data is used
     if index_quote < sum(index_200) / 200:
         print(f"{INDEX} not above 200 MA; aborting...")
-        exit(0)
+        sys.exit(0)
 
     now = datetime.datetime.now()
     close = datetime.datetime(year=now.year,
@@ -106,6 +111,8 @@ def cli():
     parser.add_argument('-n', '--ticker-count', default=0, type=int,
                         help="Max number of tickers to consider. 0 for unlimited.")
     parser.add_argument('-l', '--allocation', type=int, default=1, help="Allocation percentage for each trade")
+    parser.add_argument('-p', '--run-probability', type=int,
+                        help="Probability (out of 100) that any trades should be placed on a given run.")
     parser.add_argument('-r', '--random-sleep', type=int, nargs=2, metavar=('min', 'max'),
                         help="Range of seconds to randomly sleep before running.")
     parser.add_argument('-a', '--account-id', help='If set, will check existing trades to avoid securities '
@@ -115,7 +122,7 @@ def cli():
     if not (args.dry_run or args.trade_queue):
         print("Error: Either --trade-queue or --dry-run are required.")
         parser.print_usage()
-        exit(1)
+        sys.exit(1)
     main(args)
 
 
