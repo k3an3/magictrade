@@ -124,7 +124,7 @@ class OptionSellerTradingStrategy(TradingStrategy):
     def _maintenance(self, position: str, data: Dict, legs: List, config: Dict = {}) -> List:
         legs = self.broker.options_positions_data(legs)
         value = self._get_price(legs)
-        strategy = config.get('strategy', data['strategy'])
+        strategy = config.get('strategy', data.get('strategy', 'unknown'))
         if not config:
             config = strategies[strategy]
         if value <= 0:

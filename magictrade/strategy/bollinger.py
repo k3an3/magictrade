@@ -104,7 +104,7 @@ class BollingerBendStrategy(OptionSellerTradingStrategy):
                 rr, short_leg['delta'])) < trade_config['rr_delta']:
             return {
                 'status': 'rejected',
-                'msg': f'risk reward/delta ratio too low: {rr_delta}/{round(trade_config["rr_delta"], 2)}'
+                'msg': f'risk reward/delta ratio too low: {round(rr_delta, 2)}/{round(trade_config["rr_delta"], 2)}'
             }
 
         option_order = self.broker.options_transact(legs,
