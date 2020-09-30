@@ -121,7 +121,7 @@ class OptionSellerTradingStrategy(TradingStrategy):
             self.delete_position(position)
         return option_order
 
-    def _maintenance(self, position: str, data: Dict, legs: List, config: Dict = None) -> List:
+    def _maintenance(self, position: str, data: Dict, legs: List, config: Dict = {}) -> List:
         legs = self.broker.options_positions_data(legs)
         value = self._get_price(legs)
         strategy = config.get('strategy', data['strategy'])
