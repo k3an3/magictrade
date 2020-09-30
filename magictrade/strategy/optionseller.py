@@ -134,7 +134,7 @@ class OptionSellerTradingStrategy(TradingStrategy):
         change = get_percentage_change(float(data['price']), value)
         data['last_price'] = value
         data['last_change'] = change * -1
-        storage.hmset("{}:{}".format(self.get_name(), position), data)
+        storage.hset("{}:{}".format(self.get_name(), position), data)
         if value and -1 * change >= config['target']:
             # legs that were originally bought now need to be sold
             self.log("[{}]: Closing {}-{} due to change of {:.2f}%."

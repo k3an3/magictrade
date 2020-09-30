@@ -241,7 +241,7 @@ class TradingStrategy(ABC):
             kwargs['close_criteria'] = json.dumps(close_criteria)
         storage.lpush(self.get_name() + ":positions", option_order.id)
         storage.lpush(self.get_name() + ":all_positions", option_order.id)
-        storage.hmset("{}:{}".format(self.get_name(), option_order.id),
+        storage.hset("{}:{}".format(self.get_name(), option_order.id),
                       {
                           'time': datetime.now().timestamp(),
                           **kwargs,
@@ -251,7 +251,7 @@ class TradingStrategy(ABC):
             storage.lpush("{}:{}:legs".format(self.get_name(), option_order.id),
                           leg["id"])
             leg.pop('executions', None)
-            storage.hmset("{}:leg:{}".format(self.get_name(), leg["id"]), leg)
+            storage.hset("{}:leg:{}".format(self.get_name(), leg["id"]), leg)
         storage.set("{}:raw:{}".format(self.get_name(), option_order.id), str(legs))
 
     @staticmethod
