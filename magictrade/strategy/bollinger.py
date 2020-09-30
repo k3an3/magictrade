@@ -13,7 +13,8 @@ config = {
     'target': 50,
     'direction': 'put',
     'width': 1,
-    'rr_delta': 1.00
+    'rr_delta': 1.00,
+    'strategy': 'credit_spread',
 }
 SIGNAL_1_2_DELTA = (100 - 20, 100 - 30.9)
 SIGNAL_3_DELTA = (100 - 15, 100 - 25)
@@ -27,7 +28,7 @@ class BollingerBendStrategy(OptionSellerTradingStrategy):
         # Trades should only be placed in the last hour.
         if datetime.datetime.now().hour < 15:
             return
-        return super()._maintenance(*args, **kwargs)
+        return super()._maintenance(*args, config=config, **kwargs)
 
     def close_position(self, *args, **kwargs):
         return super().close_position(*args,

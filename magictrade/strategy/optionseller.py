@@ -121,30 +121,33 @@ class OptionSellerTradingStrategy(TradingStrategy):
             self.delete_position(position)
         return option_order
 
-    def _maintenance(self, position: str, data: Dict, legs: List) -> List:
+    def _maintenance(self, position: str, data: Dict, legs: List, config: Dict = None) -> List:
         legs = self.broker.options_positions_data(legs)
         value = self._get_price(legs)
+        strategy = config.get('strategy', data['strategy'])
+        if not config:
+            config = strategies[strategy]
         if value <= 0:
             self.log(f"Calculated negative credit ({value:.2f}) during maintenance "
-                     f"on {data['symbol']}-{data['strategy']}, skipping...")
+                     f"on {data['symbol']}-{strategy}, skipping...")
             return
         change = get_percentage_change(float(data['price']), value)
         data['last_price'] = value
         data['last_change'] = change * -1
         storage.hmset("{}:{}".format(self.get_name(), position), data)
-        if value and -1 * change >= strategies[data['strategy']]['target']:
+        if value and -1 * change >= config['target']:
             # legs that were originally bought now need to be sold
             self.log("[{}]: Closing {}-{} due to change of {:.2f}%."
                      " Was {:.2f}, now {:.2f}.".format(position,
                                                        data['symbol'],
-                                                       data['strategy'],
+                                                       strategy,
                                                        change,
                                                        float(data['price']),
                                                        value))
             option_order = self.close_position(position, data, legs, value)
             self.log("[{}]: Closed {}-{} with quantity {} and price {:.2f}.".format(position,
                                                                                     data['symbol'],
-                                                                                    data['strategy'],
+                                                                                    strategy,
                                                                                     data['quantity'],
                                                                                     value))
             return option_order
