@@ -231,7 +231,7 @@ class TradingStrategy(ABC):
             if self.check_positions(legs, owned_options):
                 self.delete_position(position)
                 self.log("[{}]: Orphaned position {}-{} due to missing leg.".format(position, data['symbol'],
-                                                                                    data['strategy'], ))
+                                                                                    data.get('strategy', 'unknown')))
                 continue
             yield position, data, legs
 
