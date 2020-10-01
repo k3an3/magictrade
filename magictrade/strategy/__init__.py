@@ -242,16 +242,16 @@ class TradingStrategy(ABC):
         storage.lpush(self.get_name() + ":positions", option_order.id)
         storage.lpush(self.get_name() + ":all_positions", option_order.id)
         storage.hset("{}:{}".format(self.get_name(), option_order.id),
-                      {
-                          'time': datetime.now().timestamp(),
-                          **kwargs,
-                          **order_data,
-                      })
+                     mapping={
+                         'time': datetime.now().timestamp(),
+                         **kwargs,
+                         **order_data,
+                     })
         for leg in option_order.legs:
             storage.lpush("{}:{}:legs".format(self.get_name(), option_order.id),
                           leg["id"])
             leg.pop('executions', None)
-            storage.hset("{}:leg:{}".format(self.get_name(), leg["id"]), leg)
+            storage.hset("{}:leg:{}".format(self.get_name(), leg["id"]), mapping=leg)
         storage.set("{}:raw:{}".format(self.get_name(), option_order.id), str(legs))
 
     @staticmethod

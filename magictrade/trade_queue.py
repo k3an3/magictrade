@@ -129,7 +129,7 @@ class RedisTradeQueue(TradeQueue):
     def set_data(self, identifier: str, trade: Dict):
         for key in ('open', 'close'):
             trade.pop(f"{key}_criteria", None)
-        storage.hset(self._data_name(identifier), trade)
+        storage.hset(self._data_name(identifier), mapping=trade)
 
     def add_criteria(self, identifier: str, open_close: str, criteria: List[Dict]):
         key = f"{self._data_name(identifier)}:{open_close}_criteria"
