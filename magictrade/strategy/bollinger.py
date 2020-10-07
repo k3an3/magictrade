@@ -118,7 +118,7 @@ class BollingerBendStrategy(OptionSellerTradingStrategy):
                         price=credit,
                         quantity=quantity,
                         symbol=symbol,
-                        strategy='credit_spread',
+                        strategy='bollinger_bend',
                         expires=target_date)
         self.log("[{}]: Opened bollinger position in {} with quantity {} and price {}.".format(
             option_order.id,
