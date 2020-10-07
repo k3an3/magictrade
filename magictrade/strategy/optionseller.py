@@ -141,7 +141,7 @@ class OptionSellerTradingStrategy(TradingStrategy):
                      " Was {:.2f}, now {:.2f}.".format(position,
                                                        data['symbol'],
                                                        strategy,
-                                                       change,
+                                                       abs(change),
                                                        float(data['price']),
                                                        value))
             option_order = self.close_position(position, data, legs, value)

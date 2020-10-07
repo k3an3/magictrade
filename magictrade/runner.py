@@ -49,7 +49,7 @@ class Runner:
                 results = strategy.maintenance()
             except Exception as e:
                 logging.error("Error while performing maintenance: {}".format(e))
-                strategy.log("Fatal error while performing maintenance.")
+                strategy.log("Fatal error while performing maintenance: {}.".format(e))
                 handle_error(e, self.args.debug)
             else:
                 logging.info("Completed {} tasks.".format(len(results)))
