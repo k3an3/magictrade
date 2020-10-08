@@ -66,14 +66,14 @@ def main(args):
 
         if not args.dry_run:
             min_delta = 20 if ticker == 'TLT' else 30
-            max_delta = 30 if ticker == 'TLT' else 45 
+            max_delta = 31 if ticker == 'TLT' else 46 
             trade_queue.send_trade({
                 "end": (close + datetime.timedelta(days=args.days)).timestamp(),
                 "symbol": ticker,
                 "allocation": args.allocation,
                 "strategy": OptionSellerTradingStrategy.name,
                 "days_out": 35,
-                "leg_params": {'min_delta': min_delta, 'max_delta': max_delta} 
+                "leg_criteria": f"{min_delta} < leg.delta < {max_delta}"
             })
             trade_count += 1
     print(f"{trade_count} trades placed.")

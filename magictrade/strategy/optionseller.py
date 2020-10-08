@@ -63,7 +63,12 @@ class OptionSellerTradingStrategy(TradingStrategy):
         put_wing = self.credit_spread(config, options, direction='bullish', width=width)
         return call_wing[0], call_wing[1], put_wing[0], put_wing[1]
 
-    def credit_spread(self, config: Dict, options: List, **kwargs):
+    def find_leg(self, options: List[Option], criteria: str, sort_key: str = 'probability_otm', reverse: bool = False) -> Option:
+        for option in sorted(options, reverse=reverse, key=lambda o: o.getattr(sort_key)):
+            if self.evaluate_criteria([criteria], **option):
+                return option
+
+    def credit_spread(self, config: Dict, options: List, leg_criteria: Dict = {}, **kwargs):
         width = kwargs.get('width', config.get('width'))
         direction = kwargs.get('direction', config.get('direction'))
         if direction in ('bullish', 'put'):
@@ -73,8 +78,11 @@ class OptionSellerTradingStrategy(TradingStrategy):
         options = self.broker.filter_options(options, option_type=o_type)
         if not options:
             raise TradeException("No options found.")
-        short_leg = find_option_with_probability(options, config['probability'],
-                                                 max_probability=config.get('max_probability', 100))
+        if leg_criteria:
+            short_leg = find_leg(options, leg_criteria)
+        else:
+            short_leg = find_option_with_probability(options, config['probability'],
+                                                     max_probability=config.get('max_probability', 100))
         if not short_leg:
             raise NoValidLegException("Failed to find a suitable short leg for the trade with probability in range.")
         long_leg = None
@@ -152,20 +160,20 @@ class OptionSellerTradingStrategy(TradingStrategy):
                                                                                     value))
             return option_order
 
-    def make_trade(self, symbol: str, direction: str, iv_rank: int = 50, allocation: int = 3, timeline: int = 50,
+    def make_trade(self, symbol: str, direction: str = "", iv_rank: int = 50, allocation: int = 3, timeline: int = 50,
                    spread_width: int = 3, days_out: int = 0, monthly: bool = False, exp_date: str = None,
-                   open_criteria: List = [], close_criteria: List = [], immediate_closing_order: bool = False):
-        if direction not in valid_directions:
+                   open_criteria: List = [], close_criteria: List = [], immediate_closing_order: bool = False, leg_criteria: str = ''):
+        if direction and direction not in valid_directions:
             raise TradeConfigException("Invalid direction. Must be in " + str(valid_directions))
 
-        if not 0 <= iv_rank <= 100:
-            raise TradeConfigException("Invalid iv_rank.")
+        if iv_rank and not 0 <= iv_rank <= 100:
+            raise TradeConfigException("Invalid IV rank.")
 
         if not 0 < allocation < 20:
-            raise TradeConfigException("Invalid allocation amount or crazy.")
+            raise TradeConfigException("Invalid allocation amount or too high.")
 
-        if not iv_rank >= 50:
-            raise TradeConfigException("iv_rank too low.")
+        if iv_rank and not iv_rank >= 50:
+            raise TradeConfigException("IV rank too low.")
         elif direction == 'neutral':
             if iv_rank >= high_iv:
                 method = self.iron_butterfly
@@ -183,7 +191,7 @@ class OptionSellerTradingStrategy(TradingStrategy):
             return defer
 
         legs, target_date = self.find_legs(method, config, options, timeline, days_out, monthly, exp_date,
-                                           quote=quote, direction=direction, width=spread_width)
+                                           quote=quote, direction=direction, width=spread_width, leg_criteria=leg_criteria)
 
         credit, quantity, spread_width = self.prepare_trade(legs, allocation)
         if not credit >= (min_credit := self._get_fair_credit(legs, spread_width)):
