@@ -586,7 +586,7 @@ class TestOAStrategy:
         assert round(result['price'], 2) == 67.71
 
     def test_delete_position(self):
-        name = 'optionseller-testdel'
+        name = 'papermoney-testdel'
         pmb = PaperMoneyBroker(account_id='testdel')
         test_id = str(uuid.uuid4())
         osts = OptionSellerTradingStrategy(pmb)
@@ -613,7 +613,7 @@ class TestOAStrategy:
                                   legs)
 
     def test_storage(self):
-        name = 'optionseller-teststor'
+        name = 'papermoney-teststor'
         pmb = PaperMoneyBroker(account_id='teststor', date=date, data=quotes, options_data=rh_options_1,
                                exp_dates=exp_dates)
         osts = OptionSellerTradingStrategy(pmb)
@@ -631,7 +631,7 @@ class TestOAStrategy:
         osts.delete_position(oid)
 
     def test_maintenance_no_action(self):
-        name = 'testmaint-' + str(uuid.uuid4())
+        name = str(uuid.uuid4())
         pmb = PaperMoneyBroker(account_id=name, date=date, data=quotes, options_data=rh_options_1,
                                exp_dates=exp_dates)
         osts = OptionSellerTradingStrategy(pmb)
@@ -640,10 +640,10 @@ class TestOAStrategy:
         assert not orders
 
     def test_maintenance_close(self):
-        name = 'testmaint-' + str(uuid.uuid4())
+        name = str(uuid.uuid4())
         pmb = PaperMoneyBroker(account_id=name, date=date, data=quotes, options_data=rh_options_1,
                                exp_dates=exp_dates)
-        name = 'optionseller-' + name
+        name = 'papermoney-' + name
         test_id = str(uuid.uuid4())
         id_1 = str(uuid.uuid4())
         id_2 = str(uuid.uuid4())
@@ -675,7 +675,6 @@ class TestOAStrategy:
         orders = osts.maintenance()
         assert len(orders) == 1
         assert len(orders[0].legs) == 2
-        assert not storage.lrange(name + ":positions", 0, -1)
 
     def test_trade_insufficient_balance(self):
         pmb = PaperMoneyBroker(account_id='test-balance', balance=50.0, date=date, data=quotes,

@@ -118,7 +118,8 @@ class Runner:
                     trade.pop(key, None)
                 logging.info("Ingested trade: " + str(trade))
                 normalize_trade(trade)
-                trade['open_criteria'], trade['close_criteria'] = self.trade_queue.get_criteria(identifier)
+                trade['open_criteria'], trade['close_criteria'], trade[
+                    'trade_criteria'] = self.trade_queue.get_criteria(identifier)
                 return identifier, trade
         return None, None
 

@@ -139,7 +139,8 @@ class RedisTradeQueue(TradeQueue):
     def get_criteria(self, identifier: str) -> (List[str], List[str]):
         try:
             return [json.loads(c) for c in storage.lrange(f"{self._data_name(identifier)}:open_criteria", 0, -1)], \
-                   [json.loads(c) for c in storage.lrange(f"{self._data_name(identifier)}:close_criteria", 0, -1)]
+                   [json.loads(c) for c in storage.lrange(f"{self._data_name(identifier)}:close_criteria", 0, -1)], \
+                   json.loads(self.get_data(identifier).get('trade_criteria', '{}'))
         except JSONDecodeError:
             raise TradeQueueException(f"Unable to decode JSON in criteria for trade '{identifier}'")
 
@@ -204,6 +205,8 @@ class RedisTradeQueue(TradeQueue):
         if 'close_criteria' in args:
             self.add_criteria(identifier, 'close', args['close_criteria'])
             args.pop('close_criteria')
+        if 'trade_criteria' in args:
+            args['trade_criteria'] = json.dumps(args['trade_criteria'])
         self.add(identifier, args)
         return identifier
 

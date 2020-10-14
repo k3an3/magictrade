@@ -63,7 +63,8 @@ class OptionSellerTradingStrategy(TradingStrategy):
         put_wing = self.credit_spread(config, options, direction='bullish', width=width)
         return call_wing[0], call_wing[1], put_wing[0], put_wing[1]
 
-    def find_leg(self, options: List[Option], criteria: str, sort_key: str = 'probability_otm', reverse: bool = False) -> Option:
+    def find_leg(self, options: List[Option], criteria: str, sort_key: str = 'probability_otm',
+                 reverse: bool = False) -> Option:
         for option in sorted(options, reverse=reverse, key=lambda o: o.getattr(sort_key)):
             if self.evaluate_criteria([criteria], **option):
                 return option
@@ -163,7 +164,7 @@ class OptionSellerTradingStrategy(TradingStrategy):
     def make_trade(self, symbol: str, direction: str = "", iv_rank: int = 50, allocation: int = 3, timeline: int = 50,
                    spread_width: int = 3, days_out: int = 0, monthly: bool = False, exp_date: str = None,
                    open_criteria: List = [], close_criteria: List = [], immediate_closing_order: bool = False,
-                   leg_criteria: str = '', account_name: str = ''):
+                   leg_criteria: str = '', account_name: str = '', trade_criteria: Dict = {}):
         if direction and direction not in valid_directions:
             raise TradeConfigException("Invalid direction. Must be in " + str(valid_directions))
 
@@ -192,13 +193,27 @@ class OptionSellerTradingStrategy(TradingStrategy):
             return defer
 
         legs, target_date = self.find_legs(method, config, options, timeline, days_out, monthly, exp_date,
-                                           quote=quote, direction=direction, width=spread_width, leg_criteria=leg_criteria)
+                                           quote=quote, direction=direction, width=spread_width,
+                                           leg_criteria=leg_criteria)
 
         credit, quantity, spread_width = self.prepare_trade(legs, allocation)
-        if not credit >= (min_credit := self._get_fair_credit(legs, spread_width)):
+
+        if "rr_delta" in trade_criteria:
+            rr = self._calc_risk_reward(credit, spread_width)
+            for leg, side in legs:
+                if side == 'sell':
+                    short_leg = leg
+            if (rr_delta := self._calc_rr_over_delta(
+                    rr, short_leg['delta'])) < trade_criteria["rr_delta"]:
+                return {
+                    'status': 'rejected',
+                    'msg': f'risk reward/delta ratio too low: {round(rr_delta, 2)}/{round(trade_criteria["rr_delta"], 2)}'
+                }
+        elif not credit >= (min_credit := self._get_fair_credit(legs, spread_width)):
             # TODO: decide what to do
             self.log(
                 f"Trade isn't fair; received credit {credit:.2f} < {min_credit:.2f}. Placing anyway.")
+
         option_order = self.broker.options_transact(legs, 'credit', credit,
                                                     quantity, 'open', strategy=strategy)
         self.save_order(option_order, legs, {}, strategy=strategy, price=credit,

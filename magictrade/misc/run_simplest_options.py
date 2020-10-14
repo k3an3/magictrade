@@ -64,6 +64,7 @@ def main(args):
                 "strategy": OptionSellerTradingStrategy.name,
                 "days_out": 35,
                 "leg_criteria": f"{min_delta} < leg.delta < {max_delta}",
+                "trade_criteria": {"rr_delta": 1.00 if ticker == 'TLT' else 0.55}
             })
             trade_count += 1
     print(f"{trade_count} trades placed.")
