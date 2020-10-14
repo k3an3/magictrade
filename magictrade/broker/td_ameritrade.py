@@ -178,7 +178,7 @@ class TDAmeritradeBroker(Broker):
             leg, action = self.parse_leg(leg)
             new_legs.append({
                 'instruction': '_'.join((action.upper(), effect)),
-                'quantity': leg.get('quantity', 1),
+                'quantity': quantity * leg.get('quantity', 1),
                 'instrument': {
                     'symbol': leg.id,
                     'assetType': 'OPTION',
