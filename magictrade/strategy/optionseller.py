@@ -79,7 +79,7 @@ class OptionSellerTradingStrategy(TradingStrategy):
         if not options:
             raise TradeException("No options found.")
         if leg_criteria:
-            short_leg = find_leg(options, leg_criteria)
+            short_leg = self.find_leg(options, leg_criteria)
         else:
             short_leg = find_option_with_probability(options, config['probability'],
                                                      max_probability=config.get('max_probability', 100))
@@ -116,8 +116,8 @@ class OptionSellerTradingStrategy(TradingStrategy):
             else:
                 leg['side'] = 'buy'
 
-    def close_position(self, position: str, data: Dict, legs: List, close_price: float = 0.0, delete: bool = True,
-                       time_in_force: str = "gtc"):
+    def close_position(self, position: str, data: Dict, legs: List, close_price: float = 0.0, delete: bool = False,
+                       time_in_force: str = "day"):
         if not close_price:
             close_price = self._get_price(legs)
         self.invert_action(legs)
@@ -162,7 +162,8 @@ class OptionSellerTradingStrategy(TradingStrategy):
 
     def make_trade(self, symbol: str, direction: str = "", iv_rank: int = 50, allocation: int = 3, timeline: int = 50,
                    spread_width: int = 3, days_out: int = 0, monthly: bool = False, exp_date: str = None,
-                   open_criteria: List = [], close_criteria: List = [], immediate_closing_order: bool = False, leg_criteria: str = ''):
+                   open_criteria: List = [], close_criteria: List = [], immediate_closing_order: bool = False,
+                   leg_criteria: str = '', account_name: str = ''):
         if direction and direction not in valid_directions:
             raise TradeConfigException("Invalid direction. Must be in " + str(valid_directions))
 

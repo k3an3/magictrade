@@ -4,12 +4,12 @@ import random
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 import sys
-from time import sleep
 
 from magictrade.datasource.stock import FinnhubDataSource
+from magictrade.misc import init_script
 from magictrade.strategy.optionseller import OptionSellerTradingStrategy
 from magictrade.trade_queue import RedisTradeQueue
-from magictrade.utils import get_all_trades, bool_as_str
+from magictrade.utils import get_all_trades
 
 TICKERS = ('TLT', 'TLH', 'IEF', 'IEI', 'IGOV', 'EMB')
 
@@ -23,17 +23,7 @@ def check_signals(ticker: str) -> bool:
 
 
 def main(args):
-    print("Starting SOP Bonds runner at",
-          datetime.datetime.now().isoformat())
-    if args.run_probability:
-        if random.randint(0, 100) > args.run_probability:
-            print("Randomly deciding to not trade today.")
-            sys.exit(0)
-    if args.random_sleep:
-        seconds = random.randint(*args.random_sleep)
-        print(f"Sleeping for {seconds}s.")
-        sleep(seconds)
-
+    init_script(args, "SOP Bonds")
     trade_queue = RedisTradeQueue(args.trade_queue)
     positions = set()
     try:
@@ -73,7 +63,7 @@ def main(args):
                 "allocation": args.allocation,
                 "strategy": OptionSellerTradingStrategy.name,
                 "days_out": 35,
-                "leg_criteria": f"{min_delta} < leg.delta < {max_delta}"
+                "leg_criteria": f"{min_delta} < leg.delta < {max_delta}",
             })
             trade_count += 1
     print(f"{trade_count} trades placed.")

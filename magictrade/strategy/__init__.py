@@ -154,8 +154,8 @@ class TradingStrategy(ABC):
                 continue
             yield target_date, self.broker.get_options_data(options_on_date)
 
-    def get_name(self):
-        return "{}-{}".format(self.name, self.broker.account_id)
+    def get_name(self, custom_name: str = ""):
+        return "{}-{}".format(self.broker.name, self.broker.account_id)
 
     @abstractmethod
     def _maintenance(self, position: str, data: Dict, legs: List) -> List:
@@ -183,6 +183,14 @@ class TradingStrategy(ABC):
             if order := self._maintenance(position, data, legs):
                 orders.append(order)
         return orders
+
+    @staticmethod
+    def _calc_risk_reward(credit, spread_width) -> float:
+        return credit / (spread_width - credit)
+
+    @staticmethod
+    def _calc_rr_over_delta(risk_reward: float, delta: float) -> float:
+        return risk_reward / abs(delta)
 
     @abstractmethod
     def make_trade(self, symbol: str, *args, **kwargs):

@@ -56,14 +56,6 @@ class BollingerBendStrategy(OptionSellerTradingStrategy):
 
         return signal_1, signal_2, signal_3
 
-    @staticmethod
-    def _calc_risk_reward(credit, spread_width) -> float:
-        return credit / (spread_width - credit)
-
-    @staticmethod
-    def _calc_rr_over_delta(risk_reward: float, delta: float) -> float:
-        return risk_reward / abs(delta)
-
     def make_trade(self,
                    symbol: str,
                    allocation: int = 3,

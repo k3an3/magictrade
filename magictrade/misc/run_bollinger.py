@@ -7,6 +7,7 @@ import sys
 from time import sleep
 
 from magictrade.datasource.stock import FinnhubDataSource
+from magictrade.misc import init_script
 from magictrade.strategy.bollinger import BollingerBendStrategy, INDEX
 from magictrade.trade_queue import RedisTradeQueue
 from magictrade.utils import get_all_trades, bool_as_str
@@ -26,16 +27,7 @@ TICKERS = ("AAPL", "ABBV", "ADBE", "AMAT", "AMD", "AMGN", "AMZN", "ATVI",
 
 
 def main(args):
-    print("Starting Bollinger Bend runner at",
-          datetime.datetime.now().isoformat())
-    if args.run_probability:
-        if random.randint(0, 100) > args.run_probability:
-            print("Randomly deciding to not trade today.")
-            sys.exit(0)
-    if args.random_sleep:
-        seconds = random.randint(*args.random_sleep)
-        print(f"Sleeping for {seconds}s.")
-        sleep(seconds)
+    init_script(args, "Bollinger Bend")
 
     trade_queue = RedisTradeQueue(args.trade_queue)
     positions = set()
