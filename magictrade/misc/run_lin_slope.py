@@ -4,6 +4,7 @@ import random
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 import sys
+from scipy import stats
 
 from magictrade.datasource.stock import FinnhubDataSource
 from magictrade.misc import init_script
@@ -11,24 +12,42 @@ from magictrade.strategy.optionseller import OptionSellerTradingStrategy
 from magictrade.trade_queue import RedisTradeQueue
 from magictrade.utils import get_all_trades
 
-TICKERS = ('TLT', 'TLH', 'IEF', 'IEI', 'IGOV', 'EMB')
+TICKERS = ({
+    'ADBE': {'slope_len': 10, 'delta': [25, 35]},
+    'CMG': {'slope_len': 5, 'delta': [15, 27]},
+})
 
 
-def check_signals(ticker: str) -> bool:
+# CMG
+# When LinRegSlope 5 of SMA 20 > 0 AND ClosePrice > SMA 20
+#
+# Enter PCS @ 15-27 delta, 35-45 DTE
+#
+# Close at 50% profit.
+
+
+# ADBE
+# When LinRegSlope 10 of SMA 20 > 0 AND ClosePrice > SMA 20
+#
+# Enter PCS @ 25-35 delta (or 20-30 delta for more conservative), 35-45 DTE
+#
+# Close at 50% profit.
+
+def check_signals(ticker: str, slope_len: int, sma_len: int) -> bool:
     quote = FinnhubDataSource.get_quote(ticker)
-    close_200 = FinnhubDataSource.get_historic_close(ticker, 300)[-200:]
-    close_200[-1] = quote  # ensure latest data is used
-    return quote > sum(close_200[-20:]) / 20 > sum(close_200) / 200
+    closes = FinnhubDataSource.get_historic_close(ticker, sma_len + 20)[-sma_len:]
+    closes[-1] = quote  # ensure latest data is used
+    slope = stats.linregress(range(slope_len), closes[-slope_len:]).slope
+    return slope > 0.00 and quote > sum(closes[-20:]) / 20
 
 
 def main(args):
-    init_script(args, "SOP Bonds")
+    init_script(args, "Linear Slope")
     trade_queue = RedisTradeQueue(args.trade_queue)
     positions = set()
     try:
         if args.account_id:
-            positions = {t['data']['symbol'] for t in get_all_trades(args.account_id)}
-            # TODO: make sure ticker wasn't placed in past 5 days
+            positions = {[t['data']['symbol'] for t in get_all_trades(args.account_id)]}
     except AttributeError:
         pass
 
@@ -40,8 +59,9 @@ def main(args):
                               minute=0,
                               second=0,
                               microsecond=0)
+
     trade_count = 0
-    for ticker in random.sample(TICKERS, k=args.ticker_count or len(TICKERS)):
+    for ticker, config in random.sample(TICKERS, k=args.ticker_count or len(TICKERS)):
         if trade_count >= args.trade_count:
             break
         if ticker in positions:
@@ -55,7 +75,7 @@ def main(args):
 
         if not args.dry_run:
             min_delta = 20 if ticker == 'TLT' else 30
-            max_delta = 31 if ticker == 'TLT' else 46 
+            max_delta = 31 if ticker == 'TLT' else 46
             trade_queue.send_trade({
                 "end": (close + datetime.timedelta(days=args.days)).timestamp(),
                 "symbol": ticker,
@@ -70,7 +90,7 @@ def main(args):
 
 
 def cli():
-    parser = ArgumentParser(description="Place SOP Bond trades.",
+    parser = ArgumentParser(description="Place Linear Slope trades.",
                             formatter_class=ArgumentDefaultsHelpFormatter)
     parser.add_argument('-q', '--trade-queue', help="Name of the magictrade queue to add trades to.")
     parser.add_argument('-d', '--dry-run', action="store_true", help="Set the dry run flag to check for trade "
