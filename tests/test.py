@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 from data import quotes, human_quotes_1, reactive_quotes, rh_options_1, exp_dates, td_account_json, bad_options_1, \
-    bad_options_2, ULTA_20_close, TSN_20_close, SHOP_20_close, SPY_200_close
+    bad_options_2, ULTA_20_close, TSN_20_close, SHOP_20_close
 
 from magictrade import storage
 from magictrade.broker import InsufficientFundsError, NonexistentAssetError, Broker
@@ -17,10 +17,11 @@ from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.broker.robinhood import RHOption
 from magictrade.broker.td_ameritrade import TDAmeritradeBroker, TDOption
 from magictrade.datasource import DummyDataSource
+from magictrade.misc.run_bollinger import check_signals
 from magictrade.runner import Runner
 from magictrade.securities import InvalidOptionError, DummyOption
-from magictrade.strategy import TradeConfigException, TradeDateException, TradeCriteriaException, NoTradeException
-from magictrade.strategy.bollinger import BollingerBendStrategy
+from magictrade.strategy import TradeConfigException, TradeDateException, TradeCriteriaException, NoTradeException, \
+    TradingStrategy
 from magictrade.strategy.buyandhold import BuyandHoldStrategy
 from magictrade.strategy.human import HumanTradingStrategy, DEFAULT_CONFIG
 from magictrade.strategy.longoption import LongOptionTradingStrategy
@@ -599,12 +600,12 @@ class TestOAStrategy:
         positions = name + ":positions"
         legs = "{}:{}:legs".format(name, test_id)
 
-        storage.hmset(data, {'test': 'testing'})
+        storage.hset(data, mapping={'test': 'testing'})
         storage.lpush(positions, test_id)
         storage.lpush(legs, id_1)
         storage.lpush(legs, id_2)
-        storage.hmset(leg1, {'test': 'leg11'})
-        storage.hmset(leg2, {'test': 'leg22'})
+        storage.hset(leg1, mapping={'test': 'leg11'})
+        storage.hset(leg2, mapping={'test': 'leg22'})
         osts.delete_position(test_id)
         assert not storage.exists(leg1,
                                   leg2,
@@ -653,21 +654,21 @@ class TestOAStrategy:
         positions = name + ":positions"
         legs = "{}:{}:legs".format(name, test_id)
 
-        storage.hmset(data, {'price': 112, 'quantity': 540, 'symbol': 'MU',
-                             'strategy': 'credit_spread'})
+        storage.hset(data, mapping={'price': 112, 'quantity': 540, 'symbol': 'MU',
+                                    'strategy': 'credit_spread'})
         storage.lpush(positions, test_id)
         storage.lpush(legs, id_1)
         storage.lpush(legs, id_2)
-        storage.hmset(leg1, {'option': 'https://api.robinhood.com/options/instruments/9d870f5d-bd44-4750-8ff6'
-                                       '-7aee58249b9f/',
-                             'side': 'sell',
-                             'ratio_quantity': 1,
-                             })
-        storage.hmset(leg2, {'option': 'https://api.robinhood.com/options/instruments/388082d5-b1d9-404e-8aad'
-                                       '-c92f40ee9ddb/',
-                             'side': 'buy',
-                             'ratio_quantity': 1,
-                             })
+        storage.hset(leg1, mapping={'option': 'https://api.robinhood.com/options/instruments/9d870f5d-bd44-4750-8ff6'
+                                              '-7aee58249b9f/',
+                                    'side': 'sell',
+                                    'ratio_quantity': 1,
+                                    })
+        storage.hset(leg2, mapping={'option': 'https://api.robinhood.com/options/instruments/388082d5-b1d9-404e-8aad'
+                                              '-c92f40ee9ddb/',
+                                    'side': 'buy',
+                                    'ratio_quantity': 1,
+                                    })
         osts = OptionSellerTradingStrategy(pmb)
         pmb.options = [
             {'option': 'https://api.robinhood.com/options/instruments/388082d5-b1d9-404e-8aad-c92f40ee9ddb/'},
@@ -1474,28 +1475,22 @@ class TestBB:
     @pytest.fixture
     def bbts(self, broker):
         dds = DummyDataSource({'history': {}})
-        return BollingerBendStrategy(broker, dds)
+        return OptionSellerTradingStrategy(broker, dds)
 
     def test_check_signal_1(self, bbts):
         # TODO: test currently fails, but may be right? odd.
-        assert bbts.check_signals(ULTA_20_close) == (True, False, False)
+        assert check_signals(ULTA_20_close) == (True, False, False)
 
     def test_check_signal_2(self, bbts):
-        assert bbts.check_signals(TSN_20_close) == (False, True, False)
+        assert check_signals(TSN_20_close) == (False, True, False)
 
     def test_check_signal_3(self, bbts):
-        assert bbts.check_signals(SHOP_20_close) == (False, False, True)
+        assert check_signals(SHOP_20_close) == (False, False, True)
 
     def test_calc_risk_reward(self, bbts):
-        assert round(bbts._calc_risk_reward(0.30, 1), 2) == 0.43
-        assert round(bbts._calc_risk_reward(1.80, 5), 2) == 0.56
+        assert round(TradingStrategy._calc_risk_reward(0.30, 1), 2) == 0.43
+        assert round(TradingStrategy._calc_risk_reward(1.80, 5), 2) == 0.56
 
     def test_calc_rr_over_delta(self, bbts):
-        assert round(bbts._calc_rr_over_delta(0.42, 0.3), 2) == 1.40
-        assert round(bbts._calc_rr_over_delta(0.25, 0.25), 2) == 1.00
-
-    def test_trade_fail_entry(self, bbts):
-        bbts.broker.data = {'SPY': {'price': 290.99}, 'SHOP': {'price': 910.01}}
-        bbts.broker.options_data = {'SHOP': []}
-        bbts.data_source['history'] = {'SPY': SPY_200_close, 'SHOP': SHOP_20_close}
-        assert bbts.make_trade('SHOP') == {'status': 'deferred', 'msg': 'no signal'}
+        assert round(TradingStrategy._calc_rr_over_delta(0.42, 0.3), 2) == 1.40
+        assert round(TradingStrategy._calc_rr_over_delta(0.25, 0.25), 2) == 1.00

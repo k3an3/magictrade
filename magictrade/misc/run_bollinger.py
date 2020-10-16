@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import datetime
 import random
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from statistics import pstdev
 from typing import List
 
@@ -59,7 +58,6 @@ SIGNAL_1_2_DELTA = (100 - 20, 100 - 30.9)
 SIGNAL_3_DELTA = (100 - 15, 100 - 25)
 
 
-@staticmethod
 def check_signals(historic_closes: List[float]):
     ma_20 = sum(historic_closes[-20:]) / 20
     prev_ma_20 = sum(historic_closes[-21:-1]) / 20
@@ -119,8 +117,7 @@ def main(args):
 
         # Calculations
         historic_closes = FinnhubDataSource.get_historic_close(ticker, 35)
-        # TODO: update latest value with quote?
-        # historic_closes[-1] = FinnhubDataSource.get_quote(ticker)  # ensure latest data is used
+        historic_closes[-1] = FinnhubDataSource.get_quote(ticker)  # ensure latest data is used
 
         if not historic_closes:
             print(f"No ticker history for {ticker}; skipping...")
