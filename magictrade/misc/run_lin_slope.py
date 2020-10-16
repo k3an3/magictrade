@@ -7,11 +7,12 @@ import sys
 from scipy import stats
 
 from magictrade.datasource.stock import FinnhubDataSource
-from magictrade.misc import init_script
+from magictrade.misc import init_script, get_parser
 from magictrade.strategy.optionseller import OptionSellerTradingStrategy
 from magictrade.trade_queue import RedisTradeQueue
 from magictrade.utils import get_all_trades
 
+NAME = "Linear Slope"
 TICKERS = ({
     'ADBE': {'slope_len': 10, 'delta': [25, 35]},
     'CMG': {'slope_len': 5, 'delta': [15, 27]},
@@ -42,7 +43,7 @@ def check_signals(ticker: str, slope_len: int, sma_len: int) -> bool:
 
 
 def main(args):
-    init_script(args, "Linear Slope")
+    init_script(args, NAME)
     trade_queue = RedisTradeQueue(args.trade_queue)
     positions = set()
     try:
@@ -68,45 +69,28 @@ def main(args):
             print(f"{ticker} already in positions; skipping...")
             continue
         # Check entry rule
-        if not check_signals(ticker):
+        if not check_signals(ticker, config['slope_len'], config.get('sma_len', 20)):
             if args.dry_run:
                 print(f"Not {ticker} > MA_20 > MA_200; skipping...")
             continue
 
         if not args.dry_run:
-            min_delta = 20 if ticker == 'TLT' else 30
-            max_delta = 31 if ticker == 'TLT' else 46
             trade_queue.send_trade({
                 "end": (close + datetime.timedelta(days=args.days)).timestamp(),
                 "symbol": ticker,
                 "allocation": args.allocation,
                 "strategy": OptionSellerTradingStrategy.name,
                 "days_out": 35,
-                "leg_criteria": f"{min_delta} < leg.delta < {max_delta}",
-                "trade_criteria": {"rr_delta": 1.00 if ticker == 'TLT' else 0.55}
-            })
+                "leg_criteria": f"{config['delta'][0]} < leg.delta < {config['delta'][1]}",
+                "trade_criteria": {"rr_delta": 1.00 if ticker == 'TLT' else 0.55},
+                "close_criteria": [f"value and -1 * change >= {config.get('target', 50)}"],
+                })
             trade_count += 1
     print(f"{trade_count} trades placed.")
 
 
 def cli():
-    parser = ArgumentParser(description="Place Linear Slope trades.",
-                            formatter_class=ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-q', '--trade-queue', help="Name of the magictrade queue to add trades to.")
-    parser.add_argument('-d', '--dry-run', action="store_true", help="Set the dry run flag to check for trade "
-                                                                     "signals, but not actually place trades.")
-    parser.add_argument('-c', '--trade-count', default=0, type=int,
-                        help="Max number of trades to place. 0 for unlimited.")
-    parser.add_argument('-n', '--ticker-count', default=0, type=int,
-                        help="Max number of tickers to consider. 0 for unlimited.")
-    parser.add_argument('-l', '--allocation', type=int, default=1, help="Allocation percentage for each trade")
-    parser.add_argument('-p', '--run-probability', type=int,
-                        help="Probability (out of 100) that any trades should be placed on a given run.")
-    parser.add_argument('-r', '--random-sleep', type=int, nargs=2, metavar=('min', 'max'),
-                        help="Range of seconds to randomly sleep before running.")
-    parser.add_argument('-a', '--account-id', help='If set, will check existing trades to avoid securities '
-                                                   'with active trades.')
-    parser.add_argument('-e', '--days', default=0, type=int, help="Place trades that are valid for this many days.")
+    parser = get_parser(NAME)
     args = parser.parse_args()
     if not (args.dry_run or args.trade_queue):
         print("Error: Either --trade-queue or --dry-run are required.")

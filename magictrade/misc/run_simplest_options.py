@@ -6,11 +6,12 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import sys
 
 from magictrade.datasource.stock import FinnhubDataSource
-from magictrade.misc import init_script
+from magictrade.misc import init_script, get_parser
 from magictrade.strategy.optionseller import OptionSellerTradingStrategy
 from magictrade.trade_queue import RedisTradeQueue
 from magictrade.utils import get_all_trades
 
+NAME = "SOP Bonds"
 TICKERS = ('TLT', 'TLH', 'IEF', 'IEI', 'IGOV', 'EMB')
 
 
@@ -22,7 +23,7 @@ def check_signals(ticker: str) -> bool:
 
 
 def main(args):
-    init_script(args, "SOP Bonds")
+    init_script(args, NAME)
     trade_queue = RedisTradeQueue(args.trade_queue)
     positions = set()
     try:
@@ -70,23 +71,7 @@ def main(args):
 
 
 def cli():
-    parser = ArgumentParser(description="Place SOP Bond trades.",
-                            formatter_class=ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-q', '--trade-queue', help="Name of the magictrade queue to add trades to.")
-    parser.add_argument('-d', '--dry-run', action="store_true", help="Set the dry run flag to check for trade "
-                                                                     "signals, but not actually place trades.")
-    parser.add_argument('-c', '--trade-count', default=0, type=int,
-                        help="Max number of trades to place. 0 for unlimited.")
-    parser.add_argument('-n', '--ticker-count', default=0, type=int,
-                        help="Max number of tickers to consider. 0 for unlimited.")
-    parser.add_argument('-l', '--allocation', type=int, default=1, help="Allocation percentage for each trade")
-    parser.add_argument('-p', '--run-probability', type=int,
-                        help="Probability (out of 100) that any trades should be placed on a given run.")
-    parser.add_argument('-r', '--random-sleep', type=int, nargs=2, metavar=('min', 'max'),
-                        help="Range of seconds to randomly sleep before running.")
-    parser.add_argument('-a', '--account-id', help='If set, will check existing trades to avoid securities '
-                                                   'with active trades.')
-    parser.add_argument('-e', '--days', default=0, type=int, help="Place trades that are valid for this many days.")
+    parser = get_parser(NAME)
     args = parser.parse_args()
     if not (args.dry_run or args.trade_queue):
         print("Error: Either --trade-queue or --dry-run are required.")

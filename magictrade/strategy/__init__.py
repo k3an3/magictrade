@@ -11,7 +11,7 @@ from magictrade.datasource import DataSource
 from magictrade.datasource.stock import FinnhubDataSource
 from magictrade.securities import OptionOrder, Option
 from magictrade.strategy.registry import strategies
-from magictrade.utils import get_monthly_option, date_format, get_allocation, get_risk
+from magictrade.utils import get_monthly_option, date_format, get_allocation, get_risk, get_percentage_change
 
 
 def load_strategies():
@@ -158,7 +158,7 @@ class TradingStrategy(ABC):
         return "{}-{}".format(self.broker.name, self.broker.account_id)
 
     @abstractmethod
-    def _maintenance(self, position: str, data: Dict, legs: List) -> List:
+    def _maintenance(self, position: str, data: Dict, legs: List, value: float, change: float, config: Dict = {}) -> List:
         pass
 
     @abstractmethod
@@ -170,6 +170,12 @@ class TradingStrategy(ABC):
 
         for position, data, legs in self.get_current_positions():
             legs = self.broker.options_positions_data(legs)
+            value = self._get_price(legs)
+            change = get_percentage_change(float(data['price']), value)
+            data['last_price'] = value
+            data['last_change'] = change * -1
+            storage.hset("{}:{}".format(self.get_name(), position), mapping=data)
+
             if data.get('close_now'):
                 orders.append(self.close_position(position, data, legs))
                 continue
@@ -177,10 +183,12 @@ class TradingStrategy(ABC):
                 quote = self.broker.get_quote(data['symbol'])
                 if self.evaluate_criteria(data['close_criteria'],
                                           date=self.broker.date.timestamp(),
-                                          price=quote):
+                                          price=quote,
+                                          value=value,
+                                          change=change):
                     orders.append(self.close_position(position, data, legs))
                     continue
-            if order := self._maintenance(position, data, legs):
+            if order := self._maintenance(position, data, legs, value, change):
                 orders.append(order)
         return orders
 

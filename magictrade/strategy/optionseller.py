@@ -130,9 +130,8 @@ class OptionSellerTradingStrategy(TradingStrategy):
             self.delete_position(position)
         return option_order
 
-    def _maintenance(self, position: str, data: Dict, legs: List, config: Dict = {}) -> List:
+    def _maintenance(self, position: str, data: Dict, legs: List, value: float, change: float, config: Dict = {}) -> List:
         legs = self.broker.options_positions_data(legs)
-        value = self._get_price(legs)
         strategy = config.get('strategy', data.get('strategy', 'unknown'))
         if not config:
             config = strategies[strategy]
@@ -140,10 +139,6 @@ class OptionSellerTradingStrategy(TradingStrategy):
             self.log(f"Calculated negative credit ({value:.2f}) during maintenance "
                      f"on {data['symbol']}-{strategy}, skipping...")
             return
-        change = get_percentage_change(float(data['price']), value)
-        data['last_price'] = value
-        data['last_change'] = change * -1
-        storage.hset("{}:{}".format(self.get_name(), position), mapping=data)
         if value and -1 * change >= config['target']:
             # legs that were originally bought now need to be sold
             self.log("[{}]: Closing {}-{} due to change of {:.2f}%."
