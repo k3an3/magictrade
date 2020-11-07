@@ -123,7 +123,7 @@ class OptionSellerTradingStrategy(TradingStrategy):
             close_price = self._get_price(legs)
         self.invert_action(legs)
         option_order = self.broker.options_transact(legs, 'debit', close_price,
-                                                    int(data['quantity']),
+                                                    1,
                                                     'close', time_in_force=time_in_force,
                                                     )
         if delete:
