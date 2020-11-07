@@ -8,10 +8,10 @@ import sys
 from time import sleep
 
 from magictrade.datasource.stock import FinnhubDataSource
-from magictrade.misc import init_script, get_parser
+from magictrade.misc import init_script, cli
 from magictrade.strategy.optionseller import OptionSellerTradingStrategy
 from magictrade.trade_queue import RedisTradeQueue
-from magictrade.utils import get_all_trades, bool_as_str
+from magictrade.utils import get_all_trades
 
 NAME = "Bollinger Bend"
 TICKERS = ("AAPL", "ABBV", "ADBE", "AMAT", "AMD", "AMGN", "AMZN", "ATVI",
@@ -134,7 +134,6 @@ def main(args):
 
         if not args.dry_run and (signal_1 or signal_2 or signal_3):
             trade_queue.send_trade({
-                "dry_run": bool_as_str(args.dry_run),
                 "end": (close + datetime.timedelta(days=args.days)).timestamp(),
                 "symbol": ticker,
                 "allocation": args.allocation,
@@ -147,15 +146,5 @@ def main(args):
     print(f"{trade_count} trades placed.")
 
 
-def cli():
-    parser = get_parser(NAME)
-    args = parser.parse_args()
-    if not (args.dry_run or args.trade_queue):
-        print("Error: Either --trade-queue or --dry-run are required.")
-        parser.print_usage()
-        sys.exit(1)
-    main(args)
-
-
 if __name__ == "__main__":
-    cli()
+    main(cli())

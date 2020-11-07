@@ -9,7 +9,8 @@ from magictrade import Position
 from magictrade.broker import Broker, InsufficientFundsError, NonexistentAssetError
 from magictrade.broker.registry import register_broker
 from magictrade.broker.robinhood import RobinhoodBroker, RHOption, RHOptionOrder
-from magictrade.securities import InvalidOptionError
+from magictrade.securities import InvalidOptionError, Option
+from magictrade.utils import from_date_format, date_format
 
 API_KEY = "3KODWEPB1ZR37OT7"
 
@@ -17,17 +18,22 @@ API_KEY = "3KODWEPB1ZR37OT7"
 @register_broker
 class PaperMoneyBroker(Broker):
     name = 'papermoney'
-    option = RHOption
 
     def __init__(self, balance: int = 1_000_000, data: Dict = {}, account_id: str = None,
                  date: str = None, data_files: List[Tuple[str, str]] = [],
                  options_data: Dict = [], exp_dates: Dict = {}, username: str = None,
                  password: str = None, mfa_code: str = None, token_file=None,
-                 robinhood: bool = False, buying_power: float = 0.0):
+                 robinhood: bool = False, buying_power: float = 0.0, broker: Broker = None,
+                 option_class: Option = RHOption):
         self._balance = balance
         self.stocks = {}
         self.options = {}
-        self._date = date
+        self.option = option_class
+        self.broker = broker
+        try:
+            self._date = from_date_format(date)
+        except Exception:
+            self._date = date
         self.data = data
         self.options_data = options_data
         self.exp_dates = exp_dates
@@ -111,13 +117,13 @@ class PaperMoneyBroker(Broker):
         if self.data:
             if self._date:
                 try:
-                    date = datetime.strftime(self._date, "%Y-%m-%d")
+                    date = from_date_format(self._date)
                 except Exception:
                     date = self._date
                 # This is terrible but solves some growing pains :/
                 try:
-                    return self.data[symbol]['history'][date]
-                except KeyError:
+                    return self.data[symbol]['history'][date_format(date)]
+                except (AttributeError, KeyError):
                     pass
             try:
                 return self.data[symbol]['price']

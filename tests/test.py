@@ -8,7 +8,7 @@ from typing import Dict
 from unittest.mock import patch
 
 import pytest
-from data import quotes, human_quotes_1, reactive_quotes, rh_options_1, exp_dates, td_account_json, bad_options_1, \
+from data import quotes, rh_options_1, exp_dates, td_account_json, bad_options_1, \
     bad_options_2, ULTA_20_close, TSN_20_close, SHOP_20_close
 
 from magictrade import storage
@@ -23,10 +23,8 @@ from magictrade.securities import InvalidOptionError, DummyOption
 from magictrade.strategy import TradeConfigException, TradeDateException, TradeCriteriaException, NoTradeException, \
     TradingStrategy
 from magictrade.strategy.buyandhold import BuyandHoldStrategy
-from magictrade.strategy.human import HumanTradingStrategy, DEFAULT_CONFIG
 from magictrade.strategy.longoption import LongOptionTradingStrategy
 from magictrade.strategy.optionseller import OptionSellerTradingStrategy, strategies, TradeException, high_iv
-from magictrade.strategy.reactive import ReactiveStrategy
 from magictrade.trade_queue import RedisTradeQueue
 from magictrade.utils import get_account_history, get_percentage_change, get_allocation, calculate_percent_otm, \
     get_risk, from_date_format, find_option_with_probability, get_price_from_change
@@ -280,102 +278,8 @@ class TestBAHStrategy:
         assert not pmb.stocks.get('SPY')
 
 
-class TestReactiveStrategy:
-    def test_reactive(self):
-        pmb = PaperMoneyBroker(account_id='test', balance=100, data=reactive_quotes, date=1)
-        rts = ReactiveStrategy(pmb)
-        assert rts.make_trade('TST') == ('buy', 10)
-        pmb.date += 1
-        assert rts.make_trade('TST') == ('buy', 0)
-        pmb.date += 1
-        assert rts.make_trade('TST') == ('buy', 0)
-        pmb.date += 1
-        assert rts.make_trade('TST') == ('buy', 0)
-        pmb.date += 1
-        assert rts.make_trade('TST') == ('sell', 10)
-        pmb.date += 1
-        assert rts.make_trade('TST') == ('buy', 10)
-        pmb.date += 1
-        assert rts.make_trade('TST') == ('sell', 10)
-        pmb.date += 1
-        assert rts.make_trade('TST') == ('sell', 0)
-        pmb.date += 1
-        assert rts.make_trade('TST') == ('buy', 10)
-
-
-class TestHumanStrategy:
-    def test_config_init(self):
-        hts = HumanTradingStrategy(None, {'peak_window': 45})
-        assert hts.config['peak_window'] == 45
-        assert hts.config['stop_loss_pct'] == DEFAULT_CONFIG['stop_loss_pct']
-
-    def test_get_quantity(self):
-        pmb = PaperMoneyBroker(account_id='test', )
-        hts = HumanTradingStrategy(pmb, config={'max_equity': 5_000})
-        assert hts._get_quantity(252.39) == 19
-        assert hts._get_quantity(5_001) == 0
-
-    def test_get_window_chg(self):
-        storage.delete('TST')
-        pmb = PaperMoneyBroker(account_id='test', )
-        hts = HumanTradingStrategy(pmb, config={'short_window': 10})
-        assert hts._get_window_change('TST', 'short') == 0.0
-        storage.delete('TST')
-
-    def test_get_window_chg_1(self):
-        storage.delete('TST')
-        storage.rpush('TST', *range(1, 6))
-        pmb = PaperMoneyBroker(account_id='test', )
-        hts = HumanTradingStrategy(pmb, config={'short_window': 10})
-        assert hts._get_window_change('TST', 'short') == 400.0
-        storage.delete('TST')
-
-    def test_get_window_chg_2(self):
-        storage.delete('TST')
-        storage.rpush('TST', *range(1, 31))
-        pmb = PaperMoneyBroker(account_id='test', )
-        hts = HumanTradingStrategy(pmb, config={'short_window': 11})
-        assert hts._get_window_change('TST', 'short') == 50.0
-        storage.delete('TST')
-
-    def test_get_window_chg_3(self):
-        storage.delete('TST')
-        storage.rpush('TST', *range(31, 1, -1))
-        pmb = PaperMoneyBroker(account_id='test', )
-        hts = HumanTradingStrategy(pmb, config={'short_window': 9})
-        assert hts._get_window_change('TST', 'short') == -80.0
-        storage.delete('TST')
-
-    def test_algo(self):
-        storage.delete('TST')
-        storage.delete('sell')
-        storage.delete('buy')
-        config = {
-            'peak_window': 30,
-            'sample_frequency_minutes': 5,
-            'stop_loss_pct': 10,
-            'take_gain_pct': 20,
-            'max_equity': 1_000,
-            'short_window': 6,
-            'short_window_pct': 15,
-            'med_window': 10,
-            'med_window_pct': 100,
-            'long_window': 20,
-            'long_window_pct': 200,
-        }
-        pmb = PaperMoneyBroker(account_id='test', date=1, data=human_quotes_1)
-        hts = HumanTradingStrategy(pmb, config=config)
-        for i in range(70):
-            hts.make_trade('TST')
-            pmb.date += 1
-        assert hts.trades.get(3) == ('buy', 'TST', 83, 'short window met')
-        assert hts.trades.get(56) == ('sell', 'TST', 83, 'take gain off peak')
-        assert int(storage.get('buy')) == 1
-        assert int(storage.get('sell')) == 1
-
 
 class TestOAStrategy:
-
     def test_get_long_leg_put(self):
         pmb = PaperMoneyBroker(account_id='test', )
         osts = OptionSellerTradingStrategy(pmb)
@@ -1494,3 +1398,13 @@ class TestBB:
     def test_calc_rr_over_delta(self, bbts):
         assert round(TradingStrategy._calc_rr_over_delta(0.42, 0.3), 2) == 1.40
         assert round(TradingStrategy._calc_rr_over_delta(0.25, 0.25), 2) == 1.00
+
+
+class TestNewCore:
+    @pytest.fixture
+    def strategy(self):
+        return OptionSellerTradingStrategy(PaperMoneyBroker(date='2019-02-22', options_data=rh_options_1))
+
+    def test_custom_trade(self, strategy):
+        pass
+        # strategy.make_trade('MU', days_out=35, leg_criteria='20 < leg.delta < 30')

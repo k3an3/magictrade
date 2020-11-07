@@ -2,9 +2,8 @@ import datetime
 import random
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
-from time import sleep
-
 import sys
+from time import sleep
 
 
 def init_script(args, name) -> None:
@@ -45,3 +44,13 @@ def get_parser(name: str) -> ArgumentParser:
                                                    'with active trades.')
     parser.add_argument('-e', '--days', default=0, type=int, help="Place trades that are valid for this many days.")
     return parser
+
+
+def cli(name):
+    parser = get_parser(name)
+    args = parser.parse_args()
+    if not (args.dry_run or args.trade_queue):
+        print("Error: Either --trade-queue or --dry-run are required.")
+        parser.print_usage()
+        sys.exit(1)
+    return args
