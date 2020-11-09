@@ -192,6 +192,7 @@ def parse_args() -> Namespace:
                              'Exceptions are re-raised.')
     parser.add_argument('-a', '--allocation', type=int, default=40, dest='allocation',
                         help='Percent of account to trade with.')
+    parser.add_argument('-r', '-paper', action='store_true', help='Whether to do paper trading instead of real trades.')
     parser.add_argument('-u', '--username', dest='username', help='Username for broker account. May also specify with '
                                                                   'environment variable.')
     parser.add_argument('-p', '--password', dest='password', help='Password for broker account. May also specify with '
@@ -230,13 +231,7 @@ def main():
     password = os.environ.pop('password', None) or args.password
     mfa_code = os.environ.pop('mfa_code', None) or args.mfa
 
-    if args.broker == 'papermoney':
-        broker = PaperMoneyBroker(balance=15_000, account_id="livetest",
-                                  username=username,
-                                  password=password,
-                                  mfa_code=mfa_code,
-                                  robinhood=True, token_file=args.keyfile)
-    elif args.broker == 'robinhood':
+    if args.broker == 'robinhood':
         broker = RobinhoodBroker(username=username, password=password,
                                  mfa_code=mfa_code, token_file=args.keyfile)
     elif args.broker == 'tdameritrade':
@@ -247,6 +242,8 @@ def main():
     if args.authonly:
         logging.info("Authentication success. Exiting.")
         raise SystemExit
+    if args.paper:
+        broker = PaperMoneyBroker(broker=broker)
     queue_name = args.queue_name
     if not queue_name:
         raise SystemExit("Must provide queue name.")
