@@ -1403,8 +1403,10 @@ class TestBB:
 class TestNewCore:
     @pytest.fixture
     def strategy(self):
-        return OptionSellerTradingStrategy(PaperMoneyBroker(date='2019-02-22', options_data=rh_options_1))
+        return OptionSellerTradingStrategy(PaperMoneyBroker(date='2019-02-22', data=quotes, options_data=rh_options_1,
+                                                            exp_dates=exp_dates))
 
     def test_custom_trade(self, strategy):
-        pass
-        # strategy.make_trade('MU', days_out=35, leg_criteria='20 < leg.delta < 30')
+        p = strategy.make_trade('MU', direction='put', days_out=35, spread_width=1, sortby='delta',
+                                leg_criteria='20 < abs(delta) * 100 and abs(delta) * 100 < 30.9')
+        print(p)

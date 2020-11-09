@@ -60,6 +60,8 @@ class TradingStrategy(ABC):
             dates = self.broker.exp_dates
         else:
             dates = options['expiration_dates']
+        if not dates:
+            raise TradeException("No expiration dates.")
         while not target_date:
             td1 = date_format(self.broker.date + timedelta(days=timeline + offset))
             td2 = date_format(self.broker.date + timedelta(days=timeline - offset))
@@ -276,11 +278,16 @@ class TradingStrategy(ABC):
         eval_result = None
         for criterion in criteria:
             try:
-                result = parser.parse(criterion['expr']).evaluate(kwargs)
-            except KeyError:
-                raise TradeCriteriaException("No criterion expression provided.")
+                try:
+                    result = parser.parse(criterion['expr']).evaluate(kwargs)
+                except TypeError:
+                    result = parser.parse(criterion).evaluate(kwargs)
+            except KeyError as e:
+                raise TradeCriteriaException("No criterion expression provided.") from e
+            except TypeError:
+                continue
             except Exception as e:
-                raise TradeCriteriaException(str(e))
+                raise TradeCriteriaException(str(e)) from e
             if eval_result is None:
                 eval_result = result
             elif criterion.get('operation', 'and') == 'and':

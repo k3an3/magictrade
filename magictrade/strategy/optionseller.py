@@ -1,11 +1,10 @@
 from typing import List, Dict, Tuple
 
-from magictrade import storage
 from magictrade.securities import Option
 from magictrade.strategy import TradingStrategy, NoValidLegException, TradeException, \
     TradeConfigException
 from magictrade.strategy.registry import register_strategy
-from magictrade.utils import get_percentage_change, find_option_with_probability, get_price_from_change
+from magictrade.utils import find_option_with_probability, get_price_from_change
 
 strategies = {
     'iron_condor': {
@@ -27,7 +26,7 @@ strategies = {
 
 high_iv = 75
 total_allocation = 40
-valid_directions = ('neutral', 'bullish', 'bearish')
+valid_directions = {'neutral', 'bullish', 'bearish', 'put', 'call'}
 
 
 @register_strategy
@@ -64,23 +63,42 @@ class OptionSellerTradingStrategy(TradingStrategy):
         return call_wing[0], call_wing[1], put_wing[0], put_wing[1]
 
     def find_leg(self, options: List[Option], criteria: str, sort_key: str = 'probability_otm',
-                 reverse: bool = False) -> Option:
-        for option in sorted(options, reverse=reverse, key=lambda o: o.getattr(sort_key)):
-            if self.evaluate_criteria([criteria], **option):
-                return option
+                 reverse: bool = False, absolute_key: bool = False) -> Option:
+        # TODO hack
+        if sort_key == 'delta':
+            absolute_key = True
+        # TODO gross
+        if absolute_key:
+            def sort_key_func(o: Option) -> float:
+                try:
+                    return abs(getattr(o, sort_key))
+                except TypeError:
+                    return 0.0
+        else:
+            def sort_key_func(o: Option) -> float:
+                return getattr(o, sort_key)
+
+        for option in sorted(options, reverse=reverse, key=sort_key_func):
+            try:
+                if self.evaluate_criteria([criteria], **option):
+                    return option
+            except TypeError:
+                continue
 
     def credit_spread(self, config: Dict, options: List, leg_criteria: Dict = {}, **kwargs):
         width = kwargs.get('width', config.get('width'))
         direction = kwargs.get('direction', config.get('direction'))
-        if direction in ('bullish', 'put'):
+        if direction in {'bullish', 'put'}:
             o_type = 'put'
-        else:
+        elif direction in {'bearish', 'call'}:
             o_type = 'call'
+        else:
+            raise TradeException("No direction supplied.")
         options = self.broker.filter_options(options, option_type=o_type)
         if not options:
             raise TradeException("No options found.")
         if leg_criteria:
-            short_leg = self.find_leg(options, leg_criteria)
+            short_leg = self.find_leg(options, leg_criteria, kwargs.get('sort_key'))
         else:
             short_leg = find_option_with_probability(options, config['probability'],
                                                      max_probability=config.get('max_probability', 100))
@@ -159,7 +177,7 @@ class OptionSellerTradingStrategy(TradingStrategy):
     def make_trade(self, symbol: str, direction: str = "", iv_rank: int = 50, allocation: int = 3, timeline: int = 50,
                    spread_width: int = 3, days_out: int = 0, monthly: bool = False, exp_date: str = None,
                    open_criteria: List = [], close_criteria: List = [], immediate_closing_order: bool = False,
-                   leg_criteria: str = '', account_name: str = '', trade_criteria: Dict = {}):
+                   leg_criteria: str = '', account_name: str = '', trade_criteria: Dict = {}, sortby: str = ""):
         if direction and direction not in valid_directions:
             raise TradeConfigException("Invalid direction. Must be in " + str(valid_directions))
 
@@ -189,7 +207,7 @@ class OptionSellerTradingStrategy(TradingStrategy):
 
         legs, target_date = self.find_legs(method, config, options, timeline, days_out, monthly, exp_date,
                                            quote=quote, direction=direction, width=spread_width,
-                                           leg_criteria=leg_criteria)
+                                           leg_criteria=leg_criteria, sort_key=sortby)
 
         credit, quantity, spread_width = self.prepare_trade(legs, allocation)
 
