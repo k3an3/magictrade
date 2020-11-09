@@ -73,12 +73,13 @@ class OptionSellerTradingStrategy(TradingStrategy):
                 try:
                     return abs(getattr(o, sort_key))
                 except TypeError:
-                    return 0.0
+                    return -1.0
         else:
             def sort_key_func(o: Option) -> float:
                 return getattr(o, sort_key)
 
-        for option in sorted(options, reverse=reverse, key=sort_key_func):
+        # TODO: reverse not working
+        for option in sorted(options, key=sort_key_func)[::-1 if reverse else 1]:
             try:
                 if self.evaluate_criteria([criteria], **option):
                     return option
@@ -98,7 +99,8 @@ class OptionSellerTradingStrategy(TradingStrategy):
         if not options:
             raise TradeException("No options found.")
         if leg_criteria:
-            short_leg = self.find_leg(options, leg_criteria, kwargs.get('sort_key'))
+            short_leg = self.find_leg(options, leg_criteria, kwargs.get('sort_key'),
+                                      reverse=kwargs.get('sort_reverse'))
         else:
             short_leg = find_option_with_probability(options, config['probability'],
                                                      max_probability=config.get('max_probability', 100))
@@ -177,7 +179,8 @@ class OptionSellerTradingStrategy(TradingStrategy):
     def make_trade(self, symbol: str, direction: str = "", iv_rank: int = 50, allocation: int = 3, timeline: int = 50,
                    spread_width: int = 3, days_out: int = 0, monthly: bool = False, exp_date: str = None,
                    open_criteria: List = [], close_criteria: List = [], immediate_closing_order: bool = False,
-                   leg_criteria: str = '', account_name: str = '', trade_criteria: Dict = {}, sortby: str = ""):
+                   leg_criteria: str = '', account_name: str = '', trade_criteria: Dict = {}, sort_by: str = "",
+                   sort_reverse: bool = False):
         if direction and direction not in valid_directions:
             raise TradeConfigException("Invalid direction. Must be in " + str(valid_directions))
 
@@ -207,7 +210,7 @@ class OptionSellerTradingStrategy(TradingStrategy):
 
         legs, target_date = self.find_legs(method, config, options, timeline, days_out, monthly, exp_date,
                                            quote=quote, direction=direction, width=spread_width,
-                                           leg_criteria=leg_criteria, sort_key=sortby)
+                                           leg_criteria=leg_criteria, sort_key=sort_by, sort_reverse=sort_reverse)
 
         credit, quantity, spread_width = self.prepare_trade(legs, allocation)
 

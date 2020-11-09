@@ -156,7 +156,7 @@ class TradingStrategy(ABC):
                 continue
             yield target_date, self.broker.get_options_data(options_on_date)
 
-    def get_name(self, custom_name: str = ""):
+    def get_name(self):
         return "{}-{}".format(self.broker.name, self.broker.account_id)
 
     @abstractmethod
@@ -176,7 +176,9 @@ class TradingStrategy(ABC):
             change = get_percentage_change(float(data['price']), value)
             data['last_price'] = value
             data['last_change'] = change * -1
-            storage.hset("{}:{}".format(self.get_name(), position), mapping=data)
+            tmp_data = data.copy()
+            tmp_data.pop('close_criteria', None)
+            storage.hset("{}:{}".format(self.get_name(), position), mapping=tmp_data)
 
             if data.get('close_now'):
                 orders.append(self.close_position(position, data, legs))
@@ -261,7 +263,7 @@ class TradingStrategy(ABC):
         storage.lpush(self.get_name() + ":all_positions", option_order.id)
         storage.hset("{}:{}".format(self.get_name(), option_order.id),
                      mapping={
-                         'time': datetime.now().timestamp(),
+                         'time': self.broker.date.timestamp(),
                          **kwargs,
                          **order_data,
                      })

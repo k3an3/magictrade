@@ -54,8 +54,8 @@ config = {
     'rr_delta': 1.00,
     'strategy': 'credit_spread',
 }
-SIGNAL_1_2_DELTA = (100 - 20, 100 - 30.9)
-SIGNAL_3_DELTA = (100 - 15, 100 - 25)
+SIGNAL_1_2_DELTA = (20, 30.9)
+SIGNAL_3_DELTA = (15, 25)
 
 
 def check_signals(historic_closes: List[float]):
@@ -138,7 +138,12 @@ def main(args):
                 "symbol": ticker,
                 "allocation": args.allocation,
                 "strategy": OptionSellerTradingStrategy.name,
-                "leg_criteria": f"{min_delta} < leg.delta < {max_delta}",
+                "spread_width": 1,
+                "days_out": 40,
+                "direction": "put",
+                "sort_by": "delta",
+                "leg_criteria": f"{min_delta} < abs(delta) * 100 and abs(delta) * 100 < {max_delta}",
+                "close_criteria": [f"value and -1 * change >= {config.get('target', 50)}"],
             })
             trade_count += 1
         # API has 60 calls/minute limit

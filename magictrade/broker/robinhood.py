@@ -33,7 +33,7 @@ class RHOption(OptionBase):
 
     @property
     def mark_price(self) -> float:
-        return self.data['mark_price']
+        return float(self.data['mark_price'])
 
 
 class RHOptionOrder(OptionBaseOrder):
@@ -166,4 +166,4 @@ class RobinhoodBroker(Broker):
 
     @staticmethod
     def leg_in_options(leg: Dict, options: Dict) -> bool:
-        return leg['option'] in options
+        return leg['option'] in options or leg['id'] in options

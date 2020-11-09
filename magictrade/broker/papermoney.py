@@ -1,4 +1,5 @@
 import os
+import secrets
 import uuid
 from datetime import datetime
 from typing import Tuple, Dict, List, Any
@@ -50,7 +51,7 @@ class PaperMoneyBroker(Broker):
             self.rb = RobinhoodBroker(username, password, mfa_code, token_file)
             self._account_id = self.rb.account_id
         else:
-            self._account_id = account_id
+            self._account_id = account_id or secrets.token_urlsafe(6)
 
     @property
     def buying_power(self) -> float:
@@ -62,7 +63,10 @@ class PaperMoneyBroker(Broker):
                 return self.rb.options_positions()
             except AttributeError:
                 pass
-        return {option['option']: option for option in self.options}
+        try:
+            return {option['option']: option for option in self.options}
+        except TypeError:
+            return self.options
 
     def options_positions_data(self, options: List) -> List:
         if self.options_data:
@@ -107,7 +111,10 @@ class PaperMoneyBroker(Broker):
 
     @date.setter
     def date(self, date: str):
-        self._date = date
+        try:
+            self._date = from_date_format(date)
+        except ValueError:
+            self._date = date
 
     @property
     def account_id(self) -> str:

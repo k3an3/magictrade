@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 from data import quotes, rh_options_1, exp_dates, td_account_json, bad_options_1, \
-    bad_options_2, ULTA_20_close, TSN_20_close, SHOP_20_close
+    bad_options_2, ULTA_20_close, TSN_20_close, SHOP_20_close, rh_options_close
 
 from magictrade import storage
 from magictrade.broker import InsufficientFundsError, NonexistentAssetError, Broker
@@ -1407,6 +1407,21 @@ class TestNewCore:
                                                             exp_dates=exp_dates))
 
     def test_custom_trade(self, strategy):
-        p = strategy.make_trade('MU', direction='put', days_out=35, spread_width=1, sortby='delta',
+        p = strategy.make_trade('MU', direction='put', days_out=35, sort_reverse=True, spread_width=1, sort_by='delta',
                                 leg_criteria='20 < abs(delta) * 100 and abs(delta) * 100 < 30.9')
-        print(p)
+        assert p['status'] == 'placed'
+        assert p['quantity'] == 375
+        assert round(p['price'], 2) == 75.00
+        assert p['legs'][0][0]['strike_price'] == 38.00
+        assert p['legs'][1][0]['strike_price'] == 37.00
+
+    def test_custom_trade_close(self, strategy):
+        p = strategy.make_trade('MU', direction='put', sort_reverse=True, days_out=35, spread_width=1, sort_by='delta',
+                                leg_criteria='20 < abs(delta) * 100 and abs(delta) * 100 < 30.9',
+                                close_criteria=["value and -1 * change >= 50"])
+        for leg in p['order'].legs:
+            strategy.broker.options[leg['id']] = leg
+        strategy.broker.options_data = rh_options_close
+        strategy.broker.date = '2019-02-23'
+        m = strategy.maintenance()
+        assert len(m)
