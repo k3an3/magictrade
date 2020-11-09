@@ -11,6 +11,13 @@ from magictrade.utils import get_all_trades
 NAME = "SOP Bonds"
 TICKERS = ('TLT', 'TLH', 'IEF', 'IEI', 'IGOV', 'EMB')
 
+config = {
+    'timeline': [35, 45],
+    'target': 50,
+    'direction': 'put',
+    'width': 1,
+}
+
 
 def check_signals(ticker: str) -> bool:
     quote = FinnhubDataSource.get_quote(ticker)
@@ -59,13 +66,18 @@ def main(args):
                 "symbol": ticker,
                 "allocation": args.allocation,
                 "strategy": OptionSellerTradingStrategy.name,
-                "days_out": 35,
-                "leg_criteria": f"{min_delta} < leg.delta < {max_delta}",
-                "trade_criteria": {"rr_delta": 1.00 if ticker == 'TLT' else 0.55}
+                "spread_width": config['width'],
+                "sort_reverse": True,
+                "direction": config['direction'],
+                "sort_by": "delta",
+                "days_out": sum(config['timeline']) // 2,
+                "leg_criteria": f"{min_delta} < abs(delta) and abs(delta) < {max_delta + 0.9}",
+                "trade_criteria": {"rr_delta": 1.00 if ticker == 'TLT' else 0.55},
+                "close_criteria": [f"value and -1 * change >= {config.get('target', 50)}"],
             })
             trade_count += 1
     print(f"{trade_count} trades placed.")
 
 
 if __name__ == "__main__":
-    main(cli())
+    main(cli(NAME))

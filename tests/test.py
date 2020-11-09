@@ -1162,7 +1162,7 @@ class TestTDAmeritradeBroker:
 
 class TestRunner:
     if not os.environ.get('SKIP_SLOW_TESTS') == "yes":
-        def test_entry_point(self):
+        def test_argparse(self):
             assert subprocess.run(['magictrade-daemon']).returncode == 2
 
         def test_lint(self):

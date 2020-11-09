@@ -52,9 +52,8 @@ config = {
     'direction': 'put',
     'width': 1,
     'rr_delta': 1.00,
-    'strategy': 'credit_spread',
 }
-SIGNAL_1_2_DELTA = (20, 30.9)
+SIGNAL_1_2_DELTA = (20, 30)
 SIGNAL_3_DELTA = (15, 25)
 
 
@@ -126,7 +125,6 @@ def main(args):
             historic_closes)
         print(f"{ticker: <5}: {signal_1=}, {signal_2=}, {signal_3=}")
 
-        # Note that "probability" is actually delta for our TD impl.
         if signal_1 or signal_2:
             max_delta, min_delta = OPTIMIZED_DELTA.get(ticker, SIGNAL_1_2_DELTA)
         elif signal_3:
@@ -138,12 +136,16 @@ def main(args):
                 "symbol": ticker,
                 "allocation": args.allocation,
                 "strategy": OptionSellerTradingStrategy.name,
-                "spread_width": 1,
-                "days_out": 40,
-                "direction": "put",
+                "spread_width": config['width'],
+                "days_out": sum(config['timeline']) // 2,
+                "sort_reverse": True,
+                "direction": config['put'],
                 "sort_by": "delta",
-                "leg_criteria": f"{min_delta} < abs(delta) * 100 and abs(delta) * 100 < {max_delta}",
-                "close_criteria": [f"value and -1 * change >= {config.get('target', 50)}"],
+                "trade_criteria": {"rr_delta": config['rr_delta']},
+                "leg_criteria": f"{min_delta} < abs(delta) * 100 and abs(delta) * 100 < {max_delta + 0.9}",
+                "close_criteria": [
+                    f"value and -1 * change >= {config.get('target', 50)}",
+                ],
             })
             trade_count += 1
         # API has 60 calls/minute limit
@@ -152,4 +154,4 @@ def main(args):
 
 
 if __name__ == "__main__":
-    main(cli())
+    main(cli(NAME))

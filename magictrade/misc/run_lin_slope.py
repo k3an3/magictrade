@@ -79,13 +79,16 @@ def main(args):
                 "allocation": args.allocation,
                 "strategy": OptionSellerTradingStrategy.name,
                 "days_out": 35,
-                "leg_criteria": f"{config['delta'][0]} < leg.delta < {config['delta'][1]}",
+                "sort_reverse": True,
+                "direction": "put",
+                "sort_by": "delta",
+                "leg_criteria": f"{config['delta'][0]} < abs(delta) and abs(delta) < {config['delta'][1] + 0.9}",
                 "trade_criteria": {"rr_delta": 1.00 if ticker == 'TLT' else 0.55},
                 "close_criteria": [f"value and -1 * change >= {config.get('target', 50)}"],
-                })
+            })
             trade_count += 1
     print(f"{trade_count} trades placed.")
 
 
 if __name__ == "__main__":
-    main(cli())
+    main(cli(NAME))
