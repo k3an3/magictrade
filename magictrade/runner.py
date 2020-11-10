@@ -192,7 +192,8 @@ def parse_args() -> Namespace:
                              'Exceptions are re-raised.')
     parser.add_argument('-a', '--allocation', type=int, default=40, dest='allocation',
                         help='Percent of account to trade with.')
-    parser.add_argument('-r', '-paper', action='store_true', help='Whether to do paper trading instead of real trades.')
+    parser.add_argument('-r', '--paper', action='store_true',
+                        help='Whether to do paper trading instead of real trades.')
     parser.add_argument('-u', '--username', dest='username', help='Username for broker account. May also specify with '
                                                                   'environment variable.')
     parser.add_argument('-p', '--password', dest='password', help='Password for broker account. May also specify with '
