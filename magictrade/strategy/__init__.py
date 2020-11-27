@@ -22,9 +22,10 @@ def load_strategies():
 class TradingStrategy(ABC):
     name = 'tradingstrategy'
 
-    def __init__(self, broker: Broker, data_source: DataSource = FinnhubDataSource):
+    def __init__(self, broker: Broker, data_source: DataSource = FinnhubDataSource, paper: bool = False):
         self.broker = broker
         self.data_source = data_source
+        self.paper = paper
 
     def init_strategy(self, symbol: str, open_criteria: List = []) -> Tuple:
         symbol = symbol.upper()
@@ -157,7 +158,7 @@ class TradingStrategy(ABC):
             yield target_date, self.broker.get_options_data(options_on_date)
 
     def get_name(self):
-        return "{}-{}".format(self.broker.name, self.broker.account_id)
+        return "{}-{}{}".format(self.broker.name, self.broker.account_id, "-paper" if self.paper else "")
 
     @abstractmethod
     def _maintenance(self, position: str, data: Dict, legs: List, value: float, change: float, config: Dict = {}) -> List:

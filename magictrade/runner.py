@@ -252,7 +252,7 @@ def main():
     trade_queue = RedisTradeQueue(queue_name)
     enabled_strategies = []
     for strategy in args.strategies:
-        enabled_strategies.append(strategies[strategy](broker))
+        enabled_strategies.append(strategies[strategy](broker, args.paper))
     logging.info("Magictrade daemon {} starting with queue name '{}'.".format(get_version(), queue_name))
     try:
         import sentry_sdk
