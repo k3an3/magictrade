@@ -79,5 +79,9 @@ def main(args):
     print(f"{trade_count} trades placed.")
 
 
-if __name__ == "__main__":
+def init():
     main(cli(NAME))
+
+
+if __name__ == "__main__":
+    init()
