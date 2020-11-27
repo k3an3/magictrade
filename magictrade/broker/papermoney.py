@@ -22,14 +22,11 @@ class PaperMoneyBroker(Broker):
 
     def __init__(self, balance: int = 1_000_000, data: Dict = {}, account_id: str = None,
                  date: str = None, data_files: List[Tuple[str, str]] = [],
-                 options_data: Dict = [], exp_dates: Dict = {}, username: str = None,
-                 password: str = None, mfa_code: str = None, token_file=None,
-                 robinhood: bool = False, buying_power: float = 0.0, broker: Broker = None,
-                 option_class: Option = RHOption):
+                 options_data: Dict = [], exp_dates: Dict = {},
+                 buying_power: float = 0.0, broker: Broker = None):
         self._balance = balance
         self.stocks = {}
         self.options = {}
-        self.option = option_class
         self.broker = broker
         try:
             self._date = from_date_format(date)
@@ -39,6 +36,7 @@ class PaperMoneyBroker(Broker):
         self.options_data = options_data
         self.exp_dates = exp_dates
         self._buying_power = buying_power
+        self._account_id = account_id
         if not data:
             for df in data_files:
                 data[df[0]] = {'history': {}}
@@ -47,59 +45,66 @@ class PaperMoneyBroker(Broker):
                     for line in f:
                         date, price = line.split(',')
                         d[date] = float(price)
-        if robinhood:
-            self.rb = RobinhoodBroker(username, password, mfa_code, token_file)
-            self._account_id = self.rb.account_id
+        self._broker = broker
+        if self._broker:
+            self.option = self._broker.option
         else:
             self._account_id = account_id or secrets.token_urlsafe(6)
+            self.option = RHOption
 
     @property
     def buying_power(self) -> float:
-        return self._buying_power or self.rb.buying_power
+        if self._broker:
+            return self._broker.buying_power
+        return self._buying_power
 
     def options_positions(self) -> List:
-        if not self.options:
-            try:
-                return self.rb.options_positions()
-            except AttributeError:
-                pass
-        try:
-            return {option['option']: option for option in self.options}
-        except TypeError:
+        if self._broker:
+            return self._broker.options_positions()
+        if isinstance(self.options, dict):
             return self.options
+        else:
+            return {option['option']: option for option in self.options}
 
     def options_positions_data(self, options: List) -> List:
-        if self.options_data:
-            for option in options:
-                for od in self.options_data:
-                    if option['option'] == od['instrument']:
-                        option.data.update(od)
-                        break
-            return options
-        return self.rb.options_positions_data(options)
+        if self._broker:
+            return self._broker.options_positions()
+        for option in options:
+            for od in self.options_data:
+                if option['option'] == od['instrument']:
+                    option.data.update(od)
+                    break
+        return options
 
     def stock_positions(self) -> List:
-        pass
+        if self._broker:
+            return self._broker.stock_positions()
 
     def get_options(self, symbol: str, actually_work: bool = False) -> List:
+        if self._broker:
+            return self._broker.get_options(symbol)
         if actually_work:
             return self.options_data[symbol]
         elif self.options_data:
             return self.options_data
-        return self.rb.get_options(symbol)
 
     def get_options_data(self, options: List) -> List:
+        if self._broker:
+            return self._broker.get_options_data(options)
         if self.options_data:
             return self.options_data
-        return self.rb.get_options_data(options)
 
     def filter_options(self, options: List, exp_dates: List = [], option_type: str = None):
+        if self._broker:
+            return self._broker.filter_options(options, exp_dates, option_type)
         if exp_dates:
             return [option for option in options if option["expiration_date"] == exp_dates[0]]
         elif option_type:
             return [RHOption(o) for o in options if o["type"] == option_type]
 
     def get_value(self) -> float:
+        if self._broker:
+            return self._broker.get_value()
         value = self.balance
         for equity in self.stocks:
             value += self.stocks[equity].value
@@ -107,6 +112,8 @@ class PaperMoneyBroker(Broker):
 
     @property
     def date(self) -> datetime:
+        if self._broker:
+            return self._broker.date
         return self._date or datetime.now()
 
     @date.setter
@@ -118,9 +125,13 @@ class PaperMoneyBroker(Broker):
 
     @property
     def account_id(self) -> str:
+        if self._broker:
+            return self._broker.account_id()
         return self._account_id
 
     def get_quote(self, symbol: str) -> float:
+        if self._broker:
+            return self._broker.get_quote(symbol)
         if self.data:
             if self._date:
                 try:
@@ -147,6 +158,8 @@ class PaperMoneyBroker(Broker):
 
     @property
     def balance(self) -> float:
+        if self._broker:
+            return self._broker.balance
         return self._balance
 
     @staticmethod
@@ -213,6 +226,7 @@ class PaperMoneyBroker(Broker):
     def get_order(self, order: str):
         raise NotImplementedError
 
-    @staticmethod
-    def leg_in_options(leg: Dict, options: Dict) -> bool:
+    def leg_in_options(self, leg: Dict, options: Dict) -> bool:
+        if self._broker:
+            return self._broker.leg_in_options(leg, options)
         return RobinhoodBroker.leg_in_options(leg, options)
