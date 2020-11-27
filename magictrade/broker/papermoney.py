@@ -126,7 +126,7 @@ class PaperMoneyBroker(Broker):
     @property
     def account_id(self) -> str:
         if self._broker:
-            return self._broker.account_id()
+            return self._broker.account_id
         return self._account_id
 
     def get_quote(self, symbol: str) -> float:
