@@ -8,6 +8,7 @@ from time import sleep
 
 from magictrade.datasource.stock import FinnhubDataSource
 from magictrade.strategy.bollinger import BollingerBendStrategy, INDEX
+from magictrade.misc import MultiTradeQueue
 from magictrade.trade_queue import RedisTradeQueue
 from magictrade.utils import get_all_trades, bool_as_str
 
@@ -37,12 +38,14 @@ def main(args):
         print(f"Sleeping for {seconds}s.")
         sleep(seconds)
 
-    tq = RedisTradeQueue(args.trade_queue)
+    queues = [RedisTradeQueue(args.trade_queue)]
+    if args.dup:
+        queues.append(RedisTradeQueue(args.trade_queue + "-test"))
+    tq = MultiTradeQueue(queues, single_return=True)
     positions = set()
     try:
         if args.account_id:
-            positions = set(
-                [t['data']['symbol'] for t in get_all_trades(args.account_id)])
+            positions = {t['data']['symbol'] for t in get_all_trades(args.account_id)}
     except AttributeError:
         pass
 
@@ -106,6 +109,8 @@ def cli():
     parser.add_argument('-q', '--trade-queue', help="Name of the magictrade queue to add trades to.")
     parser.add_argument('-d', '--dry-run', action="store_true", help="Set the dry run flag to check for trade "
                                                                      "signals, but not actually place trades.")
+    parser.add_argument('--dup', action='store_true', help="Duplicate trades to a Redis trade queue with provided "
+                                                           "queue name appended with \"-test\".")
     parser.add_argument('-c', '--trade-count', default=0, type=int,
                         help="Max number of trades to place. 0 for unlimited.")
     parser.add_argument('-n', '--ticker-count', default=0, type=int,
