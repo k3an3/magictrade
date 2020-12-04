@@ -137,17 +137,18 @@ def get_offset_date(broker: Broker, days: int) -> str:
     return (broker.date + timedelta(days=days)).strftime("%Y-%m-%d")
 
 
-def get_all_trades(account_name: str):
-    positions = storage.lrange(account_name + ":positions", 0, -1)
+def get_all_trades(account_name: str, position_storage: None):
+    position_storage = position_storage or storage
+    positions = position_storage.lrange(account_name + ":positions", 0, -1)
     trades = []
     if positions:
         for p in positions:
             try:
-                raw = literal_eval(storage.get("{}:raw:{}".format(account_name, p)))
+                raw = literal_eval(position_storage.get("{}:raw:{}".format(account_name, p)))
             except ValueError:
                 raw = []
             trades.append({'instrument': raw,
-                           'data': storage.hgetall('{}:{}'.format(account_name, p))})
+                           'data': position_storage.hgetall('{}:{}'.format(account_name, p))})
     return trades
 
 
