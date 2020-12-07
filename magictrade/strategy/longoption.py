@@ -1,7 +1,6 @@
 import re
 from typing import List, Dict
 
-from magictrade import Broker
 from magictrade.strategy import TradingStrategy, TradeException, TradeConfigException, filter_option_type, \
     TradeDateException
 from magictrade.strategy.registry import register_strategy
@@ -18,9 +17,6 @@ DATE_REGEX = re.compile(r'^(20[0-9]{2})-(0[1-9]|1[0-2])-([0-2][0-9]|3[01])$')
 @register_strategy
 class LongOptionTradingStrategy(TradingStrategy):
     name = 'longoption'
-
-    def __init__(self, broker: Broker):
-        self.broker = broker
 
     def _maintenance(self) -> List:
         pass

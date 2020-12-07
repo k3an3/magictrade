@@ -10,6 +10,7 @@ from typing import List, Tuple, Dict, Callable
 import pkg_resources
 from math import erf, sqrt, log
 from pytz import timezone
+from redis import StrictRedis
 from requests import HTTPError
 
 from magictrade import storage, Broker
@@ -137,7 +138,13 @@ def get_offset_date(broker: Broker, days: int) -> str:
     return (broker.date + timedelta(days=days)).strftime("%Y-%m-%d")
 
 
-def get_all_trades(account_name: str, position_storage: None):
+def get_all_trades(account_name: str, position_storage: StrictRedis = None):
+    """
+    Given an account name, return all positions that are currently open. Function name seems to be a misnomer.
+    :param account_name: Name of the account to fetch positions for.
+    :param position_storage: If the redis host is not localhost, pass an externally-created Redis instance here.
+    :return: A list of trades in dict format.
+    """
     position_storage = position_storage or storage
     positions = position_storage.lrange(account_name + ":positions", 0, -1)
     trades = []
