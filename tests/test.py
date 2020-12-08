@@ -17,8 +17,8 @@ from magictrade.broker.papermoney import PaperMoneyBroker
 from magictrade.broker.robinhood import RHOption
 from magictrade.broker.td_ameritrade import TDAmeritradeBroker, TDOption
 from magictrade.datasource import DummyDataSource
-from magictrade.misc.run_bollinger import check_signals
 from magictrade.runner import Runner
+from magictrade.scripts.run_bollinger import check_signals
 from magictrade.securities import InvalidOptionError, DummyOption
 from magictrade.strategy import TradeConfigException, TradeDateException, TradeCriteriaException, NoTradeException, \
     TradingStrategy
