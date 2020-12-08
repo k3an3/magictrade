@@ -3,7 +3,7 @@ import datetime
 import random
 
 from magictrade.datasource.stock import FinnhubDataSource
-from magictrade.misc import init_script, cli
+from magictrade.scripts import init_script, cli
 from magictrade.strategy.optionseller import OptionSellerTradingStrategy
 from magictrade.trade_queue import RedisTradeQueue
 from magictrade.utils import get_all_trades

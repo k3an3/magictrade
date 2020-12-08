@@ -25,9 +25,9 @@ setup(
         'console_scripts': [
             'magictrade-daemon=magictrade.runner:main',
             'magictrade-cli=magictrade.cli:cli',
-            'robinhood-authenticator=magictrade.misc.robinhood_authenticator:main',
-            'optionalpha-toolbox=magictrade.misc.optionalpha_toolbox:cli',
-            'run-bollinger=magictrade.misc.run_bollinger:init'
+            'robinhood-authenticator=magictrade.scripts.robinhood_authenticator:main',
+            'optionalpha-toolbox=magictrade.scripts.optionalpha_toolbox:cli',
+            'run-bollinger=magictrade.scripts.run_bollinger:init'
         ]
     }
 )

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 import os
 import random
-from pprint import pprint
-
-import requests
 import shutil
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from datetime import datetime, timedelta
+from pprint import pprint
+
+import requests
 
 try:
     from bs4 import BeautifulSoup

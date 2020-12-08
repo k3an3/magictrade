@@ -8,10 +8,10 @@ import sys
 from time import sleep
 
 from magictrade.datasource.stock import FinnhubDataSource
-from magictrade.misc import init_script, cli
+from magictrade.scripts import init_script, cli
 from magictrade.strategy.optionseller import OptionSellerTradingStrategy
 from magictrade.trade_queue import RedisTradeQueue
-from magictrade.utils import get_all_trades
+from magictrade.utils import get_all_trades, bool_as_str
 
 NAME = "Bollinger Bend"
 TICKERS = ("AAPL", "ABBV", "ADBE", "AMAT", "AMD", "AMGN", "AMZN", "ATVI",
@@ -126,9 +126,9 @@ def main(args):
         print(f"{ticker: <5}: {signal_1=}, {signal_2=}, {signal_3=}")
 
         if signal_1 or signal_2:
-            max_delta, min_delta = OPTIMIZED_DELTA.get(ticker, SIGNAL_1_2_DELTA)
+            min_delta, max_delta = OPTIMIZED_DELTA.get(ticker, SIGNAL_1_2_DELTA)
         elif signal_3:
-            max_delta, min_delta = SIGNAL_3_DELTA
+            min_delta, max_delta = SIGNAL_3_DELTA
 
         if not args.dry_run and (signal_1 or signal_2 or signal_3):
             trade_queue.send_trade({
@@ -138,8 +138,8 @@ def main(args):
                 "strategy": OptionSellerTradingStrategy.name,
                 "spread_width": config['width'],
                 "days_out": sum(config['timeline']) // 2,
-                "sort_reverse": True,
-                "direction": config['put'],
+                "sort_reverse": bool_as_str(True),
+                "direction": config['direction'],
                 "sort_by": "delta",
                 "trade_criteria": {"rr_delta": config['rr_delta']},
                 "leg_criteria": f"{min_delta} < abs(delta) * 100 and abs(delta) * 100 < {max_delta + 0.9}",
@@ -149,7 +149,7 @@ def main(args):
             })
             trade_count += 1
         # API has 60 calls/minute limit
-        sleep(1)
+        sleep(0 if args.ticker_count < 60 else 1)
     print(f"{trade_count} trades placed.")
 
 

@@ -10,7 +10,7 @@ from magictrade import Position
 from magictrade.broker import Broker, InsufficientFundsError, NonexistentAssetError
 from magictrade.broker.registry import register_broker
 from magictrade.broker.robinhood import RobinhoodBroker, RHOption, RHOptionOrder
-from magictrade.securities import InvalidOptionError, Option
+from magictrade.securities import InvalidOptionError
 from magictrade.utils import from_date_format, date_format
 
 API_KEY = "3KODWEPB1ZR37OT7"
@@ -185,7 +185,7 @@ class PaperMoneyBroker(Broker):
                 action = leg['side']
             new_legs.append({
                 'side': action,
-                'option': leg.get('url') or leg.get('instrument'),
+                'option': leg.get('url') or leg.get('instrument', 'none'),
                 'position_effect': effect,
                 'ratio_quantity': '1',
                 'id': str(uuid.uuid4()),

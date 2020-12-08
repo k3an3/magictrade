@@ -73,7 +73,7 @@ class Runner:
             return next_balance_check
 
     def make_trade(self, trade: Dict, identifier: str) -> Dict:
-        if strategy := trade.get('strategy'):
+        if strategy := trade.pop('strategy', None):
             try:
                 strategy = next(s for s in self.strategies if s.name == strategy)
             except StopIteration:
