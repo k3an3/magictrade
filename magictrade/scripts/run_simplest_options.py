@@ -6,7 +6,7 @@ from magictrade.datasource.stock import FinnhubDataSource
 from magictrade.scripts import init_script, cli
 from magictrade.strategy.optionseller import OptionSellerTradingStrategy
 from magictrade.trade_queue import RedisTradeQueue
-from magictrade.utils import get_all_trades
+from magictrade.utils import get_all_trades, bool_as_str
 
 NAME = "SOP Bonds"
 TICKERS = ('TLT', 'TLH', 'IEF', 'IEI', 'IGOV', 'EMB')
@@ -67,7 +67,7 @@ def main(args):
                 "allocation": args.allocation,
                 "strategy": OptionSellerTradingStrategy.name,
                 "spread_width": config['width'],
-                "sort_reverse": True,
+                "sort_reverse": bool_as_str(True),
                 "direction": config['direction'],
                 "sort_by": "delta",
                 "days_out": sum(config['timeline']) // 2,

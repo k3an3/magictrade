@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 from data import quotes, rh_options_1, exp_dates, td_account_json, bad_options_1, \
-    bad_options_2, ULTA_20_close, TSN_20_close, SHOP_20_close, rh_options_close
+    bad_options_2, ULTA_20_close, TSN_20_close, SHOP_20_close, rh_options_close, ma_20_data, quote_data
 
 from magictrade import storage
 from magictrade.broker import InsufficientFundsError, NonexistentAssetError, Broker
@@ -18,7 +18,9 @@ from magictrade.broker.robinhood import RHOption
 from magictrade.broker.td_ameritrade import TDAmeritradeBroker, TDOption
 from magictrade.datasource import DummyDataSource
 from magictrade.runner import Runner
-from magictrade.scripts.run_bollinger import check_signals
+from magictrade.scripts.run_bollinger import check_signals as bb_check_signals
+from magictrade.scripts.run_lin_slope import check_signals as ls_check_signals
+from magictrade.scripts.run_lin_slope import get_n_sma
 from magictrade.securities import InvalidOptionError, DummyOption
 from magictrade.strategy import TradeConfigException, TradeDateException, TradeCriteriaException, NoTradeException, \
     TradingStrategy
@@ -276,7 +278,6 @@ class TestBAHStrategy:
         ts = BuyandHoldStrategy(pmb)
         assert not ts.make_trade('SPY')
         assert not pmb.stocks.get('SPY')
-
 
 
 class TestOAStrategy:
@@ -1383,13 +1384,13 @@ class TestBB:
 
     def test_check_signal_1(self, bbts):
         # TODO: test currently fails, but may be right? odd.
-        assert check_signals(ULTA_20_close) == (True, False, False)
+        assert bb_check_signals(ULTA_20_close) == (True, False, False)
 
     def test_check_signal_2(self, bbts):
-        assert check_signals(TSN_20_close) == (False, True, False)
+        assert bb_check_signals(TSN_20_close) == (False, True, False)
 
     def test_check_signal_3(self, bbts):
-        assert check_signals(SHOP_20_close) == (False, False, True)
+        assert bb_check_signals(SHOP_20_close) == (False, False, True)
 
     def test_calc_risk_reward(self, bbts):
         assert round(TradingStrategy._calc_risk_reward(0.30, 1), 2) == 0.43
@@ -1425,3 +1426,17 @@ class TestNewCore:
         strategy.broker.date = '2019-02-23'
         m = strategy.maintenance()
         assert len(m)
+
+
+class TestLinReg:
+    def test_get_n_sma(self):
+        assert [round(n, 2) for n in get_n_sma(quote_data, len(ma_20_data), 20)] == ma_20_data
+
+    def test_signal(self):
+        assert ls_check_signals(quote_data[-1], quote_data, 5, 20)
+
+    def test_signal_(self):
+        assert ls_check_signals(quote_data[-1], quote_data, 5, 10)
+
+    def test_signal_false(self):
+        assert not ls_check_signals(quote_data[-1], list(reversed(quote_data)), 5, 10)
