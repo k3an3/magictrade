@@ -46,7 +46,8 @@ def main(args):
                               second=0,
                               microsecond=0)
     trade_count = 0
-    for ticker in random.sample(TICKERS, k=args.ticker_count or len(TICKERS)):
+    for ticker in random.sample(TICKERS,
+                                k=min(args.ticker_count, len(TICKERS)) if args.ticker_count else len(TICKERS)):
         if trade_count >= args.trade_count:
             break
         if ticker in positions:
@@ -71,7 +72,7 @@ def main(args):
                 "direction": config['direction'],
                 "sort_by": "delta",
                 "days_out": sum(config['timeline']) // 2,
-                "leg_criteria": f"{min_delta} < abs(delta) and abs(delta) < {max_delta + 0.9}",
+                "leg_criteria": f"{min_delta} < abs(delta) * 100 and abs(delta) * 100< {max_delta + 0.9}",
                 "trade_criteria": {"rr_delta": 1.00 if ticker == 'TLT' else 0.55},
                 "close_criteria": [f"value and -1 * change >= {config.get('target', 50)}"],
             })

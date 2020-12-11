@@ -110,7 +110,7 @@ def main(args):
                 "sort_reverse": bool_as_str(True),
                 "direction": "put",
                 "sort_by": "delta",
-                "leg_criteria": f"{config['delta'][0]} < abs(delta) and abs(delta) < {config['delta'][1] + 0.9}",
+                "leg_criteria": f"{config['delta'][0]} < abs(delta) * 100 and abs(delta) * 100 < {config['delta'][1] + 0.9}",
                 "trade_criteria": {"rr_delta": 1},
                 "close_criteria": [f"value and -1 * change >= {config.get('target', 50)}"],
             })

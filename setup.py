@@ -27,7 +27,9 @@ setup(
             'magictrade-cli=magictrade.cli:cli',
             'robinhood-authenticator=magictrade.scripts.robinhood_authenticator:main',
             'optionalpha-toolbox=magictrade.scripts.optionalpha_toolbox:cli',
-            'run-bollinger=magictrade.scripts.run_bollinger:init'
+            'run-bollinger=magictrade.scripts.run_bollinger:init',
+            'run-lin-slope=magictrade.scripts.run_lin_slope:init',
+            'run-simplest-options=magictrade.scripts.run_simplest_options:init',
         ]
     }
 )

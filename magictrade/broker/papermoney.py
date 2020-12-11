@@ -189,6 +189,7 @@ class PaperMoneyBroker(Broker):
                 'position_effect': effect,
                 'ratio_quantity': '1',
                 'id': str(uuid.uuid4()),
+                'symbol': leg['symbol'],
             })
         return RHOptionOrder({'id': str(uuid.uuid4()), 'legs': new_legs})
 
