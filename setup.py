@@ -2,9 +2,9 @@ from setuptools import setup, find_packages
 
 setup(
     name='magictrade',
-    version='0.1',
+    version='0.2',
     packages=find_packages(),
-    url='',
+    url='https://magicoptions.trade',
     license='',
     author="Keane O'Kelley",
     author_email='keane.m.okelley@gmail.com',
