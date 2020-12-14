@@ -257,8 +257,12 @@ def main():
     try:
         import sentry_sdk
 
-        logging.info("Sentry support enabled")
-        sentry_sdk.init("https://251af7f144544ad893c4cb87dfddf7fa@sentry.io/1458727")
+        if sentry_url := os.environ.get("SENTRY_URL"):
+            logging.info("Sentry support enabled")
+            sentry_sdk.init(
+                sentry_url,
+                traces_sample_rate=1.0
+            )
     except ImportError:
         pass
     logging.info("Authenticated with account " + broker.account_id)
