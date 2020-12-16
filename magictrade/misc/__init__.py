@@ -24,9 +24,13 @@ class MultiTradeQueue(RedisTradeQueue):
     def __getattr__(self, item):
         if item == 'queues':
             return self.queues
+        elif item == "queue_name":
+            return self.queues[0].queue_name
 
         def _method(*args, **kwargs):
             results = []
             for queue in self.queues:
                 results.append(method_from_name(queue, item)(*args, **kwargs))
             return results[0] if self.single_return else results
+
+        return _method

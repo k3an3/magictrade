@@ -32,7 +32,7 @@ cache = Cache()
 class FinnhubDataSource(DataSource):
     @staticmethod
     def get_quote(symbol: str) -> float:
-        r = requests.get(FINNHUB_URL + 'quote', params={'symbol': symbol})
+        r = requests.get(FINNHUB_URL + 'quote', params={'symbol': symbol, 'token': FINNHUB_TOKEN})
         return float(r.json()['c'])
 
     @staticmethod
