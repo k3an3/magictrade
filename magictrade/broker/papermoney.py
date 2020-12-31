@@ -192,7 +192,10 @@ class PaperMoneyBroker(Broker):
                 'symbol': leg.get('symbol', ''),
             })
         transaction_id = str(uuid.uuid4())
-        self.options[transaction_id] = new_legs
+        if isinstance(self.options, dict):
+            self.options[transaction_id] = new_legs
+        else:
+            self.options.append(new_legs)
         return RHOptionOrder({'id': transaction_id, 'legs': new_legs})
 
     def buy(self, symbol: str, quantity: int) -> Tuple[str, Position]:
@@ -231,10 +234,13 @@ class PaperMoneyBroker(Broker):
 
     def leg_in_options(self, leg: Dict, options: Dict) -> bool:
         if self.options:
-            for option in self.options.values():
-                for option_leg in option:
-                    if option_leg['symbol'] == leg['symbol']:
-                        return True
+            try:
+                for option in self.options.values():
+                    for option_leg in option:
+                        if option_leg['symbol'] == leg['symbol']:
+                            return True
+            except (AttributeError, TypeError):
+                pass
         if self._broker:
             return self._broker.leg_in_options(leg, options)
         return RobinhoodBroker.leg_in_options(leg, options)
