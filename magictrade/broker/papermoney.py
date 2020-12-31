@@ -195,7 +195,7 @@ class PaperMoneyBroker(Broker):
         if isinstance(self.options, dict):
             self.options[transaction_id] = new_legs
         else:
-            self.options.append(new_legs)
+            self.options.append(new_legs) # pylint: disable=no-member
         return RHOptionOrder({'id': transaction_id, 'legs': new_legs})
 
     def buy(self, symbol: str, quantity: int) -> Tuple[str, Position]:
