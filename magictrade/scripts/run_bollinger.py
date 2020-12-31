@@ -105,7 +105,8 @@ def main(args):
                               hour=16,
                               minute=0,
                               second=0,
-                              microsecond=0)
+                              microsecond=0,
+                              tzinfo=now.tzinfo)
     trade_count = 0
     for ticker in random.sample(TICKERS, k=args.ticker_count or len(TICKERS)):
         if trade_count >= args.trade_count:
@@ -116,7 +117,14 @@ def main(args):
 
         # Calculations
         historic_closes = FinnhubDataSource.get_historic_close(ticker, 35)
-        historic_closes[-1] = FinnhubDataSource.get_quote(ticker)  # ensure latest data is used
+        while True:
+            try:
+                historic_closes[-1] = FinnhubDataSource.get_quote(ticker)  # ensure latest data is used
+            except KeyError:
+                # Handle API rate limiting
+                sleep(60)
+            else:
+                break
 
         if not historic_closes:
             print(f"No ticker history for {ticker}; skipping...")
