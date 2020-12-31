@@ -8,7 +8,7 @@ import sys
 from time import sleep
 
 from magictrade.datasource.stock import FinnhubDataSource
-from magictrade.scripts import init_script, cli
+from magictrade.scripts import init_script, cli, get_parser
 from magictrade.strategy.optionseller import OptionSellerTradingStrategy
 from magictrade.trade_queue import RedisTradeQueue
 from magictrade.utils import get_all_trades, bool_as_str
@@ -105,10 +105,10 @@ def main(args):
                               hour=16,
                               minute=0,
                               second=0,
-                              microsecond=0,
-                              tzinfo=now.tzinfo)
+                              microsecond=0)
     trade_count = 0
-    for ticker in random.sample(TICKERS, k=args.ticker_count or len(TICKERS)):
+    tickers = args.symbols or TICKERS
+    for ticker in random.sample(tickers, k=min(args.ticker_count, len(tickers))):
         if trade_count >= args.trade_count:
             break
         if ticker in positions:
@@ -162,7 +162,9 @@ def main(args):
 
 
 def init():
-    main(cli(NAME))
+    parser = get_parser(NAME)
+    parser.add_argument('-s', '--symbols', nargs="*", help="One or more tickers to check for making a trade.")
+    main(cli(NAME, parser))
 
 
 if __name__ == "__main__":

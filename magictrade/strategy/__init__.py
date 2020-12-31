@@ -237,13 +237,15 @@ class TradingStrategy(ABC):
                 data['close_criteria'] = json.loads(data['close_criteria'])
             except KeyError:
                 pass
-            # Temporary fix: the trade might not have filled yet
-            try:
-                time_placed = datetime.fromtimestamp(float(data['time']))
-            except (KeyError, ValueError):
-                time_placed = datetime.fromtimestamp(0)
-            if time_placed.date() == datetime.today().date():
-                continue
+
+            if not self.paper:
+                # Temporary fix: the trade might not have filled yet
+                try:
+                    time_placed = datetime.fromtimestamp(float(data['time']))
+                except (KeyError, ValueError):
+                    time_placed = datetime.fromtimestamp(0)
+                if time_placed.date() == datetime.today().date():
+                    continue
             leg_ids = storage.lrange("{}:{}:legs".format(self.get_name(), position), 0, -1)
             legs = []
             for leg in leg_ids:

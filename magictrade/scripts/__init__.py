@@ -46,8 +46,9 @@ def get_parser(name: str) -> ArgumentParser:
     return parser
 
 
-def cli(name):
-    parser = get_parser(name)
+def cli(name, parser: ArgumentParser = None):
+    if not parser:
+        parser = get_parser(name)
     args = parser.parse_args()
     if not (args.dry_run or args.trade_queue):
         print("Error: Either --trade-queue or --dry-run are required.")

@@ -68,7 +68,7 @@ class PaperMoneyBroker(Broker):
 
     def options_positions_data(self, options: List) -> List:
         if self._broker:
-            return self._broker.options_positions()
+            return self._broker.options_positions_data(options)
         for option in options:
             for od in self.options_data:
                 if option['option'] == od['instrument']:
@@ -191,7 +191,9 @@ class PaperMoneyBroker(Broker):
                 'id': str(uuid.uuid4()),
                 'symbol': leg.get('symbol', ''),
             })
-        return RHOptionOrder({'id': str(uuid.uuid4()), 'legs': new_legs})
+        transaction_id = str(uuid.uuid4())
+        self.options[transaction_id] = new_legs
+        return RHOptionOrder({'id': transaction_id, 'legs': new_legs})
 
     def buy(self, symbol: str, quantity: int) -> Tuple[str, Position]:
         debit = self.get_quote(symbol) * quantity
@@ -228,6 +230,11 @@ class PaperMoneyBroker(Broker):
         raise NotImplementedError
 
     def leg_in_options(self, leg: Dict, options: Dict) -> bool:
+        if self.options:
+            for option in self.options.values():
+                for option_leg in option:
+                    if option_leg['symbol'] == leg['symbol']:
+                        return True
         if self._broker:
             return self._broker.leg_in_options(leg, options)
         return RobinhoodBroker.leg_in_options(leg, options)
